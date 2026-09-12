@@ -1,0 +1,101 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "1b7ac4a8596ba04ce538cc246e1bd4ae",
+    "entities": [
+      {
+        "tableName": "search_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`environmentId` TEXT NOT NULL, `marketId` TEXT NOT NULL, `normalizedQuery` TEXT NOT NULL, `displayQuery` TEXT NOT NULL, `searchedAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`environmentId`, `marketId`, `normalizedQuery`))",
+        "fields": [
+          {
+            "fieldPath": "environmentId",
+            "columnName": "environmentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketId",
+            "columnName": "marketId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedQuery",
+            "columnName": "normalizedQuery",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayQuery",
+            "columnName": "displayQuery",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "searchedAtEpochMillis",
+            "columnName": "searchedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "environmentId",
+            "marketId",
+            "normalizedQuery"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_search_history_environmentId_marketId_searchedAtEpochMillis",
+            "unique": false,
+            "columnNames": [
+              "environmentId",
+              "marketId",
+              "searchedAtEpochMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_search_history_environmentId_marketId_searchedAtEpochMillis` ON `${TABLE_NAME}` (`environmentId`, `marketId`, `searchedAtEpochMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "search_history_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`environmentId` TEXT NOT NULL, `marketId` TEXT NOT NULL, `enabled` INTEGER NOT NULL, PRIMARY KEY(`environmentId`, `marketId`))",
+        "fields": [
+          {
+            "fieldPath": "environmentId",
+            "columnName": "environmentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marketId",
+            "columnName": "marketId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "environmentId",
+            "marketId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1b7ac4a8596ba04ce538cc246e1bd4ae')"
+    ]
+  }
+}

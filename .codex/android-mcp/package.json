@@ -1,0 +1,9 @@
+{
+  "name": "multi-brand-commerce-android-mcp-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned, optional project-local Android MCP runtime for device and emulator testing.",
+  "dependencies": {
+    "@us-all/android-mcp": "1.14.4"
+  }
+}

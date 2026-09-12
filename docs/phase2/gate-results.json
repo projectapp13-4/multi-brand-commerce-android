@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "gurbakir.phase2-gates.v1",
+  "asOf": "2026-08-06",
+  "overallStatus": "PASS",
+  "statusVocabulary": [
+    "PASS",
+    "PARTIAL",
+    "EXTERNALLY BLOCKED",
+    "NOT STARTED"
+  ],
+  "environmentClassification": {
+    "shopify": "owner-designated non-production test environment; paid plan is not an environment classifier",
+    "firebase": "owner-provided development project plus isolated no-cost staging project; production is intentionally absent"
+  },
+  "gates": [
+    {
+      "id": 1,
+      "name": "Phase 1 integrity and SDK correction",
+      "status": "PASS",
+      "evidence": [
+        "docs/preparation/evidence/pre-scaffold-validation-v3-2026-07-19.json",
+        "docs/decisions/ADR-0003-ANDROID-SDK-BASELINE.md",
+        "scripts/Test-Preparation.ps1"
+      ],
+      "proven": "Preparation integrity and the API 36/JDK 17 baseline.",
+      "unproven": null,
+      "prerequisite": null
+    },
+    {
+      "id": 2,
+      "name": "Reproducible native Android scaffold",
+      "status": "PASS",
+      "evidence": [
+        "settings.gradle.kts",
+        "gradle/libs.versions.toml",
+        "gradle/verification-metadata.xml",
+        ".github/workflows/android-foundation.yml",
+        "app/src/androidTest/kotlin/com/gurbakir/mobile/FoundationScreenTest.kt",
+        "docs/phase2/DEVICE-TEST-EVIDENCE.md",
+        "docs/phase2/BUILD-AND-BOOTSTRAP.md"
+      ],
+      "proven": "Pinned modular native scaffold, variants, local quality lanes, app/test APKs, and 27 current physical connected tests.",
+      "unproven": "The historical AVD does not boot; no required claim relies on it.",
+      "prerequisite": null
+    },
+    {
+      "id": 3,
+      "name": "Configuration, brand, environment, security, observability",
+      "status": "PASS",
+      "evidence": [
+        "foundation/src/main/kotlin/com/gurbakir/foundation/config/AppConfiguration.kt",
+        "foundation/src/main/kotlin/com/gurbakir/foundation/config/BrandConfiguration.kt",
+        "app/src/main/kotlin/com/gurbakir/mobile/brand/GurbakirBrand.kt",
+        "app/src/main/AndroidManifest.xml",
+        "docs/phase2/CONFIGURATION-AND-SECRETS.md",
+        "docs/phase2/THREAT-MODEL.md"
+      ],
+      "proven": "Fail-closed typed environment/brand configuration, localization, redaction, Keystore, URI, consent, and disabled telemetry boundaries.",
+      "unproven": "Production identity/signing/assets/legal links and final consent policy are later product/release decisions.",
+      "prerequisite": null
+    },
+    {
+      "id": 4,
+      "name": "Typed Shopify Storefront and Apollo proof",
+      "status": "PASS",
+      "evidence": [
+        "storefront/src/main/kotlin/com/gurbakir/storefront/ApolloStorefrontGateway.kt",
+        "storefront/src/main/kotlin/com/gurbakir/storefront/CartCoordinator.kt",
+        "storefront/src/main/kotlin/com/gurbakir/storefront/AndroidKeystoreCartSessionStore.kt",
+        "storefront/src/androidTest/kotlin/com/gurbakir/storefront/AndroidKeystoreCartSessionStoreTest.kt",
+        "docs/phase2/STOREFRONT-INTEGRATION-PROOF.md"
+      ],
+      "proven": "Current typed operations, owned cart lifecycle, physical Keystore restore/failure, cleanup, and checkout URL handoff.",
+      "unproven": "Full product cart UX is Phase 3.",
+      "prerequisite": null
+    },
+    {
+      "id": 5,
+      "name": "Customer Account OAuth 2.0 and PKCE proof",
+      "status": "PASS",
+      "evidence": [
+        "account/src/main/kotlin/com/gurbakir/account/oauth/CustomerAccountAuthorization.kt",
+        "account/src/main/kotlin/com/gurbakir/account/oauth/CustomerAccountTokenClient.kt",
+        "account/src/main/kotlin/com/gurbakir/account/session/AndroidKeystoreCustomerSessionStore.kt",
+        "account/src/main/kotlin/com/gurbakir/account/CustomerAccountGateway.kt",
+        "account/src/androidTest/kotlin/com/gurbakir/account/session/AndroidKeystoreCustomerSessionStoreTest.kt",
+        "docs/phase2/CUSTOMER-ACCOUNT-OAUTH-PROOF.md",
+        "docs/phase2/DEVICE-TEST-EVIDENCE.md"
+      ],
+      "proven": "Owned Public Mobile configuration, physical system-browser callback/PKCE, exact exchange/refresh, typed identity, Keystore restore, and logout.",
+      "unproven": "Production callback/signing and full product account UX are outside Phase 2.",
+      "prerequisite": null
+    },
+    {
+      "id": 6,
+      "name": "Cart to official Checkout Kit proof",
+      "status": "PASS",
+      "evidence": [
+        "checkout/src/main/kotlin/com/gurbakir/checkout/OfficialCheckoutKitClient.kt",
+        "app/src/main/kotlin/com/gurbakir/mobile/CommerceProofController.kt",
+        "docs/phase2/CHECKOUT-KIT-PROOF.md",
+        "docs/phase2/DEVICE-TEST-EVIDENCE.md"
+      ],
+      "proven": "Physical preload/render/cancel/complete/restore, Bogus approval and decline with no false completion, cart cleanup/retention, and read-only Admin test-order reconciliation.",
+      "unproven": "Full product checkout UX, exhaustive offsite providers, and production payments are outside this foundation gate.",
+      "prerequisite": null
+    },
+    {
+      "id": 7,
+      "name": "Project-owned Firebase development and staging proof",
+      "status": "PASS",
+      "evidence": [
+        "app/build.gradle.kts",
+        "app/src/main/AndroidManifest.xml",
+        "app/src/main/kotlin/com/gurbakir/mobile/GurbakirFirebaseMessagingService.kt",
+        "firebase/src/main/kotlin/com/gurbakir/firebase/FirebaseContracts.kt",
+        "firebase/src/test/kotlin/com/gurbakir/firebase/FirebaseRemoteFeatureFlagsTest.kt",
+        "scripts/Test-FirebaseConfiguration.ps1",
+        "docs/phase2/FIREBASE-PROOF.md"
+      ],
+      "proven": "Two isolated projects/four apps, variant consumption, physical dev/staging initialization with auto-init disabled, explicit permission and Installation ID registration, one controlled synthetic delivery, allowlisted tap navigation, Remote Config fetch/activate, unregister and temporary-target cleanup, current connected suites, and absent Analytics/Crashlytics SDKs.",
+      "unproven": "Production Firebase, production push, notification campaigns, Analytics/Crashlytics, billing, backend, and data products are intentionally outside the Phase 2 foundation.",
+      "prerequisite": null
+    },
+    {
+      "id": 8,
+      "name": "Product acceptance pack for 24 candidate groups",
+      "status": "PASS",
+      "evidence": [
+        "docs/phase2/CANDIDATE-FEATURE-ACCEPTANCE-PACK.md",
+        "docs/phase2/candidate-feature-acceptance-pack.csv"
+      ],
+      "proven": "All 24 candidates have product/security/state/test recommendations and explicit unknowns.",
+      "unproven": "PASS covers the decision pack, not feature implementation.",
+      "prerequisite": null
+    }
+  ]
+}

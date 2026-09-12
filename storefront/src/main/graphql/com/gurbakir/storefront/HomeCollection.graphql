@@ -1,0 +1,17 @@
+query HomeCollection($handle: String!) {
+  collection(handle: $handle) {
+    id
+    handle
+    title
+    image {
+      ...HomeImageFields
+    }
+    products(first: 1, sortKey: COLLECTION_DEFAULT) {
+      nodes {
+        featuredImage {
+          ...HomeImageFields
+        }
+      }
+    }
+  }
+}

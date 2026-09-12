@@ -1,0 +1,6 @@
+fragment HomeImageFields on Image {
+  url
+  altText
+  width
+  height
+}

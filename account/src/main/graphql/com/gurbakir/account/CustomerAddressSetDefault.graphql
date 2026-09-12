@@ -1,0 +1,11 @@
+mutation CustomerAddressSetDefault($addressId: ID!) {
+  customerAddressUpdate(addressId: $addressId, defaultAddress: true) {
+    customerAddress {
+      id
+    }
+    userErrors {
+      code
+      field
+    }
+  }
+}

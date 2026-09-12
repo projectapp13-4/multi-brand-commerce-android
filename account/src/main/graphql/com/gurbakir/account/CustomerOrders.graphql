@@ -1,0 +1,21 @@
+query CustomerOrders($first: Int!, $after: String) {
+  customer {
+    orders(first: $first, after: $after, reverse: true, sortKey: PROCESSED_AT) {
+      nodes {
+        id
+        name
+        processedAt
+        financialStatus
+        fulfillmentStatus
+        totalPrice {
+          amount
+          currencyCode
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

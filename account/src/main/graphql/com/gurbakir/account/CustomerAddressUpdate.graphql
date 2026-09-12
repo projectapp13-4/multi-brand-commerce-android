@@ -1,0 +1,11 @@
+mutation CustomerAddressUpdate($address: CustomerAddressInput!, $addressId: ID!) {
+  customerAddressUpdate(address: $address, addressId: $addressId) {
+    customerAddress {
+      id
+    }
+    userErrors {
+      code
+      field
+    }
+  }
+}

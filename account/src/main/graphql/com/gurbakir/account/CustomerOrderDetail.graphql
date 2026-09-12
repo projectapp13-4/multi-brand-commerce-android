@@ -1,0 +1,84 @@
+query CustomerOrderDetail($id: ID!, $connectionLimit: Int!) {
+  order(id: $id) {
+    id
+    name
+    processedAt
+    cancelledAt
+    financialStatus
+    fulfillmentStatus
+    subtotal {
+      amount
+      currencyCode
+    }
+    totalPrice {
+      amount
+      currencyCode
+    }
+    totalRefunded {
+      amount
+      currencyCode
+    }
+    totalShipping {
+      amount
+      currencyCode
+    }
+    totalTax {
+      amount
+      currencyCode
+    }
+    shippingAddress {
+      formatted(withName: true, withCompany: true)
+    }
+    lineItems(first: $connectionLimit) {
+      nodes {
+        id
+        name
+        variantTitle
+        quantity
+        totalPrice {
+          amount
+          currencyCode
+        }
+      }
+      pageInfo {
+        hasNextPage
+      }
+    }
+    fulfillments(first: $connectionLimit, sortKey: CREATED_AT) {
+      nodes {
+        id
+        createdAt
+        estimatedDeliveryAt
+        latestShipmentStatus
+        status
+        trackingInformation {
+          company
+          number
+          url
+        }
+        fulfillmentLineItems(first: $connectionLimit) {
+          nodes {
+            id
+            quantity
+            lineItem {
+              id
+              name
+              variantTitle
+              quantity
+              totalPrice {
+                amount
+                currencyCode
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+      }
+    }
+  }
+}

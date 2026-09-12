@@ -1,0 +1,8 @@
+query ShopSummary {
+  shop {
+    name
+    primaryDomain {
+      host
+    }
+  }
+}

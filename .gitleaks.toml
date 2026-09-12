@@ -1,0 +1,19 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated build and local cache directories"
+paths = [
+  '''(^|[\\/])\.gradle([\\/]|$)''',
+  '''(^|[\\/])\.kotlin([\\/]|$)''',
+  '''(^|[\\/])build([\\/]|$)'''
+]
+
+[[allowlists]]
+description = "Ignored Firebase Android public-client files validated by Test-FirebaseConfiguration.ps1"
+paths = [
+  '''(^|[\\/])app[\\/]src[\\/]developmentDebug[\\/]google-services\.json$''',
+  '''(^|[\\/])app[\\/]src[\\/]developmentRelease[\\/]google-services\.json$''',
+  '''(^|[\\/])app[\\/]src[\\/]stagingDebug[\\/]google-services\.json$''',
+  '''(^|[\\/])app[\\/]src[\\/]stagingRelease[\\/]google-services\.json$'''
+]

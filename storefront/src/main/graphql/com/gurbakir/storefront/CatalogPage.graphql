@@ -1,0 +1,23 @@
+query CatalogPage($first: Int!, $after: String) {
+  products(first: $first, after: $after) {
+    nodes {
+      id
+      handle
+      title
+      featuredImage {
+        url
+      }
+      variants(first: 50) {
+        nodes {
+          id
+          title
+          availableForSale
+        }
+      }
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+  }
+}

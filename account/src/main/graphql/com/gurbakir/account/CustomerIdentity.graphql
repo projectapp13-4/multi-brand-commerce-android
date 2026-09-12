@@ -1,0 +1,6 @@
+query CustomerIdentity {
+  customer {
+    id
+    displayName
+  }
+}

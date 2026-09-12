@@ -1,0 +1,40 @@
+fragment CartLineFields on BaseCartLine {
+  id
+  quantity
+  ... on CartLine {
+    instructions {
+      canRemove
+      canUpdateQuantity
+    }
+  }
+  cost {
+    amountPerQuantity {
+      amount
+      currencyCode
+    }
+    totalAmount {
+      amount
+      currencyCode
+    }
+  }
+  merchandise {
+    ... on ProductVariant {
+      id
+      title
+      availableForSale
+      currentlyNotInStock
+      quantityRule {
+        minimum
+        maximum
+        increment
+      }
+      image {
+        ...HomeImageFields
+      }
+      product {
+        id
+        title
+      }
+    }
+  }
+}

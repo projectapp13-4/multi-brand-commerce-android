@@ -1,0 +1,14 @@
+mutation CartCreate($input: CartInput!) {
+  cartCreate(input: $input) {
+    cart {
+      ...CartSnapshotFields
+    }
+    userErrors {
+      code
+      field
+    }
+    warnings {
+      code
+    }
+  }
+}

@@ -1,0 +1,16 @@
+# Copy to config/local.properties. Never commit the copied file.
+# Values must belong to the verified Gurbakir non-production environment.
+environment.displayName=Gurbakir Development
+shopify.storefrontDomain=
+shopify.storefrontApiVersion=2026-07
+shopify.storefrontPublicToken=
+# Set only in ignored local configuration after the selected Menu projection is reviewed.
+shopify.catalogMenuHandle=
+shopify.customerAccountClientId=
+shopify.customerAccountIssuer=
+shopify.customerAccountAuthorizationEndpoint=
+shopify.customerAccountTokenEndpoint=
+shopify.customerAccountLogoutEndpoint=
+shopify.customerAccountGraphqlEndpoint=
+shopify.customerAccountRedirectUri=
+shopify.customerAccountScopes=openid email customer-account-api:full

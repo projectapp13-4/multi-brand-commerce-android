@@ -1,0 +1,29 @@
+fragment CartSnapshotFields on Cart {
+  id
+  checkoutUrl
+  totalQuantity
+  buyerIdentity {
+    customer {
+      id
+    }
+  }
+  cost {
+    subtotalAmount {
+      amount
+      currencyCode
+    }
+    totalAmount {
+      amount
+      currencyCode
+    }
+  }
+  lines(first: 250) {
+    nodes {
+      ...CartLineFields
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+  }
+}

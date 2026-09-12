@@ -1,0 +1,277 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+# Minimal versioned contract slice for authenticated identity, profile, addresses, and orders.
+# Authority: Shopify Customer Account API 2026-07 references.
+type Query {
+  customer: Customer!
+  order(id: ID!): Order
+}
+
+type Mutation {
+  customerUpdate(input: CustomerUpdateInput!): CustomerUpdatePayload
+}
+
+type Customer {
+  id: ID!
+  displayName: String!
+  firstName: String
+  lastName: String
+  defaultAddress: CustomerAddress
+  addresses(first: Int, after: String): CustomerAddressConnection!
+  orders(
+    first: Int
+    after: String
+    reverse: Boolean
+    sortKey: OrderSortKeys
+  ): OrderConnection!
+}
+
+input CustomerUpdateInput {
+  firstName: String
+  lastName: String
+}
+
+type CustomerUpdatePayload {
+  customer: Customer
+  userErrors: [UserErrorsCustomerUserErrors!]!
+}
+
+type UserErrorsCustomerUserErrors {
+  field: [String!]
+}
+
+type CustomerAddressConnection {
+  nodes: [CustomerAddress!]!
+  pageInfo: PageInfo!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+type CustomerAddress {
+  id: ID!
+  firstName: String
+  lastName: String
+  company: String
+  address1: String
+  address2: String
+  city: String
+  zip: String
+  phoneNumber: String
+  territoryCode: CountryCode
+  zoneCode: String
+  formatted(withName: Boolean = false, withCompany: Boolean = true): [String!]!
+}
+
+enum CountryCode {
+  TR
+}
+
+input CustomerAddressInput {
+  firstName: String
+  lastName: String
+  company: String
+  address1: String
+  address2: String
+  city: String
+  zip: String
+  phoneNumber: String
+  territoryCode: String
+  zoneCode: String
+}
+
+extend type Mutation {
+  customerAddressCreate(
+    address: CustomerAddressInput!
+    defaultAddress: Boolean
+  ): CustomerAddressCreatePayload
+  customerAddressUpdate(
+    address: CustomerAddressInput
+    addressId: ID!
+    defaultAddress: Boolean
+  ): CustomerAddressUpdatePayload
+  customerAddressDelete(addressId: ID!): CustomerAddressDeletePayload
+}
+
+type CustomerAddressCreatePayload {
+  customerAddress: CustomerAddress
+  userErrors: [UserErrorsCustomerAddressUserErrors!]!
+}
+
+type CustomerAddressUpdatePayload {
+  customerAddress: CustomerAddress
+  userErrors: [UserErrorsCustomerAddressUserErrors!]!
+}
+
+type CustomerAddressDeletePayload {
+  deletedAddressId: ID
+  userErrors: [UserErrorsCustomerAddressUserErrors!]!
+}
+
+type UserErrorsCustomerAddressUserErrors {
+  code: UserErrorsCustomerAddressUserErrorsCode
+  field: [String!]
+}
+
+enum UserErrorsCustomerAddressUserErrorsCode {
+  ADDRESS_ARGUMENT_EMPTY
+  ADDRESS_ID_DOES_NOT_EXIST
+  ADDRESS1_MISSING
+  CONTAINS_HTML_TAGS
+  COUNTRY_NOT_EXIST
+  CUSTOMER_ADDRESS_ALREADY_EXISTS
+  DELETING_CUSTOMER_DEFAULT_ADDRESS_NOT_ALLOWED
+  DEMOTING_CUSTOMER_DEFAULT_ADDRESS_NOT_ALLOWED
+  INVALID
+  INVALID_FOR_COUNTRY
+  INVALID_FOR_COUNTRY_AND_PROVINCE
+  INVALID_TERRITORY_CODE
+  PHONE_NUMBER_NOT_VALID
+  REQUIRED
+  TERRITORY_CODE_MISSING
+  TOO_LONG
+  ZONE_CODE_MISSING
+}
+
+scalar CurrencyCode
+scalar DateTime
+scalar Decimal
+scalar URL
+
+type MoneyV2 {
+  amount: Decimal!
+  currencyCode: CurrencyCode!
+}
+
+type OrderConnection {
+  nodes: [Order!]!
+  pageInfo: PageInfo!
+}
+
+type Order {
+  id: ID!
+  name: String!
+  processedAt: DateTime!
+  cancelledAt: DateTime
+  financialStatus: OrderFinancialStatus
+  fulfillmentStatus: OrderFulfillmentStatus!
+  subtotal: MoneyV2
+  totalPrice: MoneyV2!
+  totalRefunded: MoneyV2!
+  totalShipping: MoneyV2!
+  totalTax: MoneyV2
+  shippingAddress: CustomerAddress
+  lineItems(first: Int): LineItemConnection!
+  fulfillments(first: Int, sortKey: FulfillmentSortKeys): FulfillmentConnection!
+}
+
+type LineItemConnection {
+  nodes: [LineItem!]!
+  pageInfo: PageInfo!
+}
+
+type LineItem {
+  id: ID!
+  name: String!
+  variantTitle: String
+  quantity: Int!
+  totalPrice: MoneyV2
+}
+
+type FulfillmentConnection {
+  nodes: [Fulfillment!]!
+  pageInfo: PageInfo!
+}
+
+type Fulfillment {
+  id: ID!
+  createdAt: DateTime!
+  estimatedDeliveryAt: DateTime
+  latestShipmentStatus: FulfillmentEventStatus
+  status: FulfillmentStatus
+  trackingInformation: [TrackingInformation!]!
+  fulfillmentLineItems(first: Int): FulfillmentLineItemConnection!
+}
+
+type FulfillmentLineItemConnection {
+  nodes: [FulfillmentLineItem!]!
+  pageInfo: PageInfo!
+}
+
+type FulfillmentLineItem {
+  id: ID!
+  lineItem: LineItem!
+  quantity: Int
+}
+
+type TrackingInformation {
+  company: String
+  number: String
+  url: URL
+}
+
+enum OrderSortKeys {
+  CREATED_AT
+  ID
+  ORDER_NUMBER
+  PROCESSED_AT
+  TOTAL_PRICE
+  UPDATED_AT
+}
+
+enum FulfillmentSortKeys {
+  CREATED_AT
+  ID
+}
+
+enum OrderFinancialStatus {
+  AUTHORIZED
+  EXPIRED
+  PAID
+  PARTIALLY_PAID
+  PARTIALLY_REFUNDED
+  PENDING
+  REFUNDED
+  VOIDED
+}
+
+enum OrderFulfillmentStatus {
+  FULFILLED
+  IN_PROGRESS
+  ON_HOLD
+  OPEN
+  PARTIALLY_FULFILLED
+  PENDING_FULFILLMENT
+  RESTOCKED
+  SCHEDULED
+  UNFULFILLED
+}
+
+enum FulfillmentStatus {
+  CANCELLED
+  ERROR
+  FAILURE
+  SUCCESS
+  OPEN
+  PENDING
+}
+
+enum FulfillmentEventStatus {
+  ATTEMPTED_DELIVERY
+  CARRIER_PICKED_UP
+  CONFIRMED
+  DELAYED
+  DELIVERED
+  FAILURE
+  IN_TRANSIT
+  LABEL_PRINTED
+  LABEL_PURCHASED
+  OUT_FOR_DELIVERY
+  PICKED_UP
+  READY_FOR_PICKUP
+}

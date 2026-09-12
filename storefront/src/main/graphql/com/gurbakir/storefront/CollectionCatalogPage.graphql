@@ -1,0 +1,55 @@
+query CollectionCatalogPage(
+  $handle: String!
+  $first: Int!
+  $after: String
+  $sortKey: ProductCollectionSortKeys!
+  $reverse: Boolean!
+  $filters: [ProductFilter!]
+) {
+  collection(handle: $handle) {
+    id
+    handle
+    title
+    products(
+      first: $first
+      after: $after
+      sortKey: $sortKey
+      reverse: $reverse
+      filters: $filters
+    ) {
+      nodes {
+        id
+        handle
+        title
+        availableForSale
+        featuredImage {
+          ...HomeImageFields
+        }
+        priceRange {
+          minVariantPrice {
+            amount
+            currencyCode
+          }
+          maxVariantPrice {
+            amount
+            currencyCode
+          }
+        }
+      }
+      filters {
+        id
+        label
+        type
+        values {
+          id
+          label
+          count
+        }
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

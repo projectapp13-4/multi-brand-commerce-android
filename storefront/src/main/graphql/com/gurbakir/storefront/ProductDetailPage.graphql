@@ -1,0 +1,68 @@
+query ProductDetailPage(
+  $id: ID!
+  $variantFirst: Int!
+  $variantAfter: String
+  $mediaFirst: Int!
+  $mediaAfter: String
+) {
+  product(id: $id) {
+    id
+    handle
+    title
+    description
+    availableForSale
+    options {
+      id
+      name
+      optionValues {
+        id
+        name
+      }
+    }
+    variantsCount {
+      count
+    }
+    variants(first: $variantFirst, after: $variantAfter) {
+      nodes {
+        id
+        title
+        availableForSale
+        currentlyNotInStock
+        price {
+          amount
+          currencyCode
+        }
+        compareAtPrice {
+          amount
+          currencyCode
+        }
+        image {
+          ...HomeImageFields
+        }
+        selectedOptions {
+          name
+          value
+        }
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+    media(first: $mediaFirst, after: $mediaAfter) {
+      nodes {
+        __typename
+        ... on MediaImage {
+          id
+          image {
+            ...HomeImageFields
+          }
+        }
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

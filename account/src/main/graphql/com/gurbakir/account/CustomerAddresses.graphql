@@ -1,0 +1,27 @@
+query CustomerAddresses($first: Int!, $after: String) {
+  customer {
+    defaultAddress {
+      id
+    }
+    addresses(first: $first, after: $after) {
+      nodes {
+        id
+        firstName
+        lastName
+        company
+        address1
+        address2
+        city
+        zip
+        phoneNumber
+        territoryCode
+        zoneCode
+        formatted(withName: true, withCompany: true)
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

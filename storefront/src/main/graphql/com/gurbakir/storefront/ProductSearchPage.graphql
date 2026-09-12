@@ -1,0 +1,37 @@
+query ProductSearchPage($query: String!, $first: Int!, $after: String) {
+  search(
+    query: $query
+    first: $first
+    after: $after
+    types: [PRODUCT]
+    unavailableProducts: SHOW
+    prefix: LAST
+  ) {
+    nodes {
+      ... on Product {
+        id
+        handle
+        title
+        availableForSale
+        featuredImage {
+          ...HomeImageFields
+        }
+        priceRange {
+          minVariantPrice {
+            amount
+            currencyCode
+          }
+          maxVariantPrice {
+            amount
+            currencyCode
+          }
+        }
+      }
+    }
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    totalCount
+  }
+}

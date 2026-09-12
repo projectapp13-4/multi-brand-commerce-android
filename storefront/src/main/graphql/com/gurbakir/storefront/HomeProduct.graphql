@@ -1,0 +1,17 @@
+query HomeProduct($handle: String!) {
+  product(handle: $handle) {
+    id
+    handle
+    title
+    availableForSale
+    featuredImage {
+      ...HomeImageFields
+    }
+    priceRange {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+    }
+  }
+}

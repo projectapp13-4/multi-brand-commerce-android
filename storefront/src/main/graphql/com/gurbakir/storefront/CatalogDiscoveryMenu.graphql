@@ -1,0 +1,55 @@
+query CatalogDiscoveryMenu($handle: String!) {
+  menu(handle: $handle) {
+    id
+    handle
+    items {
+      ...CatalogDiscoveryLevel1
+    }
+  }
+}
+
+fragment CatalogDiscoveryItemFields on MenuItem {
+  id
+  title
+  type
+  tags
+  resource {
+    __typename
+    ... on Collection {
+      id
+      handle
+      title
+      image {
+        ...HomeImageFields
+      }
+      products(first: 1) {
+        nodes {
+          featuredImage {
+            ...HomeImageFields
+          }
+        }
+      }
+    }
+  }
+}
+
+fragment CatalogDiscoveryLevel1 on MenuItem {
+  ...CatalogDiscoveryItemFields
+  items {
+    ...CatalogDiscoveryLevel2
+  }
+}
+
+fragment CatalogDiscoveryLevel2 on MenuItem {
+  ...CatalogDiscoveryItemFields
+  items {
+    ...CatalogDiscoveryLevel3
+  }
+}
+
+fragment CatalogDiscoveryLevel3 on MenuItem {
+  ...CatalogDiscoveryItemFields
+  items {
+    id
+  }
+}

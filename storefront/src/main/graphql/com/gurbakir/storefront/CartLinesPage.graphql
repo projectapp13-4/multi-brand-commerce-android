@@ -1,0 +1,13 @@
+query CartLinesPage($id: ID!, $after: String!) {
+  cart(id: $id) {
+    lines(first: 250, after: $after) {
+      nodes {
+        ...CartLineFields
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}

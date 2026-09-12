@@ -1,0 +1,20 @@
+# Optional local Android MCP example. This file is intentionally disabled and
+# contains no workstation-specific paths. Copy it to `.codex/config.toml`, set
+# absolute paths for your machine, and enable it only if you choose to use it.
+
+[mcp_servers.android_device]
+command = "node"
+args = ["REPOSITORY_ROOT/.codex/android-mcp/node_modules/@us-all/android-mcp/dist/index.js"]
+cwd = "REPOSITORY_ROOT"
+startup_timeout_sec = 20
+tool_timeout_sec = 120
+enabled = false
+required = false
+default_tools_approval_mode = "auto"
+
+[mcp_servers.android_device.env]
+ANDROID_HOME = "ANDROID_SDK_ROOT"
+ADB_PATH = "ANDROID_SDK_ROOT/platform-tools/adb"
+ANDROID_MCP_ALLOW_WRITE = "false"
+ANDROID_MCP_ALLOW_SHELL = "false"
+ANDROID_TOOLS = "device,ui,apps,logcat,emulator,debug"

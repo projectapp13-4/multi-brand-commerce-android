@@ -1,0 +1,6 @@
+query CustomerProfile {
+  customer {
+    firstName
+    lastName
+  }
+}

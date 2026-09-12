@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gate 2 Synthetic</string>
+    <string name="home_title">Synthetic Lab</string>
+    <string name="home_product_range_title">Synthetic Picks</string>
+    <string name="synthetic_alpha">Synthetic Alpha</string>
+    <string name="synthetic_beta">Synthetic Beta</string>
+    <string name="synthetic_featured">Synthetic Feature</string>
+    <string name="synthetic_legal_title">Synthetic legal and support</string>
+    <string name="synthetic_legal_message">External legal and support pages are disabled in this non-production conformance application.</string>
+    <string name="synthetic_back">Back</string>
+    <string name="synthetic_privacy">Synthetic privacy information</string>
+    <string name="synthetic_support">Synthetic support information</string>
+</resources>
