@@ -167,8 +167,10 @@ class AccountScreenTest {
             .performScrollTo()
             .performDeterministicClick()
         composeRule
+            .onNodeWithTag(AccountTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(AccountTestTags.LOGOUT))
+        composeRule
             .onNodeWithTag(AccountTestTags.LOGOUT)
-            .performScrollTo()
             .performDeterministicClick()
 
         assertEquals(1, logout)
