@@ -438,6 +438,31 @@ function Test-SyntheticDexFirebaseFree {
         $DexText -notmatch 'com/gurbakir/firebase/'
 }
 
+function Test-SyntheticHomeSourceContract {
+    param([Parameter(Mandatory)] [string]$SourceText)
+
+    return $SourceText -match 'HomeConfiguration\s*\(' -and
+        $SourceText -match 'remoteSource\s*=\s*HomeRemoteSource\.Disabled' -and
+        $SourceText -match 'packagedFallback\s*=\s*HomePackagedFallback\s*\(' -and
+        $SourceText -notmatch 'HomeRemoteSource\.ShopifyMetaobject'
+}
+
+function Test-SyntheticHomeDexContentBoundary {
+    param([Parameter(Mandatory)] [string]$DexText)
+
+    $gurbakirHomeContent = @(
+        'bardaklar',
+        'cezveler',
+        'tavalar-sahanlar',
+        'tencereler',
+        'ozel-urunlerimiz',
+        'bakir-tava-ve-sahan-el-dovmesi-cift-pirinc-kulplu'
+    )
+    return @($gurbakirHomeContent | Where-Object {
+        $DexText -match [regex]::Escape($_)
+    }).Count -eq 0
+}
+
 function Invoke-PackageValidatorSelfTest {
     function Assert-FixtureMutation {
         param(
@@ -564,10 +589,18 @@ gate2_synthetic_secure_cart_development
 gate2.synthetic.cart.development.v1
 gate2_synthetic_secure_customer_session_development
 gate2.synthetic.customer.session.development.v1
+mobile_home
+primary
 Lnet/openid/appauth/AuthorizationManagementActivity;
 Lnet/openid/appauth/AuthorizationService;
 Lnet/openid/appauth/RedirectUriReceiverActivity;
 '@
+    $safeSyntheticHomeSource = 'HomeConfiguration(remoteSource = HomeRemoteSource.Disabled, packagedFallback = HomePackagedFallback())'
+    $remoteSyntheticHomeSource = $safeSyntheticHomeSource.Replace(
+        'HomeRemoteSource.Disabled',
+        'HomeRemoteSource.ShopifyMetaobject(selector)'
+    )
+    $gurbakirHomeDex = $safeDexText + "`nbardaklar"
     $retiredAccountStringRestored = $safeDexText + "`nhttps://accounts.gate2.invalid/oauth/authorize"
     $exportedAppAuthActivity = $safeManifest.Replace(
         'android:exported(0x01010010)=(type 0x12)0x0',
@@ -724,6 +757,10 @@ E: data-extraction-rules
         [pscustomobject]@{ test = 'neutral DEX fixture is Firebase-free'; passed = (Test-SyntheticDexFirebaseFree $safeDexText) }
         [pscustomobject]@{ test = 'Google Firebase DEX descriptor is rejected'; passed = -not (Test-SyntheticDexFirebaseFree $googleFirebaseDex) }
         [pscustomobject]@{ test = 'project Firebase DEX namespace is rejected'; passed = -not (Test-SyntheticDexFirebaseFree $gurbakirFirebaseDex) }
+        [pscustomobject]@{ test = 'synthetic Home source is explicitly disabled'; passed = (Test-SyntheticHomeSourceContract $safeSyntheticHomeSource) }
+        [pscustomobject]@{ test = 'synthetic remote Home source is rejected'; passed = -not (Test-SyntheticHomeSourceContract $remoteSyntheticHomeSource) }
+        [pscustomobject]@{ test = 'neutral schema and selector strings remain allowed in DEX'; passed = (Test-SyntheticHomeDexContentBoundary $safeDexText) }
+        [pscustomobject]@{ test = 'concrete Gürbakır Home content is rejected from DEX'; passed = -not (Test-SyntheticHomeDexContentBoundary $gurbakirHomeDex) }
         [pscustomobject]@{ test = 'neutral archive fixture is Firebase-free'; passed = (Test-SyntheticArchiveFirebaseFree @('AndroidManifest.xml', 'classes.dex')) }
         [pscustomobject]@{ test = 'Firebase archive entry is rejected'; passed = -not (Test-SyntheticArchiveFirebaseFree $firebaseArchiveEntries) }
         [pscustomobject]@{ test = 'Firebase Kotlin module archive entry is rejected'; passed = -not (Test-SyntheticArchiveFirebaseFree $firebaseKotlinModuleArchiveEntries) }
@@ -800,6 +837,12 @@ function Test-VariantPackage {
         'com.example.gate2synthetic'
     }
     $prefix = "synthetic $VariantName"
+    $syntheticConfiguration = Get-Content -LiteralPath (
+        Join-Path $repoRoot 'apps/synthetic/src/main/kotlin/com/example/gate2synthetic/config/Gate2SyntheticConfiguration.kt'
+    ) -Raw -Encoding utf8
+    Add-Check "$prefix production composition consumes disabled Home remote source" (
+        Test-SyntheticHomeSourceContract $syntheticConfiguration
+    ) 'HomeConfiguration uses Disabled with an independent packaged fallback'
     $relativeApk = $apk.Substring($repoRoot.Length + 1).Replace('\', '/')
     $hash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash
 
@@ -915,6 +958,9 @@ function Test-VariantPackage {
             Add-Check "$prefix DEX contains the synthetic Application and Activity" $syntheticEntrypointsPresent 'manifest entrypoint descriptors checked'
             $dexFirebaseFree = Test-SyntheticDexFirebaseFree $dexText
             Add-Check "$prefix DEX contains no Firebase implementation namespace" $dexFirebaseFree 'string tables inspected without claiming removal of unrelated dormant Gürbakır constants'
+            Add-Check "$prefix DEX contains no concrete Gürbakır Home merchandising" (
+                Test-SyntheticHomeDexContentBoundary $dexText
+            ) 'exact Gürbakır collection and featured-product handles absent; neutral schema strings are allowed'
             Add-Check "$prefix retains compiled AppAuth code behind a non-exported management activity" (Test-SyntheticAppAuthBoundary $manifest.Output $dexText) 'AuthorizationManagementActivity manifest component and DEX descriptor checked'
             Add-Check "$prefix DEX contains no retired synthetic Customer Account or Order input" (Test-RetiredSyntheticAccountStringsAbsent $dexText) 'dummy Account endpoint, full callback URI and Order base checked'
             $syntheticProtectedIdentities = @(
