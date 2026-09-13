@@ -109,6 +109,115 @@ class HomeScreenTest {
     }
 
     @Test
+    fun loadingHomeAppendsAvailableLegalSupportAndOpensIt() {
+        var opened = 0
+        setHomeContent(
+            state = HomeUiState(),
+            actions =
+                HomeActions(
+                    retryProductRange = {},
+                    retryFeaturedProduct = {},
+                    openLegalSupport = { opened += 1 }
+                )
+        )
+
+        composeRule
+            .onNodeWithTag(HomeTestTags.LEGAL_SUPPORT)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performDeterministicClick()
+        composeRule.waitForIdle()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun emptyHomeAppendsAvailableLegalSupport() {
+        setHomeContent(
+            state =
+                HomeUiState(
+                    productRange = HomeSectionUiState.Empty,
+                    featuredProduct = HomeSectionUiState.Empty
+                ),
+            actions =
+                HomeActions(
+                    retryProductRange = {},
+                    retryFeaturedProduct = {},
+                    openLegalSupport = {}
+                )
+        )
+
+        composeRule.onNodeWithTag(HomeTestTags.EMPTY).assertIsDisplayed()
+        composeRule.onNodeWithTag(HomeTestTags.LEGAL_SUPPORT).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun healthyHomeAppendsAvailableLegalSupport() {
+        setHomeContent(
+            state =
+                HomeUiState(
+                    productRange = HomeSectionUiState.Content(listOf(collectionItem("LEGAL_HEALTHY")), null),
+                    featuredProduct = HomeSectionUiState.Content(featuredItem(), null)
+                ),
+            actions =
+                HomeActions(
+                    retryProductRange = {},
+                    retryFeaturedProduct = {},
+                    openLegalSupport = {}
+                )
+        )
+
+        composeRule.onNodeWithTag(HomeTestTags.PRODUCT_RANGE).assertIsDisplayed()
+        composeRule.onNodeWithTag(HomeTestTags.LEGAL_SUPPORT).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun retryableErrorHomeAppendsAvailableLegalSupport() {
+        setHomeContent(
+            state =
+                HomeUiState(
+                    productRange =
+                        HomeSectionUiState.Error(
+                            HomeLoadFailure(HomeLoadFailureCategory.CONNECTION, retryable = true)
+                        ),
+                    featuredProduct = HomeSectionUiState.Empty
+                ),
+            actions =
+                HomeActions(
+                    retryProductRange = {},
+                    retryFeaturedProduct = {},
+                    openLegalSupport = {}
+                )
+        )
+
+        composeRule.onNodeWithTag(HomeTestTags.PRODUCT_RANGE_ERROR).assertIsDisplayed()
+        composeRule.onNodeWithTag(HomeTestTags.LEGAL_SUPPORT).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun nonretryableErrorHomeAppendsAvailableLegalSupport() {
+        setHomeContent(
+            state =
+                HomeUiState(
+                    productRange =
+                        HomeSectionUiState.Error(
+                            HomeLoadFailure(HomeLoadFailureCategory.CONFIGURATION, retryable = false)
+                        ),
+                    featuredProduct = HomeSectionUiState.Empty
+                ),
+            actions =
+                HomeActions(
+                    retryProductRange = {},
+                    retryFeaturedProduct = {},
+                    openLegalSupport = {}
+                )
+        )
+
+        composeRule.onNodeWithTag(HomeTestTags.PRODUCT_RANGE_ERROR).assertIsDisplayed()
+        composeRule.onNodeWithTag(HomeTestTags.LEGAL_SUPPORT).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun collectionAndFeaturedProductCardsOpenFunctionalDestinations() {
         val locale =
             effectiveForegroundLocale(

@@ -50,7 +50,7 @@ data class HomeActions(
     val retryFeaturedProduct: () -> Unit,
     val openCategories: () -> Unit = {},
     val openCart: () -> Unit = {},
-    val openLegalSupport: () -> Unit = {},
+    val openLegalSupport: (() -> Unit)? = null,
     val openCollection: (String) -> Unit = {},
     val openProduct: (String) -> Unit = {},
     val onSetWishlist: ((String, Boolean) -> Unit)? = null
@@ -127,6 +127,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
             actions.onSetWishlist,
             wishlist
         )
+    }
+    actions.openLegalSupport?.let { onOpen ->
+        item { LegalSupportHomeCard(onOpen) }
     }
 }
 

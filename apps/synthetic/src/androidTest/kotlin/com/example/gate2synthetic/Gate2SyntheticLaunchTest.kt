@@ -7,10 +7,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import coil3.SingletonImageLoader
 import com.example.gate2synthetic.config.Gate2SyntheticConfiguration
 import com.gurbakir.mobile.catalog.CatalogTestTags
+import com.gurbakir.mobile.home.HomeTestTags
 import com.gurbakir.mobile.localization.effectiveForegroundLocale
 import com.gurbakir.mobile.localization.resolveAppLocales
 import java.util.Locale
@@ -60,6 +62,26 @@ class Gate2SyntheticLaunchTest {
         composeRule
             .onNodeWithText(composeRule.activity.getString(com.gurbakir.mobile.core.R.string.retry))
             .assertDoesNotExist()
+    }
+
+    @Test
+    fun accountDisabledHomeOpensLegalSupportAndReturnsWithoutAccountNavigation() {
+        composeRule
+            .onNodeWithTag(HomeTestTags.LEGAL_SUPPORT)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule
+            .onNodeWithText(composeRule.activity.getString(R.string.synthetic_legal_title))
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("production-primary-account", useUnmergedTree = true).assertDoesNotExist()
+
+        composeRule
+            .onNodeWithText(composeRule.activity.getString(R.string.synthetic_back))
+            .performClick()
+
+        composeRule.onNodeWithTag(HomeTestTags.ROOT).assertIsDisplayed()
     }
 
     private fun expectedForegroundLocaleTag(): String {

@@ -384,7 +384,12 @@ private fun HomeDestination(
                     navController.navigatePrimary(PrimaryNavigationDestination.CATEGORIES, applicationComposition)
                 },
                 openCart = { navController.navigate(CartRoute) },
-                openLegalSupport = { navController.navigate(LegalSupportRoute) },
+                openLegalSupport =
+                    if (!applicationComposition.capabilities.isEnabled(ApplicationCapability.CUSTOMER_ACCOUNT)) {
+                        { navController.navigate(LegalSupportRoute) }
+                    } else {
+                        null
+                    },
                 openCollection = { handle -> navController.navigate(CollectionRoute(handle)) },
                 openProduct = navController::navigateProduct,
                 onSetWishlist = wishlist?.onSetSaved
