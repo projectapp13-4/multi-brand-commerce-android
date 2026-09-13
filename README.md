@@ -6,6 +6,10 @@ Gürbakır is the first real brand application and `:app` remains its applicatio
 and composition shell. The repository is brand-neutral; the existing Gürbakır
 implementation is intentionally concrete.
 
+This repository is the forward-development authority. The owner-controlled
+private predecessor is retained only as an archived historical evidence source;
+new Multi-Brand work starts here.
+
 The architecture uses a single activity, typed Navigation Compose routes,
 ViewModel/`StateFlow` unidirectional data flow, Hilt, Apollo Kotlin,
 Room/DataStore, Android Keystore-backed protected state, Shopify Storefront and
@@ -44,6 +48,10 @@ Start with the [documentation authority map](docs/README.md),
 [Gate 6 completion handoff](docs/multi-brand/GATE-6-COMPLETION-HANDOFF.md). The
 handoff remains an accurate pre-merge record; current indexes carry the later
 technical-closure status.
+
+The [public repository migration handoff](docs/PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md)
+records the sanitized baseline, publication-rights boundary, protected
+bootstrap, and authority cutover evidence.
 
 ## Modules
 
