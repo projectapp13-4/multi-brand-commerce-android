@@ -2,8 +2,10 @@
 
 Status: **Approved contract candidate; Phase A actual-client observability proof pending; Phase B blocked**
 
-Approved date: 2026-09-13  
-Planning base: `f0e7d007628ae9afd520e30d85cbd4204ed064f7`  
+Approved date: 2026-09-13
+
+Planning base: `f0e7d007628ae9afd520e30d85cbd4204ed064f7`
+
 Implementation branch: `codex/gate-7-bounded-home-content`
 
 ## Purpose and evidence boundary
