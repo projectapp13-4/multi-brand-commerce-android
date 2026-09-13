@@ -57,6 +57,15 @@ class HomeContentPersistenceTest {
     }
 
     @Test
+    fun `snapshot codec rejects a timestamp interval that is not the configured day`() {
+        val malformed =
+            codec.encodeSnapshot(storedSnapshot(empty = true))
+                .replace("\"expiresAtMillis\":86401000", "\"expiresAtMillis\":86401001")
+
+        assertInstanceOf(HomeCodecDecode.Rejected::class.java, codec.decodeSnapshot(malformed))
+    }
+
+    @Test
     fun `editorial freshness clamps small backward skew and rejects large skew`() {
         assertEquals(
             HomeEditorialFreshness.FRESH,

@@ -33,22 +33,29 @@ constructor(
         )
     private val mutex = Mutex()
 
+    @Suppress("CyclomaticComplexMethod")
     override suspend fun read(
         partition: HomeContentPartition,
         supportedContentVersion: Int,
         nowMillis: Long
     ): HomeStoreRead = withContext(dispatcher) {
         mutex.withLock {
-            val rawMarker = preferences.getString(HOME_ESTABLISHMENT_KEY, null)
+            val markerValue = preferences.all[HOME_ESTABLISHMENT_KEY]
                 ?: return@withLock HomeStoreRead.NeverEstablished
+            val rawMarker = markerValue as? String
+                ?: return@withLock HomeStoreRead.OwnershipUnknown
             val marker = when (val decoded = codec.decodeMarker(rawMarker)) {
                 is HomeCodecDecode.Accepted -> decoded.value
                 is HomeCodecDecode.Rejected -> return@withLock HomeStoreRead.OwnershipUnknown
             }
             if (marker.partition != partition) return@withLock HomeStoreRead.NeverEstablished
 
-            val rawSnapshot = preferences.getString(HOME_SNAPSHOT_KEY, null)
+            val snapshotValue = preferences.all[HOME_SNAPSHOT_KEY]
                 ?: return@withLock established(marker, HomeSnapshotRecovery.MISSING)
+            val rawSnapshot = snapshotValue as? String ?: run {
+                removeSnapshot()
+                return@withLock established(marker, HomeSnapshotRecovery.CORRUPT)
+            }
             val stored = when (val decoded = codec.decodeSnapshot(rawSnapshot)) {
                 is HomeCodecDecode.Accepted -> decoded.value
 

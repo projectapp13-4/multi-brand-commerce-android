@@ -109,6 +109,11 @@ android {
         )
         buildConfigField(
             "String",
+            "HOME_CONTENT_ROOT_HANDLE",
+            configValue("shopify.homeContentRootHandle").asBuildConfigString()
+        )
+        buildConfigField(
+            "String",
             "CUSTOMER_ACCOUNT_CLIENT_ID",
             configValue("shopify.customerAccountClientId").asBuildConfigString()
         )

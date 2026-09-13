@@ -16,103 +16,116 @@ class HomeViewModel
 @Inject
 constructor(
     private val repository: HomeContentRepository,
-    private val loadingClock: HomeLoadingClock
+    private val loadingClock: HomeLoadingClock,
+    private val editorialClock: HomeEditorialClock
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
-    private var productRangeJob: Job? = null
-    private var featuredProductJob: Job? = null
+    private var requestJob: Job? = null
+    private var expiryJob: Job? = null
 
     init {
-        retryProductRange()
-        retryFeaturedProduct()
+        start(HomeLoadTrigger.INITIAL)
     }
 
-    fun retryProductRange() {
-        productRangeJob?.cancel()
-        _state.update { state -> state.copy(productRange = state.productRange.refreshing()) }
-        productRangeJob =
-            viewModelScope.launch {
-                val slowLoadingJob =
-                    launch {
-                        loadingClock.awaitSlowLoading()
-                        _state.update { state ->
-                            state.copy(productRange = state.productRange.markSlowLoading())
-                        }
-                    }
-                val result = repository.loadProductRange().toUiState()
-                slowLoadingJob.cancel()
-                _state.update { state -> state.copy(productRange = result) }
-            }
+    fun refreshContent() {
+        if (_state.value.requestActive) return
+        start(HomeLoadTrigger.MANUAL_REFRESH)
     }
 
-    fun retryFeaturedProduct() {
-        featuredProductJob?.cancel()
-        _state.update { state -> state.copy(featuredProduct = state.featuredProduct.refreshing()) }
-        featuredProductJob =
-            viewModelScope.launch {
-                val slowLoadingJob =
-                    launch {
-                        loadingClock.awaitSlowLoading()
-                        _state.update { state ->
-                            state.copy(featuredProduct = state.featuredProduct.markSlowLoading())
-                        }
-                    }
-                val result = repository.loadFeaturedProduct().toUiState()
-                slowLoadingJob.cancel()
-                _state.update { state -> state.copy(featuredProduct = result) }
+    fun onHomeResumed() {
+        val deadline = _state.value.presentation?.editorialExpiresAtMillis ?: return
+        if (editorialClock.nowMillis() >= deadline && !_state.value.requestActive) {
+            start(HomeLoadTrigger.EXPIRY)
+        }
+    }
+
+    private fun start(trigger: HomeLoadTrigger) {
+        if (trigger == HomeLoadTrigger.EXPIRY) expiryJob?.cancel()
+        _state.update { current ->
+            val retained = if (trigger == HomeLoadTrigger.EXPIRY) null else current.presentation
+            current.copy(
+                presentation = retained?.copy(refreshing = true),
+                loading = retained == null,
+                slowLoading = false,
+                requestActive = true,
+                failure = null,
+                expired = trigger == HomeLoadTrigger.EXPIRY
+            )
+        }
+        requestJob = viewModelScope.launch {
+            val slowJob = launch {
+                loadingClock.awaitSlowLoading()
+                _state.update { state -> if (state.requestActive) state.copy(slowLoading = true) else state }
             }
+            val result = repository.load(trigger)
+            slowJob.cancel()
+            when (result) {
+                is HomeLoadResult.Accepted -> accept(result.presentation)
+
+                is HomeLoadResult.Failed -> fail(result.failure, trigger)
+
+                HomeLoadResult.Superseded ->
+                    _state.update { state ->
+                        state.copy(
+                            presentation = state.presentation?.copy(refreshing = false),
+                            loading = false,
+                            slowLoading = false,
+                            requestActive = false
+                        )
+                    }
+            }
+        }
+    }
+
+    private fun accept(presentation: HomePresentation) {
+        val settled = presentation.copy(refreshing = false)
+        _state.value = HomeUiState(
+            presentation = settled,
+            loading = false,
+            slowLoading = false,
+            requestActive = false,
+            failure = null,
+            expired = false
+        )
+        installExpiry(settled.editorialExpiresAtMillis)
+    }
+
+    private fun fail(failure: HomeLoadFailure, trigger: HomeLoadTrigger) {
+        val retained = if (trigger == HomeLoadTrigger.MANUAL_REFRESH) {
+            _state.value.presentation?.copy(refreshing = false)
+        } else {
+            null
+        }
+        _state.value = HomeUiState(
+            presentation = retained,
+            loading = false,
+            slowLoading = false,
+            requestActive = false,
+            failure = failure,
+            expired = trigger == HomeLoadTrigger.EXPIRY
+        )
+        if (retained != null) installExpiry(retained.editorialExpiresAtMillis)
+    }
+
+    private fun installExpiry(deadlineMillis: Long?) {
+        expiryJob?.cancel()
+        if (deadlineMillis == null) return
+        expiryJob = viewModelScope.launch {
+            editorialClock.awaitUntil(deadlineMillis)
+            if (editorialClock.nowMillis() >= deadlineMillis && !_state.value.requestActive) {
+                start(HomeLoadTrigger.EXPIRY)
+            }
+        }
     }
 }
 
 data class HomeUiState(
-    val productRange: HomeSectionUiState<List<HomeCollectionItem>> = HomeSectionUiState.Loading,
-    val featuredProduct: HomeSectionUiState<HomeFeaturedItem> = HomeSectionUiState.Loading
-) {
-    val showsWholePageEmpty: Boolean
-        get() = productRange is HomeSectionUiState.Empty && featuredProduct is HomeSectionUiState.Empty
-
-    val showsWholePageSlowLoading: Boolean
-        get() =
-            productRange is HomeSectionUiState.SlowLoading &&
-                featuredProduct is HomeSectionUiState.SlowLoading
-}
-
-sealed interface HomeSectionUiState<out T> {
-    data object Loading : HomeSectionUiState<Nothing>
-
-    data object SlowLoading : HomeSectionUiState<Nothing>
-
-    data object Empty : HomeSectionUiState<Nothing>
-
-    data class Content<T>(
-        val value: T,
-        val partialFailure: HomeLoadFailure?,
-        val refreshing: Boolean = false,
-        val slowLoading: Boolean = false
-    ) : HomeSectionUiState<T>
-
-    data class Error(val failure: HomeLoadFailure) : HomeSectionUiState<Nothing>
-}
-
-private fun <T> HomeSectionUiState<T>.refreshing(): HomeSectionUiState<T> = if (this is HomeSectionUiState.Content) {
-    copy(refreshing = true, slowLoading = false)
-} else {
-    HomeSectionUiState.Loading
-}
-
-private fun <T> HomeSectionUiState<T>.markSlowLoading(): HomeSectionUiState<T> = when (this) {
-    HomeSectionUiState.Loading -> HomeSectionUiState.SlowLoading
-
-    is HomeSectionUiState.Content ->
-        if (refreshing) copy(slowLoading = true) else this
-
-    else -> this
-}
-
-private fun <T> HomeSectionLoad<T>.toUiState(): HomeSectionUiState<T> = when (this) {
-    is HomeSectionLoad.Content -> HomeSectionUiState.Content(value, partialFailure)
-    is HomeSectionLoad.Error -> HomeSectionUiState.Error(failure)
-    HomeSectionLoad.Empty -> HomeSectionUiState.Empty
-}
+    val presentation: HomePresentation? = null,
+    val loading: Boolean = true,
+    val slowLoading: Boolean = false,
+    val requestActive: Boolean = true,
+    val failure: HomeLoadFailure? = null,
+    val expired: Boolean = false
+)

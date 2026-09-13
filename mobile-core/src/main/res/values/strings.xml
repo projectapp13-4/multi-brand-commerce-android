@@ -13,6 +13,11 @@
     <string name="home_error_configuration">Mağaza içeriği bu yapılandırmada kullanılamıyor.</string>
     <string name="home_error_service">Mağaza içeriği şu anda yüklenemedi.</string>
     <string name="home_error_partial">Bazı mağaza içerikleri yüklenemedi. Görünen içerikler korunuyor.</string>
+    <string name="home_refresh_description">Ana sayfa içeriğini yenile</string>
+    <string name="home_refreshing_description">Ana sayfa içeriği yenileniyor</string>
+    <string name="home_unavailable_title">Mağaza içeriği kullanılamıyor</string>
+    <string name="home_unavailable">İçerik şu anda kullanılamıyor. Yenileme düğmesini kullanarak tekrar kontrol edebilirsiniz.</string>
+    <string name="home_nonrenderable">İçerik seçimi mevcut, ancak ürün bilgileri şu anda gösterilemiyor.</string>
     <string name="categories_title">Kategoriler</string>
     <string name="categories_empty">Şu anda gösterilecek kategori yok.</string>
     <string name="categories_partial_error">Bazı kategoriler yüklenemedi. Görünen kategoriler korunuyor.</string>

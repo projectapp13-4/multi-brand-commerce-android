@@ -6,6 +6,8 @@ shopify.storefrontApiVersion=2026-07
 shopify.storefrontPublicToken=
 # Set only in ignored local configuration after the selected Menu projection is reviewed.
 shopify.catalogMenuHandle=
+# Set to primary only after the bounded Home contract is published and read back.
+shopify.homeContentRootHandle=
 shopify.customerAccountClientId=
 shopify.customerAccountIssuer=
 shopify.customerAccountAuthorizationEndpoint=

@@ -13,6 +13,11 @@
     <string name="home_error_configuration">Store content is unavailable in this configuration.</string>
     <string name="home_error_service">Store content could not load right now.</string>
     <string name="home_error_partial">Some store content could not load. Visible content is retained.</string>
+    <string name="home_refresh_description">Refresh Home content</string>
+    <string name="home_refreshing_description">Home content is refreshing</string>
+    <string name="home_unavailable_title">Store content is unavailable</string>
+    <string name="home_unavailable">Content is unavailable right now. Use Refresh to check again.</string>
+    <string name="home_nonrenderable">Content is selected, but its current product information cannot be shown.</string>
     <string name="categories_title">Categories</string>
     <string name="categories_empty">There are no categories to show right now.</string>
     <string name="categories_partial_error">Some categories could not load. Visible categories are retained.</string>

@@ -1,6 +1,6 @@
 package com.gurbakir.mobile.home
 
-internal val homeTestConfiguration = HomeConfiguration(
+internal val homeTestPackagedFallback = HomePackagedFallback(
     productRange = HomeProductRangeConfiguration(
         stableId = "TEST_RANGE",
         titleResourceId = 101,
@@ -10,4 +10,9 @@ internal val homeTestConfiguration = HomeConfiguration(
         }
     ),
     featuredProduct = HomeFeaturedProductConfiguration("TEST_FEATURED", 110, "featured-fixture")
+)
+
+internal val homeTestConfiguration = HomeConfiguration(
+    remoteSource = HomeRemoteSource.Disabled,
+    packagedFallback = homeTestPackagedFallback
 )

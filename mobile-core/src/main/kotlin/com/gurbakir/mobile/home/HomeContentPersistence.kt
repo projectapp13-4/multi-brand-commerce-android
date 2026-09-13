@@ -275,7 +275,7 @@ private fun HomeEstablishmentRecord.isValid(): Boolean = storageVersion == HOME_
 private fun HomeStoredSnapshot.isValid(): Boolean = storageVersion == HOME_CONTENT_STORAGE_VERSION &&
     partition.isValid() &&
     acceptedAtMillis >= 0L &&
-    expiresAtMillis > acceptedAtMillis &&
+    HomeEditorialClockPolicy.deadline(acceptedAtMillis, HOME_EDITORIAL_TTL_MILLIS) == expiresAtMillis &&
     snapshot.isValid() &&
     snapshot.rootType == partition.rootType &&
     snapshot.rootHandle == partition.rootHandle

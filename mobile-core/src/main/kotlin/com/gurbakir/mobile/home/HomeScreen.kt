@@ -1,5 +1,11 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@file:Suppress("FunctionNaming", "MagicNumber")
+@file:Suppress(
+    "CyclomaticComplexMethod",
+    "FunctionNaming",
+    "LongMethod",
+    "MagicNumber",
+    "NestedBlockDepth"
+) // One closed renderer makes every Home state share refresh and native support ownership.
 
 package com.gurbakir.mobile.home
 
@@ -46,8 +52,7 @@ import com.gurbakir.mobile.wishlist.WishlistProductIconButton
 import com.gurbakir.mobile.wishlist.productAction
 
 data class HomeActions(
-    val retryProductRange: () -> Unit,
-    val retryFeaturedProduct: () -> Unit,
+    val refreshContent: () -> Unit,
     val openCategories: () -> Unit = {},
     val openCart: () -> Unit = {},
     val openLegalSupport: (() -> Unit)? = null,
@@ -71,16 +76,14 @@ fun HomeScreen(
         modifier = Modifier.testTag(HomeTestTags.ROOT),
         titleAlignment = DestinationTitleAlignment.CENTER,
         titleTestTag = HomeTestTags.WORDMARK,
-        actions = { HomeTopBarActions(actions, cartQuantity) }
+        actions = { HomeTopBarActions(actions, cartQuantity, state.requestActive) }
     ) { scaffoldPadding ->
         LazyColumn(
-            modifier =
-                Modifier.fillMaxSize()
-                    .centeredDestinationContent(1200.dp)
-                    .consumeDestinationInsets(scaffoldPadding)
-                    .testTag(HomeTestTags.CONTENT),
-            contentPadding =
-                scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
+            modifier = Modifier.fillMaxSize()
+                .centeredDestinationContent(1200.dp)
+                .consumeDestinationInsets(scaffoldPadding)
+                .testTag(HomeTestTags.CONTENT),
+            contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
         ) {
             homeStateItems(state, actions, wishlist)
@@ -93,172 +96,141 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
     actions: HomeActions,
     wishlist: WishlistMembershipUiState?
 ) {
-    if (state.showsWholePageEmpty) {
-        item {
-            CommerceStatePanel(
-                title = stringResource(R.string.home_empty_title),
-                body = stringResource(R.string.home_empty),
-                primaryActionLabel = stringResource(R.string.home_browse_categories),
-                onPrimaryAction = actions.openCategories,
-                testTag = HomeTestTags.EMPTY
-            )
-        }
-    } else if (state.showsWholePageSlowLoading) {
-        item {
-            HomeSlowLoadingPanel(
-                onRetry = {
-                    actions.retryProductRange()
-                    actions.retryFeaturedProduct()
-                },
-                tag = HomeTestTags.SLOW_LOADING
-            )
-        }
-    } else {
-        productRangeSection(
-            state = state.productRange,
-            onRetry = actions.retryProductRange,
-            onOpenCollection = actions.openCollection,
-            onOpenCategories = actions.openCategories
-        )
-        featuredProductSection(
-            state.featuredProduct,
-            actions.retryFeaturedProduct,
-            actions.openProduct,
-            actions.onSetWishlist,
-            wishlist
-        )
-    }
-    actions.openLegalSupport?.let { onOpen ->
-        item { LegalSupportHomeCard(onOpen) }
-    }
-}
-
-private fun androidx.compose.foundation.lazy.LazyListScope.productRangeSection(
-    state: HomeSectionUiState<List<HomeCollectionItem>>,
-    onRetry: () -> Unit,
-    onOpenCollection: (String) -> Unit,
-    onOpenCategories: () -> Unit
-) {
-    when (state) {
-        HomeSectionUiState.Loading -> item { HomeSectionSkeleton(HomeTestTags.PRODUCT_RANGE_LOADING) }
-
-        HomeSectionUiState.SlowLoading -> item {
-            HomeSlowLoadingPanel(onRetry, HomeTestTags.PRODUCT_RANGE_SLOW_LOADING)
-        }
-
-        HomeSectionUiState.Empty -> Unit
-
-        is HomeSectionUiState.Error -> item {
-            HomeSectionError(
-                failure = state.failure,
-                onRetry = onRetry,
-                tag = HomeTestTags.PRODUCT_RANGE_ERROR
-            )
-        }
-
-        is HomeSectionUiState.Content -> {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.PRODUCT_RANGE),
-                    verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
-                ) {
-                    HomeSectionHeading(
-                        titleResourceId = R.string.home_product_range_title,
-                        actionResourceId = R.string.home_view_all_collections,
-                        onAction = onOpenCategories
+    val presentation = state.presentation
+    when {
+        presentation != null -> {
+            when {
+                presentation.editorial is HomeEditorialState.IntentionalEmpty -> item {
+                    CommerceStatePanel(
+                        title = stringResource(R.string.home_empty_title),
+                        body = stringResource(R.string.home_empty),
+                        primaryActionLabel = stringResource(R.string.home_browse_categories),
+                        onPrimaryAction = actions.openCategories,
+                        testTag = HomeTestTags.EMPTY
                     )
-                    ProductRange(items = state.value, onOpenCollection = onOpenCollection)
-                    if (state.slowLoading) {
-                        HomeSlowLoadingPanel(onRetry, HomeTestTags.PRODUCT_RANGE_SLOW_LOADING)
-                    } else if (state.refreshing) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
-                    state.partialFailure?.let { failure ->
-                        HomeSectionError(
-                            failure = failure,
-                            onRetry = onRetry,
-                            tag = HomeTestTags.PRODUCT_RANGE_PARTIAL_ERROR,
-                            partial = true
+                }
+
+                presentation.resourceStatus == HomeResourceStatus.NONE_RENDERABLE -> item {
+                    CommerceStatePanel(
+                        title = stringResource(R.string.home_unavailable_title),
+                        body = stringResource(R.string.home_nonrenderable),
+                        testTag = HomeTestTags.NONRENDERABLE
+                    )
+                }
+
+                else -> presentation.renderedSections.forEach { section ->
+                    when (section) {
+                        is HomeRenderedSection.CollectionGrid -> collectionGridSection(
+                            section,
+                            actions.openCollection,
+                            actions.openCategories
+                        )
+
+                        is HomeRenderedSection.FeaturedProduct -> featuredProductSection(
+                            section,
+                            actions.openProduct,
+                            actions.onSetWishlist,
+                            wishlist
                         )
                     }
                 }
             }
+            if (presentation.refreshing) {
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.REFRESHING)
+                    )
+                }
+            }
+            state.failure?.let { failure ->
+                item {
+                    HomeSectionError(failure, actions.refreshContent, HomeTestTags.REFRESH_FAILURE, partial = true)
+                }
+            }
+        }
+
+        state.slowLoading -> item { HomeSlowLoadingPanel(actions.refreshContent, HomeTestTags.SLOW_LOADING) }
+
+        state.loading -> item { HomeSectionSkeleton(HomeTestTags.PRODUCT_RANGE_LOADING) }
+
+        state.failure != null -> item {
+            HomeSectionError(state.failure, actions.refreshContent, HomeTestTags.HOME_ERROR)
+        }
+
+        else -> item {
+            CommerceStatePanel(
+                title = stringResource(R.string.home_unavailable_title),
+                body = stringResource(R.string.home_unavailable),
+                testTag = HomeTestTags.HOME_ERROR
+            )
+        }
+    }
+    actions.openLegalSupport?.let { onOpen -> item { LegalSupportHomeCard(onOpen) } }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.collectionGridSection(
+    section: HomeRenderedSection.CollectionGrid,
+    onOpenCollection: (String) -> Unit,
+    onOpenCategories: () -> Unit
+) {
+    item {
+        Column(
+            modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.PRODUCT_RANGE),
+            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
+        ) {
+            HomeSectionHeading(section.title, R.string.home_view_all_collections, onOpenCategories)
+            ProductRange(section.items, onOpenCollection)
         }
     }
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.featuredProductSection(
-    state: HomeSectionUiState<HomeFeaturedItem>,
-    onRetry: () -> Unit,
+    section: HomeRenderedSection.FeaturedProduct,
     onOpenProduct: (String) -> Unit,
     onSetWishlist: ((String, Boolean) -> Unit)?,
     wishlist: WishlistMembershipUiState?
 ) {
-    when (state) {
-        HomeSectionUiState.Loading -> item { HomeSectionSkeleton(HomeTestTags.FEATURED_LOADING) }
-
-        HomeSectionUiState.SlowLoading -> item {
-            HomeSlowLoadingPanel(onRetry, HomeTestTags.FEATURED_SLOW_LOADING)
-        }
-
-        HomeSectionUiState.Empty -> Unit
-
-        is HomeSectionUiState.Error -> item {
-            HomeSectionError(
-                failure = state.failure,
-                onRetry = onRetry,
-                tag = HomeTestTags.FEATURED_ERROR
+    item {
+        Column(
+            modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.FEATURED),
+            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
+        ) {
+            HomeSectionHeading(section.title)
+            FeaturedProductCard(
+                section.item,
+                onClick = { onOpenProduct(section.item.summary.id) },
+                wishlist = wishlist.productAction(section.item.summary.id, onSetWishlist)
             )
-        }
-
-        is HomeSectionUiState.Content -> {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.FEATURED),
-                    verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
-                ) {
-                    HomeSectionHeading(state.value.source.titleResourceId)
-                    FeaturedProductCard(
-                        item = state.value,
-                        onClick = { onOpenProduct(state.value.summary.id) },
-                        wishlist =
-                            wishlist.productAction(state.value.summary.id, onSetWishlist)
-                    )
-                    if (state.slowLoading) {
-                        HomeSlowLoadingPanel(onRetry, HomeTestTags.FEATURED_SLOW_LOADING)
-                    } else if (state.refreshing) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun HomeSectionHeading(titleResourceId: Int, actionResourceId: Int? = null, onAction: () -> Unit = {}) {
+private fun HomeSectionHeading(title: HomeText, actionResourceId: Int? = null, onAction: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = stringResource(titleResourceId),
+            text = title.resolve(),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f).semantics { heading() }.testTag(HomeTestTags.TITLE)
         )
-        actionResourceId?.let { resourceId ->
-            TextButton(onClick = onAction) {
-                Text(stringResource(resourceId))
-            }
-        }
+        actionResourceId?.let { resourceId -> TextButton(onClick = onAction) { Text(stringResource(resourceId)) } }
     }
 }
 
 @Composable
+private fun HomeText.resolve(): String = when (this) {
+    is HomeText.Packaged -> stringResource(resourceId)
+    is HomeText.Remote -> value
+}
+
+@Composable
 private fun ProductRange(items: List<HomeCollectionItem>, onOpenCollection: (String) -> Unit) {
-    val spacing = LocalBrandSpacing.current
     if (items.isEmpty()) return
+    val spacing = LocalBrandSpacing.current
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val columns = homeProductRangeColumnCount(maxWidth)
         val gap = spacing.normalDp.dp
@@ -270,11 +242,7 @@ private fun ProductRange(items: List<HomeCollectionItem>, onOpenCollection: (Str
                     horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally)
                 ) {
                     rowItems.forEach { item ->
-                        CollectionTile(
-                            item = item,
-                            onClick = { onOpenCollection(item.summary.handle) },
-                            modifier = Modifier.width(itemWidth)
-                        )
+                        CollectionTile(item, { onOpenCollection(item.summary.handle) }, Modifier.width(itemWidth))
                     }
                 }
             }
@@ -290,22 +258,21 @@ internal fun homeProductRangeColumnCount(availableWidth: Dp): Int = when {
 
 @Composable
 private fun CollectionTile(item: HomeCollectionItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val label = item.label.resolve()
     Column(
-        modifier =
-            modifier
-                .clickable(role = Role.Button, onClick = onClick)
-                .testTag(HomeTestTags.collection(item.source.stableId)),
+        modifier = modifier.clickable(role = Role.Button, onClick = onClick)
+            .testTag(HomeTestTags.collection(item.stableId)),
         verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)
     ) {
         HomeMedia(
-            media = item.summary.media,
-            fallbackDescription = stringResource(item.source.labelResourceId),
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-            contentScale = ContentScale.Crop,
-            shape = MaterialTheme.shapes.medium
+            item.summary.media,
+            label,
+            Modifier.fillMaxWidth().aspectRatio(1f),
+            ContentScale.Crop,
+            MaterialTheme.shapes.medium
         )
         Text(
-            text = stringResource(item.source.labelResourceId),
+            label,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -319,53 +286,29 @@ private fun FeaturedProductCard(item: HomeFeaturedItem, onClick: () -> Unit, wis
     val media = requireNotNull(item.summary.media)
     val spacing = LocalBrandSpacing.current
     Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .clickable(role = Role.Button, onClick = onClick)
-                .testTag(HomeTestTags.FEATURED_CARD),
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+            .testTag(HomeTestTags.FEATURED_CARD),
         verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
     ) {
         HomeMedia(
-            media = media,
-            fallbackDescription = item.summary.title,
-            modifier = Modifier.fillMaxWidth().aspectRatio(HOME_FEATURED_ASPECT_RATIO),
-            contentScale = ContentScale.Crop,
-            shape = MaterialTheme.shapes.large
+            media,
+            item.summary.title,
+            Modifier.fillMaxWidth().aspectRatio(HOME_FEATURED_ASPECT_RATIO),
+            ContentScale.Crop,
+            MaterialTheme.shapes.large
         )
-        FeaturedProductDetails(item, wishlist)
-    }
-}
-
-@Composable
-private fun FeaturedProductDetails(
-    item: HomeFeaturedItem,
-    wishlist: WishlistProductAction?,
-    modifier: Modifier = Modifier
-) {
-    val spacing = LocalBrandSpacing.current
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = item.summary.title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(end = spacing.normalDp.dp)
-            )
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.summary.title, style = MaterialTheme.typography.titleLarge, maxLines = 3)
+                Text(
+                    item.summary.price.localizedText(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag(HomeTestTags.FEATURED_PRICE)
+                )
+            }
             WishlistProductIconButton(item.summary.id, wishlist)
         }
-        Text(
-            text = item.summary.price.localizedText(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.testTag(HomeTestTags.FEATURED_PRICE)
-        )
     }
 }
 
@@ -381,8 +324,13 @@ object HomeTestTags {
     const val SEARCH = "home-search"
     const val WISHLIST = "home-wishlist"
     const val CART = "home-cart"
+    const val REFRESH = "home-refresh"
+    const val REFRESHING = "home-refreshing"
+    const val REFRESH_FAILURE = "home-refresh-failure"
     const val LEGAL_SUPPORT = "home-legal-support"
     const val EMPTY = "home-empty"
+    const val NONRENDERABLE = "home-nonrenderable"
+    const val HOME_ERROR = "home-error"
     const val SLOW_LOADING = "home-slow-loading"
     const val PRODUCT_RANGE = "home-product-range"
     const val PRODUCT_RANGE_LOADING = "home-product-range-loading"

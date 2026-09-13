@@ -18,7 +18,7 @@ object HomeEditorialClockPolicy {
     }
 
     fun freshness(acceptedAtMillis: Long, expiresAtMillis: Long, nowMillis: Long): HomeEditorialFreshness = when {
-        acceptedAtMillis < 0L || expiresAtMillis <= acceptedAtMillis ->
+        acceptedAtMillis < 0L || nowMillis < 0L || expiresAtMillis <= acceptedAtMillis ->
             HomeEditorialFreshness.CLOCK_INVALID
 
         nowMillis < acceptedAtMillis &&

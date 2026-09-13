@@ -60,6 +60,18 @@ class AndroidHomeContentStoreTest {
         assertEquals(second, afterRecreation)
     }
 
+    @Test
+    fun wrongPrimitiveTypeForMarkerFailsConservativelyWithoutThrowing() = runBlocking {
+        val preferences =
+            context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        check(preferences.edit().putLong(HOME_ESTABLISHMENT_KEY, 7L).commit())
+
+        assertEquals(
+            HomeStoreRead.OwnershipUnknown,
+            store.read(partition, supportedContentVersion = 1, nowMillis = 2_000L)
+        )
+    }
+
     private val partition =
         HomeContentPartition(
             applicationId = "com.gurbakir.mobile.core.test",
