@@ -1,6 +1,6 @@
 # Multi-Brand Architecture
 
-Status: **Canonical architecture; Gates 1–5 implemented and closed; Gate 6 planning is next and not started**
+Status: **Canonical architecture; Gates 1–6 implemented and closed; Gate 7 implementation is next and not yet complete**
 
 This document defines the repository's accepted multi-brand architecture. Current source remains authoritative for what is implemented today.
 
@@ -154,4 +154,4 @@ Gate 4 implemented capability-driven presence and ordered primary navigation whi
 
 Gate 5 implemented generic Firebase/provider isolation without adding a shared provider framework: Firebase readiness/provider policy moved out of generic application configuration, application composition selects local defaults before Firebase SDK construction when unconfigured, `:mobile-core` remains provider-neutral, and synthetic physical Firebase exclusion is enforced across dependency/package/resource/manifest/archive/DEX surfaces. The exact implementation and proof limits remain in the [Gate 5 completion handoff](../multi-brand/GATE-5-COMPLETION-HANDOFF.md), which intentionally stops before closure. Gate 5 is now closed because its final exact-HEAD candidate passed CI, whole-candidate review and focused security/privacy triage, the owner merged it, and exact merged-`main` push CI succeeded.
 
-Gate 6 planning is the next multi-brand activity and is not started. This reconciliation does not define Gate 6 implementation scope. Runtime market/language switching, Storefront `@inContext`, generalized merchant Navigation/Home content, real-brand onboarding/registrations, external-provider mutation, signing, publication and P3-16 remain unstarted or outside this reconciliation unless separately evidenced and approved.
+Gate 6 implemented bounded, application-selected Shopify Menu discovery for Categories while preserving native typed navigation, capability ownership, media policy and an offline/Firebase-free synthetic application. Its exact implementation and proof limits remain in the [Gate 6 completion handoff](../multi-brand/GATE-6-COMPLETION-HANDOFF.md), which intentionally preserves its pre-merge checkpoint wording. Gate 6 is now closed because its final candidate was merged and the exact merged-`main` validate, API 30 and API 23 jobs succeeded. Gate 7 bounded merchant-owned Home content is the next multi-brand activity and is not yet complete. Runtime market/language switching, Storefront `@inContext`, generalized page building, real-brand onboarding/registrations, signing, publication and P3-16 remain unstarted or outside this reconciliation unless separately evidenced and approved.

@@ -1,10 +1,10 @@
 # Brand Onboarding
 
-Status: **Canonical future real-brand onboarding contract after Gate 5 closure; Gate 6 planning is next and not started**
+Status: **Canonical future real-brand onboarding contract after Gate 6 closure; Gate 7 implementation is next and not yet complete**
 
-This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation and provider-isolation gates. Gates 1–3 established reusable `:mobile-core`, bounded non-production `:synthetic` and application-owned fixed inputs. Gate 4 added validated capability presence and primary order. Gate 5 added application-owned Firebase/provider selection while keeping shared application behavior provider-neutral and strengthening the synthetic physical Firebase-absence boundary. Gates 4 and 5 are closed after their required final PR/review/CI, owner merge and post-merge `main` verification. No additional real merchant application exists.
+This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation, provider-isolation and bounded Categories-discovery gates. Gates 1–3 established reusable `:mobile-core`, bounded non-production `:synthetic` and application-owned fixed inputs. Gate 4 added validated capability presence and primary order. Gate 5 added application-owned Firebase/provider selection while keeping shared application behavior provider-neutral and strengthening the synthetic physical Firebase-absence boundary. Gate 6 added application-selected bounded Shopify Menu discovery for Categories. Gates 4–6 are closed after their required final PR/review/CI, owner merge and post-merge `main` verification. No additional real merchant application exists.
 
-This is an ownership and evidence contract, not authorization to start Gate 6, create a real brand application, provision production state, mutate an external provider, or publish an application.
+This is an ownership and evidence contract, not authorization to create a real brand application, begin Gate 8 provisioning, mutate production state, or publish an application. Gate 7 bounded Home-content work is governed by its separate approved plan and retains the same onboarding exclusions.
 
 ## Repository and application model
 
@@ -87,17 +87,17 @@ Never copy Gürbakır's migration-sensitive identities as defaults for another b
 
 Disabling browsing preserves dormant Search/Wishlist state. Disabled Account must not initialize its encrypted store or network clients and does not erase or remotely revoke an existing session. When Account is enabled, deletion retains all local cleanup choices even when Search/Wishlist browsing is disabled: Search-history cleanup defaults on, Wishlist cleanup off, and Cart discard on. This privacy exception retains confirmation and outcome reporting; it does not establish merchant-side deletion.
 
-## Synthetic conformance result through Gate 5
+## Synthetic conformance result through Gate 6
 
-Gate 2 added a non-production synthetic application without teaching shared code its concrete name, domain, application ID, or catalog. Gate 3 retained that boundary while giving it fixed `en-CA` locale/Search policy, `ZZ/ZZ/XTS` market, text postal input and distinct encrypted cart/customer stores. Gate 4 retained those identities but enabled Search only, disabled Wishlist/Account and ordered the primary destinations `[SEARCH, HOME, CATEGORIES]`. Gate 5 retained the same application/capability identity while strengthening proof that synthetic is physically Firebase-free. Gate 4 local physical-device/manual attempts executed zero tests and remain NOT RUN/non-proof; the required final PR and post-merge managed-device CI lanes passed. Gate 5 exact-HEAD and merged-main CI, review and security closure gates passed; its historical handoff retains the detailed pre-merge evidence and non-proofs.
+Gate 2 added a non-production synthetic application without teaching shared code its concrete name, domain, application ID, or catalog. Gate 3 retained that boundary while giving it fixed `en-CA` locale/Search policy, `ZZ/ZZ/XTS` market, text postal input and distinct encrypted cart/customer stores. Gate 4 retained those identities but enabled Search only, disabled Wishlist/Account and ordered the primary destinations `[SEARCH, HOME, CATEGORIES]`. Gate 5 retained the same application/capability identity while strengthening proof that synthetic is physically Firebase-free. Gate 6 replaced compiled Categories discovery with an application-selected bounded Shopify Menu while keeping synthetic remote discovery inert and credential-free. Gate 4 local physical-device/manual attempts executed zero tests and remain NOT RUN/non-proof; the required final PR and post-merge managed-device CI lanes passed. Gate 5 and Gate 6 exact-HEAD and merged-main CI, review and security closure gates passed; their historical handoffs retain the detailed pre-merge evidence and non-proofs.
 
 The proof is intentionally bounded:
 
-| Dimension | Evidence boundary after Gate 5 closure |
+| Dimension | Evidence boundary after Gate 6 closure |
 |---|---|
 | Separate application identity, manifest, resources, sandbox, and Gradle edge | Proven |
 | Complete design-token values and runtime consumption | Proven; custom-font behavior deferred |
-| Home/Catalog fixtures, fixed market and locale | Gate 3 evidence retained; Gate 4 removes Account Order/tracking/deletion runtime bindings; runtime switching/general internationalization not implemented |
+| Home/Catalog fixtures, fixed market and locale | Gate 3 fixed-input evidence retained; Gate 6 moves Categories discovery to the bounded selected Menu while Home remains packaged; runtime switching/general internationalization not implemented |
 | Firebase | Physical absence proven in project dependencies, plugin/configuration, generated resources, merged manifest/metadata, archive entries and DEX namespaces; no live-provider behavior is implied |
 | Search, Wishlist, and Customer Account | Search enabled; Wishlist/Account disabled. Contract/session/JVM, package and required managed-device CI evidence passed; local physical-device/manual runtime remains NOT RUN |
 | Persistence | Separate Room database/partitions plus distinct encrypted cart/customer identities, recreation, clear and process-restart evidence proven |
@@ -136,7 +136,7 @@ Before calling a real brand onboarded, record evidence that:
 
 The exact verification lane belongs in the later brand/gate implementation plan, not here.
 
-Current applicability: use this contract only to plan a future real brand through a separately approved gate. Gates 2–5 establish bounded second-application, fixed-input, capability-composition and provider-isolation boundaries, and Gate 5 is closed. They do not authorize Gate 6, real-brand onboarding, external-provider mutation, production configuration, signing, publication, or release readiness.
+Current applicability: use this contract only to plan a future real brand through a separately approved gate. Gates 2–6 establish bounded second-application, fixed-input, capability-composition, provider-isolation and Categories-discovery boundaries, and Gate 6 is closed. They do not authorize Gate 8 provisioning, real-brand onboarding, production configuration, signing, publication, or release readiness.
 
 ## Related authority
 
