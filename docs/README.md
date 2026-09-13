@@ -6,6 +6,10 @@ This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
 useful without becoming present-state instructions.
 
+This public repository is the forward-development authority. Its
+[migration handoff](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) records the fresh
+history, protected bootstrap, and historical-archive cutover evidence.
+
 ## Current project status
 
 - The accepted platform remains native Android: Kotlin + Jetpack Compose,
@@ -60,6 +64,7 @@ scope. They do not override current source or later accepted decisions.
 | [`architecture`](architecture) | Accepted Multi-Brand target, brand boundaries, onboarding, and migration-sensitive identities |
 | [`decisions`](decisions) | Accepted platform, navigation, SDK, and Multi-Brand ADRs |
 | [`multi-brand/README.md`](multi-brand/README.md) | Current Gate index and unfinished continuation point |
+| [`PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md`](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) | Fresh-history public bootstrap, rights, protection, CI, and authority-cutover evidence |
 | [`phase3/README.md`](phase3/README.md) | Current functional status index |
 | [`phase3/PHASE-3-PRODUCT-DECISIONS.md`](phase3/PHASE-3-PRODUCT-DECISIONS.md) | Final product decisions |
 | [`phase3/PHASE-3-ACCEPTANCE-MATRIX.md`](phase3/PHASE-3-ACCEPTANCE-MATRIX.md) | Feature-by-feature acceptance status |
