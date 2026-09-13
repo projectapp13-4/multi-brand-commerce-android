@@ -1,6 +1,6 @@
 # Multi-Brand Gate 7 — Bounded Shopify-Driven Home Content
 
-Status: **Phase A contract frozen from actual-client evidence; Phase B implementation in progress**
+Status: **Phase A contract frozen; source implementation and configured acceptance complete; final candidate gates pending**
 
 Approved date: 2026-09-13
 
@@ -268,7 +268,7 @@ Recreating a store object or Activity is not process-restart proof.
 
 ## Security and privacy
 
-All decoded counts, strings, lists, cache records, operations and batches are bounded. Persisted public editorial metadata still uses private app storage, is excluded from backup, partitioned and never logged raw. Tokens never enter source, tests, screenshots, evidence or handoffs.
+All decoded counts, strings, lists, cache records, operations and batches are bounded. Persisted public editorial metadata still uses private app storage, is excluded from backup, partitioned and never logged raw. Tokens must never enter source, tests, screenshots, evidence or handoffs.
 
 Marker corruption fails conservatively. Newer content versions fail closed for executable authority. Partial external publication is expected and classified. Synthetic cannot contact a live merchant. Gate 7 adds no new dependency.
 
@@ -286,14 +286,6 @@ Implementation completion additionally requires G7-R01 through G7-R08 regression
 
 Merge readiness requires the handoff commit first, then the complete exact-HEAD local matrix, review/security with no unresolved finding, resolved PR conversations and all three strict GitHub checks on that SHA. Technical closure requires protected merge, merged-main tree/ancestry and canonical post-merge CI. Current documentation is reconciled only afterward in a narrow follow-up.
 
-Current true blockers are:
-
-- no configured approved nonproduction Storefront domain/token with metaobject access in the workspace;
-- definitions/probe entries not yet inspected or created;
-- explicit-empty/draft-child behavior not observed through the actual client;
-- MB-01 normal-path instrumentation;
-- API 23 active-path execution;
-- configured-app acceptance/process restart;
-- final exact-head review/security/CI and protected merge/post-merge proof.
+Phase A, MB-01 normal-path instrumentation, active API 23 execution and configured-app acceptance/process restart are complete and are recorded in the Gate 7 completion handoff. Current true blockers are the final exact-head local matrix, review/security, protected-PR checks, owner-authorized merge and post-merge proof. A controlled public Storefront token appeared in local tool output during execution; it is absent from Git and durable evidence, but rotation must be assessed and completed without breaking another authorized consumer before Gate 7 closure.
 
 Fonts, `@inContext`, generic provisioning, a second real brand and P3-16 are not Gate 7 blockers.
