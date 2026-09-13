@@ -1,6 +1,6 @@
 # Multi-Brand Gate 7 — Bounded Shopify-Driven Home Content
 
-Status: **Approved contract candidate; Phase A actual-client observability proof pending; Phase B blocked**
+Status: **Phase A contract frozen from actual-client evidence; Phase B implementation in progress**
 
 Approved date: 2026-09-13
 
@@ -14,9 +14,9 @@ Gate 7 moves only merchant-owned Home editorial selection, order, remote titles 
 
 Planning observations and the public baseline are historical evidence. Checked-in Apollo compilation, local tests, actual Storefront observations, configured-device acceptance, exact-candidate CI and post-merge evidence are separate proof classes. No PASS may be inferred from a planned command or a differently scoped baseline.
 
-During the additive contract slice, Shopify's bundled Storefront schema validator accepted the root operation as artifact `g7-home-content-root-r01` revision 5 and the batch operation as `g7-home-resources-r06` revision 2 when each was supplied with the shared image fragment. The repository's Apollo generator also compiled both checked-in operations. These results prove operation/schema compatibility only; they do not prove target-store access, publication behavior or actual-client classifications.
+During the additive contract slice, Shopify's bundled Storefront schema validator accepted the root operation as artifact `g7-home-content-root-r01` revision 5 and the batch operation as `g7-home-resources-r06` revision 2 when each was supplied with the shared image fragment. The repository's Apollo generator also compiled both checked-in operations. Those results prove operation/schema compatibility only.
 
-Phase B must not begin until the actual mobile client distinguishes explicit empty content from a draft/unavailable root and a nonempty root whose child does not resolve. The missing ignored `config/local.properties` at the planning base means those observations are pending.
+On 2026-09-13, the ignored configuration was supplied from the project-controlled historical workspace without printing or tracking credentials. The actual generated Apollo mobile client then distinguished active ordered content, explicit empty, a draft root, an active nonempty root whose child was draft, restored child visibility and a nonexistent selector. Three opt-in proof executions completed successfully; the final proof also read the published `mobile_home/primary` with two typed child entries that both use handle `primary`. Temporary probes were returned to DRAFT. Sanitized evidence is retained outside Git in the access-controlled operator record; raw payloads and tokens are excluded. This satisfies the Phase A observability gate and authorizes Phase B under this plan.
 
 ## Scope
 
@@ -50,7 +50,7 @@ External setup is limited to the approved project-owned development/staging shop
 
 ## Shopify schema
 
-All definitions are merchant-owned types, require Storefront `PUBLIC_READ`, merchant read/write administration and the publishable capability.
+All definitions are merchant-owned types, require Storefront `PUBLIC_READ`, merchant read/write administration and the publishable capability. The Admin API rejected an explicit merchant Admin-access input during creation; omitting it produced the platform-owned `PUBLIC_READ_WRITE` readback. The root mixed-reference validation required the two concrete child-definition GIDs rather than definition-type strings, plus `list.max = 2`; this provider representation is captured in operator evidence while the application contract remains limited to the two named types.
 
 | Definition | Field | Contract |
 |---|---|---|
