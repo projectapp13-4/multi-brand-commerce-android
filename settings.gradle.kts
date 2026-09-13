@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "multi-brand-commerce-android"
+rootProject.name = "ruleset-proof-invalid"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(
