@@ -1,5 +1,6 @@
 package com.gurbakir.mobile.home
 
+import android.annotation.SuppressLint
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -91,6 +92,7 @@ constructor(
         }
     }
 
+    @SuppressLint("UseKtx") // KTX edit(commit = true) discards the commit result required by this contract.
     override suspend fun replace(marker: HomeEstablishmentRecord, snapshot: HomeStoredSnapshot): HomeStoreWrite {
         require(marker.partition == snapshot.partition)
         val encodedMarker = codec.encodeMarker(marker)
@@ -120,6 +122,7 @@ constructor(
         }
     }
 
+    @SuppressLint("UseKtx") // Cleanup reports the synchronous commit result instead of assuming durability.
     private fun removeSnapshot(): Boolean = preferences.edit().remove(HOME_SNAPSHOT_KEY).commit()
 
     private fun established(marker: HomeEstablishmentRecord, recovery: HomeSnapshotRecovery) =

@@ -123,6 +123,7 @@ No order, payment, customer, inventory, price, market, publication-channel or re
 
 ## 7. Failures and corrections retained as evidence
 
+- The first documentation-bearing candidate failed `spotlessCheck detekt lint` after 6 minutes 24 seconds because Android Lint required an explicit decision about two raw `SharedPreferences.Editor.commit()` calls. The KTX helper discards the boolean durability result required by this contract, so the two exact sites now carry a narrowly documented `UseKtx` suppression. Focused mobile-core formatting, lint and unit tests then completed successfully in 5 minutes 37 seconds. The original full-gate failure remains a FAIL and all final gates must run again on the corrected candidate.
 - The historical planning baseline had one uncached Storefront timeout in an existing one-second Gate 6 test. Its isolated rerun and subsequent normal suite passed. It remains baseline flake evidence and is not relabeled as a fresh unconditional suite PASS.
 - The first Gate 7 API 23 managed-device definition used an unavailable `aosp-atd` image. It was corrected to the repository-supported `aosp` 64-bit image.
 - The initial API 23 run exposed one Account list item that was not composed, an API 24 preference cleanup call, API 26 PixelCopy usage and API 24 search-driver behavior. Tests were corrected or accurately SDK-scoped; repeated attempts to change production focus behavior were reverted after evidence showed the issue was test-driver/platform-specific.
