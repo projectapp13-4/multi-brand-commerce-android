@@ -15,8 +15,6 @@ import com.gurbakir.storefront.graphql.CartLinesAddMutation
 import com.gurbakir.storefront.graphql.CartLinesRemoveMutation
 import com.gurbakir.storefront.graphql.CartLinesUpdateMutation
 import com.gurbakir.storefront.graphql.CatalogPageQuery
-import com.gurbakir.storefront.graphql.HomeCollectionQuery
-import com.gurbakir.storefront.graphql.HomeProductQuery
 import com.gurbakir.storefront.graphql.ShopSummaryQuery
 import com.gurbakir.storefront.graphql.fragment.HomeImageFields
 import com.gurbakir.storefront.graphql.type.CartBuyerIdentityInput
@@ -67,7 +65,8 @@ class ApolloStorefrontGateway(
     private val mediaPolicy: StorefrontMediaPolicy,
     private val pageSize: Int = DEFAULT_PAGE_SIZE,
     private val requestTimeoutMillis: Long = DEFAULT_REQUEST_TIMEOUT_MILLIS
-) : StorefrontApi {
+) : StorefrontApi,
+    StorefrontHomeGateway by ApolloStorefrontHomeGateway(client, mediaPolicy, requestTimeoutMillis) {
     private val callExecutor = ApolloCallExecutor(requestTimeoutMillis)
     private val cartPager = StorefrontCartPager(client, callExecutor, mediaPolicy)
 
@@ -127,76 +126,6 @@ class ApolloStorefrontGateway(
                     hasNextPage = result.value.products.pageInfo.hasNextPage
                 )
             )
-        }
-    }
-
-    override suspend fun loadHomeCollection(handle: String): StorefrontResult<HomeCollectionSummary?> {
-        if (!handle.isValidStorefrontHandle()) {
-            return StorefrontResult.Failure(StorefrontFailure.Configuration(setOf("home.collectionHandle")))
-        }
-        return when (val result = callExecutor.execute(client.query(HomeCollectionQuery(handle)))) {
-            is StorefrontResult.Failure -> result
-
-            is StorefrontResult.Success -> {
-                val collection = result.value.collection
-                val firstProduct = collection?.products?.nodes?.firstOrNull()
-                val media =
-                    when {
-                        collection == null || firstProduct == null -> null
-
-                        collection.image == null ->
-                            firstProduct.featuredImage?.homeImageFields?.toStorefrontMedia(mediaPolicy)
-
-                        else -> collection.image.homeImageFields.toStorefrontMedia(mediaPolicy)
-                    }
-                StorefrontResult.Success(
-                    if (collection == null || media == null) {
-                        null
-                    } else {
-                        HomeCollectionSummary(
-                            id = collection.id,
-                            handle = collection.handle,
-                            sourceTitle = collection.title,
-                            media = media
-                        )
-                    }
-                )
-            }
-        }
-    }
-
-    override suspend fun loadHomeProduct(handle: String): StorefrontResult<HomeProductSummary?> {
-        if (!handle.isValidStorefrontHandle()) {
-            return StorefrontResult.Failure(StorefrontFailure.Configuration(setOf("home.productHandle")))
-        }
-        return when (val result = callExecutor.execute(client.query(HomeProductQuery(handle)))) {
-            is StorefrontResult.Failure -> result
-
-            is StorefrontResult.Success -> {
-                val product = result.value.product
-                val amount = product?.let { it.priceRange.minVariantPrice.amount.toBigDecimalOrNull() }
-                when {
-                    product == null -> StorefrontResult.Success(null)
-
-                    amount == null -> graphQlFailure("INVALID_MONEY_AMOUNT")
-
-                    else ->
-                        StorefrontResult.Success(
-                            HomeProductSummary(
-                                id = product.id,
-                                handle = product.handle,
-                                title = product.title,
-                                availableForSale = product.availableForSale,
-                                media = product.featuredImage?.homeImageFields?.toStorefrontMedia(mediaPolicy),
-                                price =
-                                    StorefrontMoney(
-                                        amount = amount,
-                                        currencyCode = product.priceRange.minVariantPrice.currencyCode.rawValue
-                                    )
-                            )
-                        )
-                }
-            }
         }
     }
 
@@ -388,8 +317,6 @@ class ApolloStorefrontGateway(
         }
     }
 }
-
-private fun String.isValidStorefrontHandle(): Boolean = matches(Regex("^[a-z0-9][a-z0-9-]{0,254}$"))
 
 internal fun HomeImageFields.toStorefrontMedia(mediaPolicy: StorefrontMediaPolicy): StorefrontMedia? {
     val uri = runCatching { java.net.URI(url) }.getOrNull()?.takeIf(mediaPolicy::accepts) ?: return null

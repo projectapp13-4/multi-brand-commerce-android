@@ -128,5 +128,15 @@ class HomeContentRepositoryTest {
             productRequest = handle
             return productResult
         }
+
+        override suspend fun loadHomeDocument(
+            selector: com.gurbakir.storefront.HomeDocumentSelector
+        ): StorefrontResult<com.gurbakir.storefront.HomeDocumentObservation?> =
+            StorefrontResult.Failure(StorefrontFailure.GraphQl(setOf("HOME_CONTENT_NOT_IMPLEMENTED")))
+
+        override suspend fun loadHomeResources(
+            keys: List<com.gurbakir.storefront.HomeResourceKey>
+        ): StorefrontResult<com.gurbakir.storefront.HomeResourceBatch> =
+            StorefrontResult.Failure(StorefrontFailure.GraphQl(setOf("HOME_RESOURCES_NOT_IMPLEMENTED")))
     }
 }

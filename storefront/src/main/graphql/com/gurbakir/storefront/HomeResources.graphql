@@ -1,0 +1,34 @@
+query HomeResources($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    __typename
+    id
+    ... on Collection {
+      handle
+      title
+      image {
+        ...HomeImageFields
+      }
+      products(first: 1) {
+        nodes {
+          featuredImage {
+            ...HomeImageFields
+          }
+        }
+      }
+    }
+    ... on Product {
+      handle
+      title
+      availableForSale
+      featuredImage {
+        ...HomeImageFields
+      }
+      priceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+    }
+  }
+}

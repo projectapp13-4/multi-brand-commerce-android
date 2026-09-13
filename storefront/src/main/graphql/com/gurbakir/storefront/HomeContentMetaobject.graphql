@@ -1,0 +1,86 @@
+query HomeContentMetaobject($handle: MetaobjectHandleInput!) {
+  metaobject(handle: $handle) {
+    id
+    handle
+    type
+    updatedAt
+    schemaVersion: field(key: "schema_version") {
+      type
+      value
+    }
+    declaredSectionCount: field(key: "declared_section_count") {
+      type
+      value
+    }
+    sections: field(key: "sections") {
+      type
+      value
+      references(first: 3) {
+        nodes {
+          __typename
+          ... on Metaobject {
+            id
+            handle
+            type
+            title: field(key: "title") {
+              type
+              value
+            }
+            collections: field(key: "collections") {
+              type
+              value
+              references(first: 7) {
+                nodes {
+                  __typename
+                  ... on Collection {
+                    id
+                    handle
+                    title
+                    image {
+                      ...HomeImageFields
+                    }
+                    products(first: 1) {
+                      nodes {
+                        featuredImage {
+                          ...HomeImageFields
+                        }
+                      }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                }
+              }
+            }
+            product: field(key: "product") {
+              type
+              value
+              reference {
+                __typename
+                ... on Product {
+                  id
+                  handle
+                  title
+                  availableForSale
+                  featuredImage {
+                    ...HomeImageFields
+                  }
+                  priceRange {
+                    minVariantPrice {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+        }
+      }
+    }
+  }
+}

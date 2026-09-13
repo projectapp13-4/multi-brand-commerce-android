@@ -7,6 +7,10 @@ interface StorefrontHomeGateway {
     suspend fun loadHomeCollection(handle: String): StorefrontResult<HomeCollectionSummary?>
 
     suspend fun loadHomeProduct(handle: String): StorefrontResult<HomeProductSummary?>
+
+    suspend fun loadHomeDocument(selector: HomeDocumentSelector): StorefrontResult<HomeDocumentObservation?>
+
+    suspend fun loadHomeResources(keys: List<HomeResourceKey>): StorefrontResult<HomeResourceBatch>
 }
 
 interface StorefrontApi :
