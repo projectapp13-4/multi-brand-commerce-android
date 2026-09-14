@@ -78,6 +78,21 @@ class HomeContentValidatorTest {
         )
     }
 
+    @Test
+    fun `malformed root updated timestamp is rejected before persistence`() {
+        val validation =
+            validator.validate(
+                selector,
+                root("0", "[]", emptyList()).copy(rootUpdatedAt = "not-an-instant"),
+                1
+            )
+
+        assertEquals(
+            HomeDocumentValidation.Rejected(HomeDocumentRejection.ROOT_IDENTITY),
+            validation
+        )
+    }
+
     private fun root(count: String, stored: String, nodes: List<HomeSectionNodeObservation>) = HomeDocumentObservation(
         rootGid = "gid://shopify/Metaobject/root",
         rootHandle = "primary",

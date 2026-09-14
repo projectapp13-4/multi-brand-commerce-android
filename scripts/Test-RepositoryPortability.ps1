@@ -404,6 +404,32 @@ function Get-GraphQLBlockBody {
     return $null
 }
 
+function Remove-GraphQLComments {
+    param([Parameter(Mandatory)] [string]$Text)
+
+    return [regex]::Replace($Text, '(?m)#.*$', '')
+}
+
+function Get-GraphQLOperationBody {
+    param(
+        [Parameter(Mandatory)] [string]$Text,
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    $cleanText = Remove-GraphQLComments $Text
+    $headers = @(
+        [regex]::Matches(
+            $cleanText,
+            "(?m)\bquery\s+$([regex]::Escape($Name))\s*\("
+        )
+    )
+    if ($headers.Count -ne 1) {
+        return $null
+    }
+    $openingBraceIndex = $cleanText.IndexOf('{', $headers[0].Index)
+    return Get-GraphQLBlockBody -Text $cleanText -OpeningBraceIndex $openingBraceIndex
+}
+
 function Get-GraphQLFragmentBody {
     param(
         [Parameter(Mandatory)] [string]$Text,
@@ -441,6 +467,7 @@ function Get-GraphQLTopLevelFields {
 
     $fields = [System.Collections.Generic.List[string]]::new()
     $depth = 0
+    $parenthesisDepth = 0
     $index = 0
     while ($index -lt $SelectionText.Length) {
         $character = $SelectionText[$index]
@@ -454,7 +481,17 @@ function Get-GraphQLTopLevelFields {
             $index++
             continue
         }
-        if ($depth -gt 0 -or [char]::IsWhiteSpace($character) -or $character -eq ',') {
+        if ($character -eq '(') {
+            $parenthesisDepth++
+            $index++
+            continue
+        }
+        if ($character -eq ')') {
+            $parenthesisDepth--
+            $index++
+            continue
+        }
+        if ($depth -gt 0 -or $parenthesisDepth -gt 0 -or [char]::IsWhiteSpace($character) -or $character -eq ',') {
             $index++
             continue
         }
@@ -629,10 +666,7 @@ function Test-CatalogDiscoveryOwnership {
         @($expectedHomePairs | ForEach-Object { ($_ -split '\|', 2)[1] } | Where-Object {
             $HomeResourceText -notmatch [regex]::Escape($_)
         }).Count -eq 0
-    $homeRemoteOwnership = $HomeConfigurationText -match 'BuildConfig\.HOME_CONTENT_ROOT_HANDLE' -and
-        $HomeConfigurationText -match 'HomeRemoteSource\.ShopifyMetaobject' -and
-        $HomeConfigurationText -match 'HomeDocumentSelector\("mobile_home",\s*handle\)' -and
-        $HomeConfigurationText -match 'HomeRemoteSource\.Disabled' -and
+    $homeRemoteOwnership = $HomeConfigurationText -match '(?s)BuildConfig\.HOME_CONTENT_ROOT_HANDLE\.takeIf\(String::isNotBlank\)\?\.let\s*\{\s*handle\s*->\s*HomeRemoteSource\.ShopifyMetaobject\s*\(\s*HomeDocumentSelector\("mobile_home",\s*handle\)\s*\)\s*\}\s*\?:\s*HomeRemoteSource\.Disabled\b' -and
         $HomeConfigurationText -match 'HomePackagedFallback'
 
     return $catalogContract -and
@@ -657,7 +691,36 @@ function Test-HomeContentGraphQLContract {
         -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $imageBody) @('url', 'altText', 'width', 'height'))) {
         return $false
     }
-    $queries = $RootQueryText + "`n" + $ResourcesQueryText
+    $rootText = Remove-GraphQLComments $RootQueryText
+    $resourcesText = Remove-GraphQLComments $ResourcesQueryText
+    $rootOperation = Get-GraphQLOperationBody $rootText 'HomeContentMetaobject'
+    $resourcesOperation = Get-GraphQLOperationBody $resourcesText 'HomeResources'
+    if ($null -in @($rootOperation, $resourcesOperation) -or
+        @([regex]::Matches($rootText, '(?m)\bquery\s+')).Count -ne 1 -or
+        @([regex]::Matches($resourcesText, '(?m)\bquery\s+')).Count -ne 1 -or
+        $rootText -match '(?m)\bfragment\s+' -or
+        $resourcesText -match '(?m)\bfragment\s+') {
+        return $false
+    }
+    if (-not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $rootOperation) @('metaobject')) -or
+        -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $resourcesOperation) @('nodes'))) {
+        return $false
+    }
+    $metaobjectHeader = [regex]::Match($rootOperation, '(?m)\bmetaobject\s*\([^{}]*\)\s*\{')
+    if (-not $metaobjectHeader.Success) {
+        return $false
+    }
+    $rootMetaobject = Get-GraphQLBlockBody $rootOperation $rootOperation.IndexOf('{', $metaobjectHeader.Index)
+    if ($null -eq $rootMetaobject -or
+        -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $rootMetaobject) @('id', 'handle', 'type', 'updatedAt', 'field', 'field', 'field'))) {
+        return $false
+    }
+    if (@([regex]::Matches($rootOperation, '\bfirst\s*:')).Count -ne 3 -or
+        @([regex]::Matches($resourcesOperation, '\bfirst\s*:')).Count -ne 1 -or
+        ($rootOperation + "`n" + $resourcesOperation) -match '\bfirst\s*:\s*(?!1\b|3\b|7\b)\d+') {
+        return $false
+    }
+    $queries = $rootOperation + "`n" + $resourcesOperation
     if ($queries -match '(?i)\b(?:route|action|component|destination)[A-Za-z0-9_]*\s*:\s*url\b' -or
         $queries -match '(?i)\b(?:routeUrl|actionUrl|componentUrl|destinationUrl)\b') {
         return $false
@@ -665,14 +728,17 @@ function Test-HomeContentGraphQLContract {
     if ($queries -match '(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*:\s*)?url\b') {
         return $false
     }
-    return $RootQueryText -match '(?s)\bquery\s+HomeContentMetaobject\b.*\bmetaobject\s*\(\s*handle\s*:\s*\$handle\s*\)' -and
-        $RootQueryText -match 'field\s*\(\s*key\s*:\s*"declared_section_count"\s*\)' -and
-        $RootQueryText -match '(?s)sections:\s*field\s*\(\s*key\s*:\s*"sections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*3\s*\)' -and
-        $RootQueryText -match '(?s)collections:\s*field\s*\(\s*key\s*:\s*"collections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*7\s*\)' -and
-        @([regex]::Matches($RootQueryText, '\bhasNextPage\b')).Count -eq 2 -and
-        $RootQueryText -match '(?s)product:\s*field\s*\(\s*key\s*:\s*"product"\s*\).*?\btype\b.*?\bvalue\b.*?\breference\b' -and
-        $ResourcesQueryText -match '(?s)\bquery\s+HomeResources\s*\(\s*\$ids\s*:\s*\[ID!\]!\s*\).*\bnodes\s*\(\s*ids\s*:\s*\$ids\s*\)' -and
-        @([regex]::Matches($queries, '\.\.\.HomeImageFields\b')).Count -ge 6
+    return $rootText -match '(?s)\bquery\s+HomeContentMetaobject\s*\(\s*\$handle\s*:\s*MetaobjectHandleInput!\s*\)' -and
+        $rootOperation -match '\bmetaobject\s*\(\s*handle\s*:\s*\$handle\s*\)' -and
+        $rootOperation -match 'field\s*\(\s*key\s*:\s*"declared_section_count"\s*\)' -and
+        $rootOperation -match '(?s)sections:\s*field\s*\(\s*key\s*:\s*"sections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*3\s*\)' -and
+        $rootOperation -match '(?s)collections:\s*field\s*\(\s*key\s*:\s*"collections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*7\s*\)' -and
+        @([regex]::Matches($rootOperation, '\bhasNextPage\b')).Count -eq 2 -and
+        $rootOperation -match '(?s)product:\s*field\s*\(\s*key\s*:\s*"product"\s*\).*?\btype\b.*?\bvalue\b.*?\breference\b' -and
+        $resourcesText -match '(?s)\bquery\s+HomeResources\s*\(\s*\$ids\s*:\s*\[ID!\]!\s*\)' -and
+        $resourcesOperation -match '\bnodes\s*\(\s*ids\s*:\s*\$ids\s*\)' -and
+        @([regex]::Matches($rootOperation, '\.\.\.HomeImageFields\b')).Count -eq 3 -and
+        @([regex]::Matches($resourcesOperation, '\.\.\.HomeImageFields\b')).Count -eq 3
 }
 
 function Invoke-PortabilitySelfTest {
@@ -946,6 +1012,14 @@ HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_col
                 )
             }
             [pscustomobject]@{
+                Name = 'unused disabled Home source decoy is rejected'
+                Field = 'HomeConfigurationText'
+                Text = $validCatalogOwnership.HomeConfigurationText.Replace(
+                    '} ?: HomeRemoteSource.Disabled',
+                    "}`nval unusedDisabled = HomeRemoteSource.Disabled"
+                )
+            }
+            [pscustomobject]@{
                 Name = 'blank synthetic selector is rejected'
                 Field = 'SyntheticConfigurationText'
                 Text = 'CatalogConfiguration(menuHandle = "")'
@@ -966,6 +1040,10 @@ HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_col
         $validHomeRootQuery = @'
 query HomeContentMetaobject($handle: MetaobjectHandleInput!) {
   metaobject(handle: $handle) {
+    id
+    handle
+    type
+    updatedAt
     schemaVersion: field(key: "schema_version") { type value }
     declaredSectionCount: field(key: "declared_section_count") { type value }
     sections: field(key: "sections") {
@@ -993,10 +1071,19 @@ query HomeResources($ids: [ID!]!) {
             Test-HomeContentGraphQLContract $validHomeRootQuery $validHomeResourcesQuery $validHomeImageFragment
         )
         Add-SelfTestResult 'aliased Home navigation url is rejected' (-not (
-            Test-HomeContentGraphQLContract ($validHomeRootQuery + "`ndestination: url") $validHomeResourcesQuery $validHomeImageFragment
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    updatedAt', "    updatedAt`n    destination: url")) $validHomeResourcesQuery $validHomeImageFragment
         ))
         Add-SelfTestResult 'missing stored section value is rejected' (-not (
             Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)')) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'Home query comment cannot supply a missing stored section value' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)') + "`n# value references(first: 3)") $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'unrelated Home fragment cannot supply a missing image spread' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('featuredImage { ...HomeImageFields }', 'featuredImage { id }') + "`nfragment UnusedImage on Product { featuredImage { ...HomeImageFields } }") $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'additional unbounded Home field is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    schemaVersion:', '    collections(first: 99) { nodes { id } }`n    schemaVersion:')) $validHomeResourcesQuery $validHomeImageFragment
         ))
         Add-SelfTestResult 'missing required Image url is rejected for Home' (-not (
             Test-HomeContentGraphQLContract $validHomeRootQuery $validHomeResourcesQuery 'fragment HomeImageFields on Image { altText width height }'

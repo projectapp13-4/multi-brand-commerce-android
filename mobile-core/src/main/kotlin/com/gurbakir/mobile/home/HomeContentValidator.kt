@@ -7,6 +7,7 @@ import com.gurbakir.storefront.HomeResourceKey
 import com.gurbakir.storefront.HomeResourceKind
 import com.gurbakir.storefront.HomeSectionObservation
 import com.gurbakir.storefront.StorefrontHomeResource
+import java.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
@@ -59,7 +60,7 @@ class HomeContentValidator(private val json: Json = Json) {
             observation.rootType != selector.type ||
             observation.rootHandle != selector.handle ||
             !observation.rootGid.isGid("Metaobject") ||
-            observation.rootUpdatedAt.isBlank()
+            runCatching { Instant.parse(observation.rootUpdatedAt) }.isFailure
         ) {
             return rejected(HomeDocumentRejection.ROOT_IDENTITY)
         }
