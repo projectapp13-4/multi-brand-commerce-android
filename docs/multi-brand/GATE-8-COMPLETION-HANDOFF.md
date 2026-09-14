@@ -6,7 +6,7 @@ Evidence date: 2026-09-15.
 
 Implementation base: `ea936053b6d221a2abdfccf2f207167797ca330e`.
 
-Reviewed implementation-source commit: `4c45f67acd445fa0b10a73ff3cdc349265b5b56f`.
+Reviewed implementation-source commit: `802ca4036ae5a84ff0d5b38f39c18af0f03ec3ee`.
 
 Approved durable plan digest: `ce66e5ad7c5d830b4fcfc895e32dbb41a98871eaedf4636b239359a87bf6175a`.
 
@@ -27,12 +27,12 @@ Gate 8 implements the approved offline provisioning and onboarding foundation:
 
 ## Completed local verification
 
-All results below were obtained from the Gate 8 worktree. Every Android managed-device target executed on documentation candidate `ae5c8c4f255d480380b25abbff8b4307453bf812`. Subsequent corrections changed CI bootstrap/self-test handling, registry-driven task and Storefront proof resolution, self-test preservation, and one App Links variable name; they did not change Android production or instrumentation test source. On reviewed source `4c45f67acd445fa0b10a73ff3cdc349265b5b56f`, Storefront API 30 was force-rerun 7/7, the exact combined API 30 lane completed with fresh Mobile Core and Synthetic execution while content-valid Account, Storefront, and Gürbakır outputs were reused, and both API 23 targets were force-rerun with every Gradle task executed. Static analysis, JVM, assembly, tooling, portability, package, and security checks were also rerun after the corrections. Final documentation-only candidate checks still occur after this handoff commit.
+All results below were obtained from the Gate 8 worktree. Every Android managed-device target executed on documentation candidate `ae5c8c4f255d480380b25abbff8b4307453bf812`. Subsequent corrections changed CI bootstrap/self-test handling, registry-driven task and Storefront proof resolution, self-test preservation, App Links operator validation, the receipt contract, and CI fail-fast guards; they did not change Android production, Gradle project/build configuration, or instrumentation test source. On reviewed source ancestor `4c45f67acd445fa0b10a73ff3cdc349265b5b56f`, Storefront API 30 was force-rerun 7/7, the exact combined API 30 lane completed with fresh Mobile Core and Synthetic execution while content-valid Account, Storefront, and Gürbakır outputs were reused, and both API 23 targets were force-rerun with every Gradle task executed. Static analysis, JVM, assembly, tooling, portability, package, and security checks were rerun after the earlier corrections. The affected tooling/security suites were then rerun after the final review correction at the reviewed implementation-source commit above. Final documentation-bearing candidate checks still occur after this refreshed handoff commit.
 
 | Verification | Result | Evidence |
 |---|---|---|
-| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 90/90 |
-| Focused operator security suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite Security`: 43/43 |
+| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 93/93 |
+| Focused operator security suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite Security`: 45/45 |
 | Offline registry/projection validation | **PASS** | Current registry/projections valid; missing ignored inputs classified `UNCONFIGURED` |
 | Task-lane resolution | **PASS** | `unit`, `assemble`, `api30`, and `api23` all validate against registered tasks |
 | Spotless | **PASS** | `spotlessCheck` completed successfully |
@@ -49,13 +49,15 @@ All results below were obtained from the Gate 8 worktree. Every Android managed-
 | API 23 Synthetic instrumentation | **PASS** | Fresh reviewed-source force-rerun: 14 tests reported, two expected paired process-restart proof skips, zero failures |
 | Repository portability self-tests | **PASS** | 68/68 |
 | Current repository portability validation | **PASS** | 46/46; final `-RequireCleanWorktree` run 47/47 |
-| Public-readiness self-tests | **PASS** | 17/17, including the implicit legacy Android SDK package counterexample |
-| Current public-readiness validation | **PASS** | 22/22 |
+| Public-readiness self-tests | **PASS** | 18/18, including legacy Android SDK package and missing CI lane-guard counterexamples |
+| Current public-readiness validation | **PASS** | 23/23 |
 | Firebase zero-file boundary | **PASS** | All four files absent; local-default state accepted and configured Firebase evidence not claimed |
 | Synthetic package self-tests | **PASS** | 49 hostile/positive fixtures |
 | Synthetic debug/release package validation | **PASS** | 63 checks, including Firebase/INTERNET/credential/identity boundaries |
-| Gitleaks current tree | **PASS** | No leaks in approximately 5.14 MB scanned, including the pending handoff update |
-| Gitleaks branch history | **PASS** | No leaks in 16 Gate 8 branch commits / approximately 454 KB scanned through reviewed implementation source |
+| Gitleaks current tree | **PASS** | No leaks in approximately 5.15 MB scanned before the refreshed handoff update |
+| Gitleaks branch history | **PASS** | No leaks in 18 Gate 8 branch commits / approximately 466 KB scanned through reviewed implementation source |
+
+The final reviewed-source combined Gradle matrix reran `spotlessCheck`, root Detekt and full Android Lint, every listed JVM suite, and every planned debug/release/Android-test assembly task. It completed successfully in 8 minutes 22 seconds with 950 actionable tasks: 50 executed, one restored from cache, and 899 up-to-date. Cache reuse is reported rather than concealed; the earlier fresh/forced managed-device executions remain the instrumentation evidence above.
 
 During the exact-candidate rerun, the first combined API 30 attempt reached the Storefront task with an emulator that had no Android package or activity service, so Gradle stopped before the remaining targets. Storefront then passed 7/7 in isolation. The first isolated Mobile Core attempt reached 116 reported results with zero assertion failures before the emulator went offline; the unchanged task was rerun with a smaller one-shot host Gradle heap and passed 126/126. Account, app, Synthetic, and both API 23 targets also completed on the exact candidate. These failed attempts remain classified as local managed-emulator lifecycle/resource failures and are not promoted to PASS; the table records the later successful actual executions.
 
@@ -82,7 +84,9 @@ A whole-branch CodeRabbit review after the CI correction reported nine items. Fo
 
 A second whole-branch CodeRabbit review reported three items. Two valid fixture/clarity defects were fixed in `4c45f67`: the enrollment negative fixture now replaces only the intended first ordinal token, and the App Links helper no longer shadows PowerShell's read-only `$Host` variable. The remaining suggestion to move the same privileged-environment filtering to a lazy provider was rejected: PowerShell 7 is an explicit project prerequisite and the actual `Exec`/readback child-process boundaries already receive filtered environments. The updated onboarding/security suites pass 90/90 and 43/43.
 
-Formal parent-only Codex Security diff scan `426fa3ff-97ec-4c6f-a93e-94a489c6d8df` reviewed the exact range from the implementation base through `4c45f67acd445fa0b10a73ff3cdc349265b5b56f`, recorded all 36 security review items and the remaining changed test/configuration/evidence paths, and completed with zero reportable findings. It covered credential handling, provider targeting, SSRF/redirect boundaries, strict parsing, receipt/action integrity, path and reparse controls, merchant-content preservation, partial apply/recovery, CI credential inheritance, and Android identity isolation. The scan explicitly excluded live provider execution; no live acceptance result is inferred from source review. Delegation was unavailable under the active session policy, so this scan was sequential in the parent rather than an independent worker review.
+A final whole-branch CodeRabbit review reported eight items. Four valid contract gaps were reproduced with focused failing tests and fixed in `802ca40`: the receipt schema now matches the executable whole-second UTC rule, Plan creation derives both timestamps from one clock sample, all four registry-driven CI lanes explicitly fail on resolver error or an empty task list, and certificate fingerprints accept either hexadecimal case while preserving the exact 32-byte shape. The other four suggestions were rejected against current source and the approved plan: the three `com.gurbakir.storefront` owner proof classes intentionally retain their historical Gürbakır assertions while the new resolver has independent future-app coverage, and production token requests already construct a validating `CustomerAccountTokenRequestPlanner` before the internal request factory can consume the User-Agent. The affected suites pass 93/93 onboarding, 45/45 security, 18/18 public-readiness fixtures, and 23/23 current public-readiness checks.
+
+Formal parent-only Codex Security diff scan `426fa3ff-97ec-4c6f-a93e-94a489c6d8df` reviewed the exact range from the implementation base through `4c45f67acd445fa0b10a73ff3cdc349265b5b56f`, recorded all 36 security review items and the remaining changed test/configuration/evidence paths, and completed with zero reportable findings. It covered credential handling, provider targeting, SSRF/redirect boundaries, strict parsing, receipt/action integrity, path and reparse controls, merchant-content preservation, partial apply/recovery, CI credential inheritance, and Android identity isolation. Focused security review of the later delta through `802ca4036ae5a84ff0d5b38f39c18af0f03ec3ee` found only the four contract-hardening changes described above; their hostile-input and workflow-guard regression tests pass, and no new credential, target, endpoint, provider mutation, or Android runtime surface was added. The scan and delta review explicitly excluded live provider execution; no live acceptance result is inferred from source review. Delegation was unavailable under the active session policy, so this scan was sequential in the parent rather than an independent worker review.
 
 Pull-request run `34892805324` on `ae5c8c4f255d480380b25abbff8b4307453bf812` then exposed two CI-contract failures after the local matrix. The onboarding command printed PASS 85/85 but returned the final expected negative fixture's native exit code to the multi-command Linux PowerShell step. Both Android jobs stopped before Gradle because the pinned `android-actions/setup-android` action's implicit package list still included the removed legacy SDK package `tools`. Commit `75d26c1a513cc724b51d597599d72a6233575d5b` explicitly resets the successful suite exit state, configures all three pinned setup actions with `packages: platform-tools`, and adds a public-readiness counterexample that rejects the legacy implicit package. The exact workflow command block now completes through all four registered lane validations with exit code zero. The failed run remains evidence and is not relabeled; fresh exact pull-request-head required checks are still required.
 
