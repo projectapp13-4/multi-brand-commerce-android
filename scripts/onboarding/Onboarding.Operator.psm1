@@ -45,13 +45,23 @@ function Test-OnboardingProbeAttribution {
     if ([string]$receipt.kind -cne 'RESULT' -or
         [string]$receipt.overallStatus -cne 'SUCCEEDED' -or
         [string]$receipt.application -cne [string]$Context.Selected.Application.key -or
-        [string]$receipt.profile -cne [string]$Context.Selected.Profile.key -or
         [string]$receipt.verifiedTarget.shopId -cne [string]$Context.Binding.shopify.shopId -or
         [string]$receipt.verifiedTarget.adminShopDomain -cne [string]$Context.Binding.shopify.adminShopDomain) {
         return $false
     }
-    foreach ($key in $CurrentDigests.Keys) {
+    $priorSelection = Get-OnboardingApplicationProfile `
+        -Registry $Context.Registry `
+        -Application ([string]$receipt.application) `
+        -Profile ([string]$receipt.profile)
+    $currentGroup = [string]$Context.Selected.Profile.storefront.sharedResourceGroup
+    $priorGroup = [string]$priorSelection.Profile.storefront.sharedResourceGroup
+    if ([string]::IsNullOrWhiteSpace($currentGroup) -or $priorGroup -cne $currentGroup) { return $false }
+    foreach ($key in @('registrySha256', 'homeSchemaSha256', 'operatorSha256')) {
         if ([string]$receipt.digests[$key] -cne [string]$CurrentDigests[$key]) { return $false }
+    }
+    if ([string]$receipt.profile -ceq [string]$Context.Selected.Profile.key -and
+        [string]$receipt.digests.providerBindingSha256 -cne [string]$CurrentDigests.providerBindingSha256) {
+        return $false
     }
     $probeActions = @(
         $receipt.actions | Where-Object {
@@ -180,12 +190,81 @@ function Assert-OnboardingHttpsClientEndpoint {
         throw "UNSAFE_CLIENT_CONFIGURATION:$Field"
     }
     Assert-OnboardingHost -HostName $uri.IdnHost -Field $Field
+    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri)) {
+        throw "UNSAFE_CLIENT_CONFIGURATION:$Field"
+    }
     return $uri
+}
+function Get-OnboardingValidatedClientConfigurationLines {
+    param([Parameter(Mandatory)]$Context,[Parameter(Mandatory)][System.Collections.IDictionary]$Values)
+    $requiredKeys=@(
+        'shopify.storefrontPublicToken','shopify.customerAccountClientId',
+        'shopify.customerAccountIssuer','shopify.customerAccountAuthorizationEndpoint',
+        'shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint',
+        'shopify.customerAccountGraphqlEndpoint','shopify.customerAccountRedirectUri'
+    )
+    if ((@($Values.Keys | Sort-Object -CaseSensitive) -join "`n") -cne (@($requiredKeys | Sort-Object -CaseSensitive) -join "`n")) {
+        throw 'MISSING_OR_UNSAFE_CLIENT_CONFIGURATION'
+    }
+    foreach($key in $requiredKeys){if([string]::IsNullOrWhiteSpace([string]$Values[$key])-or[string]$Values[$key]-match '[\r\n]'){throw 'MISSING_OR_UNSAFE_CLIENT_CONFIGURATION'}}
+    Assert-OnboardingVisibleAsciiValue -Value ([string]$Values['shopify.storefrontPublicToken']) -Field 'shopify.storefrontPublicToken' -MaximumLength 4096
+    Assert-OnboardingVisibleAsciiValue -Value ([string]$Values['shopify.customerAccountClientId']) -Field 'shopify.customerAccountClientId' -MaximumLength 1024
+    $expectedIssuer="https://shopify.com/authentication/$($Context.Binding.shopify.shopId)"
+    if([string]$Values['shopify.customerAccountIssuer']-cne$expectedIssuer){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountIssuer'}
+    foreach($key in @('shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint')){[void](Assert-OnboardingHttpsClientEndpoint ([string]$Values[$key]) $key)}
+    $graphql=[uri](Assert-OnboardingHttpsClientEndpoint ([string]$Values['shopify.customerAccountGraphqlEndpoint']) 'shopify.customerAccountGraphqlEndpoint')
+    $apiVersion=[string]$Context.Registry.providerContracts.shopifyCustomerAccountApiVersion
+    if(-not$graphql.AbsolutePath.EndsWith("/$apiVersion/graphql",[StringComparison]::Ordinal)){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountGraphqlEndpoint'}
+    $identity=$Context.Selected.Application.identity.customerAccount
+    $expectedCallback="shop.$($Context.Binding.shopify.shopId).$($identity.callbackSchemeSuffix)://$($identity.callbackHost)$($identity.callbackPath)"
+    if([string]$Values['shopify.customerAccountRedirectUri']-cne$expectedCallback){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountRedirectUri'}
+    return @($requiredKeys|ForEach-Object{"$_=$([string]$Values[$_])"})
+}
+function Write-OnboardingPrivateProperties {
+    param([Parameter(Mandatory)][string]$RepositoryRoot,[Parameter(Mandatory)][string]$Destination,[Parameter(Mandatory)][string[]]$Lines,[switch]$RefuseOverwrite)
+    Assert-OnboardingLocalWritePath $RepositoryRoot $Destination 'localConfiguration'
+    if($RefuseOverwrite -and (Test-Path -LiteralPath $Destination)){throw 'DESTINATION_EXISTS'}
+    $parent=Split-Path -Parent $Destination;[IO.Directory]::CreateDirectory($parent)|Out-Null
+    Assert-OnboardingLocalWritePath $RepositoryRoot $Destination 'localConfiguration'
+    $temporary=Join-Path $parent ('.gate8-'+[guid]::NewGuid().ToString('N')+'.tmp')
+    $backup="$Destination.bak";Assert-OnboardingLocalWritePath $RepositoryRoot $backup 'localConfigurationBackup'
+    if((Test-Path -LiteralPath $Destination)-and(Test-Path -LiteralPath $backup)){throw 'LOCAL_CONFIGURATION_BACKUP_EXISTS'}
+    try{
+        [IO.File]::WriteAllText($temporary,(($Lines-join"`n")+"`n"),[Text.UTF8Encoding]::new($false));Set-OnboardingPrivateFilePermissions $temporary
+        if(Test-Path -LiteralPath $Destination){[IO.File]::Replace($temporary,$Destination,$backup,$true);Set-OnboardingPrivateFilePermissions $backup}else{[IO.File]::Move($temporary,$Destination)}
+        Set-OnboardingPrivateFilePermissions $Destination
+    }finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
 }
 function Write-OnboardingReceipt { param([string]$Path,$Receipt)
     if ([string]::IsNullOrWhiteSpace($Path)) { throw 'RECEIPT_PATH_REQUIRED' }
     $full=[IO.Path]::GetFullPath($Path); $parent=Split-Path -Parent $full; [IO.Directory]::CreateDirectory($parent)|Out-Null
-    $json=Get-OnboardingCanonicalJson $Receipt; [IO.File]::WriteAllText($full,$json+"`n",[Text.UTF8Encoding]::new($false)); [void](Import-OnboardingReceipt -Path $full)
+    $temporary=Join-Path $parent ('.gate8-receipt-'+[guid]::NewGuid().ToString('N')+'.tmp')
+    try {
+        $json=Get-OnboardingCanonicalJson $Receipt
+        [IO.File]::WriteAllText($temporary,$json+"`n",[Text.UTF8Encoding]::new($false))
+        [void](Import-OnboardingReceipt -Path $temporary)
+        [IO.File]::Move($temporary,$full,$true)
+    } finally {
+        if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}
+    }
+}
+function Get-OnboardingOperatorDigest {
+    param([Parameter(Mandatory)][string]$RepositoryRoot)
+    $relativePaths=@(
+        'scripts/Invoke-MultiBrandOnboarding.ps1',
+        'scripts/onboarding/Onboarding.Common.psm1',
+        'scripts/onboarding/Onboarding.Registry.psm1',
+        'scripts/onboarding/Onboarding.Shopify.psm1',
+        'scripts/onboarding/Onboarding.CustomerAccount.psm1',
+        'scripts/onboarding/Onboarding.Firebase.psm1',
+        'scripts/onboarding/Onboarding.AppLinks.psm1',
+        'scripts/onboarding/Onboarding.Operator.psm1'
+    )
+    $contract=[ordered]@{}
+    foreach($relativePath in $relativePaths){
+        $contract[$relativePath]=Get-OnboardingSha256 (Join-Path $RepositoryRoot $relativePath)
+    }
+    return Get-ObjectSha $contract
 }
 function Get-OnboardingOperatorContext {
     param([string]$RepositoryRoot,[string]$Application,[string]$Profile)
@@ -212,9 +291,44 @@ function Invoke-OnboardingInspect {
         $probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
         $result.menu=$menu.Classification;$result.homeDefinitions=$homeState.Classification;$result.acceptanceProbe=$probe.Classification
     }
-    try { $result.customer=(Get-OnboardingCustomerDiscovery $context.Selected $context.Binding $Transport).Classification } catch { $result.customer='EXTERNALLY_BLOCKED' }
-    try { $result.assetLinks=(Get-OnboardingAssetLinksState $context.Selected $Transport).Classification } catch { $result.assetLinks='EXTERNALLY_BLOCKED' }
-    if ([string]::IsNullOrWhiteSpace($firebase)){$result.firebase='EXTERNALLY_BLOCKED'}else{try{$result.firebase=(Get-OnboardingFirebaseState $context.Selected $context.Binding $firebase $Transport).Classification}catch{$result.firebase='FAIL'}}
+    try { $result.customer=(Get-OnboardingCustomerDiscovery $context.Selected $context.Binding $Transport).Classification } catch {
+        if ([string]$_.Exception.Message -match '^(PROVIDER_TRANSPORT_FAILURE|CUSTOMER_DISCOVERY_HTTP_FAILURE)') { $result.customer='EXTERNALLY_BLOCKED' } else { throw }
+    }
+    try { $result.assetLinks=(Get-OnboardingAssetLinksState $context.Selected $Transport).Classification } catch {
+        if ([string]$_.Exception.Message -match '^PROVIDER_TRANSPORT_FAILURE') { $result.assetLinks='EXTERNALLY_BLOCKED' } else { throw }
+    }
+    if ([string]::IsNullOrWhiteSpace($firebase)){$result.firebase='EXTERNALLY_BLOCKED'}else{$result.firebase=(Get-OnboardingFirebaseState $context.Selected $context.Binding $firebase $Transport).Classification}
+    return [pscustomobject]$result
+}
+function Invoke-OnboardingReadback {
+    param([string]$RepositoryRoot,[string]$Application,[string]$Profile,[scriptblock]$Transport,[scriptblock]$ProcessRunner,[System.Collections.IDictionary]$ClientValues)
+    $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $inspection=Invoke-OnboardingInspect $RepositoryRoot $Application $Profile $Transport
+    $localPath=Test-OnboardingSafeRelativePath $RepositoryRoot ([string]$context.Selected.Profile.localConfiguration) 'localConfiguration'
+    $allowedKeys=@(
+        'shopify.storefrontPublicToken','shopify.customerAccountClientId','shopify.customerAccountIssuer',
+        'shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint',
+        'shopify.customerAccountLogoutEndpoint','shopify.customerAccountGraphqlEndpoint','shopify.customerAccountRedirectUri'
+    )
+    $values=if($null-ne$ClientValues){$ClientValues}else{Read-OnboardingProperties -Path $localPath -AllowedKeys $allowedKeys}
+    [void](Get-OnboardingValidatedClientConfigurationLines $context $values)
+    $arguments=@(
+        ':storefront:testDebugUnitTest','--tests','com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest',
+        '--tests','com.gurbakir.storefront.OwnedHomeContentReadbackTest',
+        '-PgurbakirRunOwnedStorefrontProof=true','-PonboardingRunOwnedHomeReadback=true',
+        "-PonboardingApplication=$Application","-PonboardingProfile=$Profile"
+    )
+    $privilegedNames=@([Environment]::GetEnvironmentVariables('Process').Keys|Where-Object{[string]$_ -match '^MB_[A-Z0-9_]+_(SHOPIFY_ADMIN_TOKEN|FIREBASE_ACCESS_TOKEN)$'}|ForEach-Object{[string]$_})
+    if($null-ne$ProcessRunner){$exitCode=[int](& $ProcessRunner $arguments $privilegedNames)}else{
+        $executable=if($IsWindows){Join-Path $RepositoryRoot 'gradlew.bat'}else{Join-Path $RepositoryRoot 'gradlew'}
+        $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$executable;$start.WorkingDirectory=$RepositoryRoot;$start.UseShellExecute=$false;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+        foreach($argument in $arguments){[void]$start.ArgumentList.Add($argument)}
+        foreach($name in $privilegedNames){[void]$start.Environment.Remove($name)}
+        $process=[Diagnostics.Process]::new();$process.StartInfo=$start
+        try{[void]$process.Start();$stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$process.WaitForExit();[void]$stdout.GetAwaiter().GetResult();[void]$stderr.GetAwaiter().GetResult();$exitCode=$process.ExitCode}finally{$process.Dispose()}
+    }
+    if($exitCode-ne 0){throw 'MOBILE_READBACK_FAILURE'}
+    $result=[ordered]@{};foreach($property in $inspection.PSObject.Properties){$result[$property.Name]=$property.Value};$result.storefrontMobileReadback='PASS'
     return [pscustomobject]$result
 }
 function New-OnboardingPlan {
@@ -229,8 +343,8 @@ function New-OnboardingPlan {
     [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
     $homeState=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
     $probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
-    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json';$operatorPath=Join-Path $RepositoryRoot 'scripts\onboarding\Onboarding.Operator.psm1'
-    $digests=[ordered]@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingSha256 $operatorPath}
+    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $digests=[ordered]@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingOperatorDigest $RepositoryRoot}
     $probeIsAttributed=Test-OnboardingProbeAttribution -ReceiptPath $PriorReceipt -Context $context -ProbeState $probe -CurrentDigests $digests
     $actions=New-OnboardingExpectedActions -HomeState $homeState -ProbeState $probe -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -ProbeIsAttributed:$probeIsAttributed
     $receipt=[ordered]@{receiptSchemaVersion=1;operationContractVersion='gate8-v1';kind='PLAN';application=$Application;profile=$Profile;runtimeEnvironment=[string]$context.Selected.Profile.runtimeEnvironment;releaseBoundary=[string]$context.Selected.Application.releaseBoundary;createdAtUtc=$created;expiresAtUtc=$expires;verifiedTarget=[ordered]@{shopId=[string]$context.Binding.shopify.shopId;adminShopDomain=[string]$context.Binding.shopify.adminShopDomain;firebaseProjectId=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectId}else{$null};firebaseProjectNumber=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectNumber}else{$null}};digests=$digests;stateFingerprint=Get-ObjectSha ([ordered]@{home=$homeState.Fingerprint;probe=$probe.Fingerprint});actions=$actions;overallStatus='PLANNED';diagnosticCodes=@();readback=@();recovery=@()}
@@ -246,8 +360,13 @@ function Invoke-OnboardingApply {
     if([string]$plan.kind -cne 'PLAN' -or [string]$plan.application -cne $Application -or [string]$plan.profile -cne $Profile){throw 'PLAN_TARGET_MISMATCH'}
     if([DateTimeOffset]::Parse([string]$plan.expiresAtUtc) -lt [DateTimeOffset]::UtcNow){throw 'PLAN_EXPIRED'}
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
-    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json';$operatorPath=Join-Path $RepositoryRoot 'scripts\onboarding\Onboarding.Operator.psm1'
-    $currentDigests=@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingSha256 $operatorPath}
+    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only' -or
+        [string]$plan.releaseBoundary -cne [string]$context.Selected.Application.releaseBoundary -or
+        [string]$plan.runtimeEnvironment -cne [string]$context.Selected.Profile.runtimeEnvironment) {
+        throw 'UNSAFE_RELEASE_BOUNDARY'
+    }
+    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $currentDigests=@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingOperatorDigest $RepositoryRoot}
     foreach($key in $currentDigests.Keys){if([string]$plan.digests[$key] -cne [string]$currentDigests[$key]){throw 'PLAN_CONTRACT_DRIFT'}}
     if([string]$plan.verifiedTarget.shopId -cne [string]$context.Binding.shopify.shopId -or [string]$plan.verifiedTarget.adminShopDomain -cne [string]$context.Binding.shopify.adminShopDomain){throw 'PLAN_TARGET_DRIFT'}
     $lockDirectory=Join-Path $RepositoryRoot 'out\onboarding\locks';[IO.Directory]::CreateDirectory($lockDirectory)|Out-Null
@@ -296,10 +415,14 @@ function Invoke-OnboardingApply {
                         @{ name = ([string]$fieldContract.key -replace '_', ' '); key = [string]$fieldContract.key; type = [string]$fieldContract.type; required = [bool]$fieldContract.required; validations = $validations }
                     }
                 )
-                $definition=@{name=([string]$contract.type -replace '_',' ');type=[string]$contract.type;displayNameKey=[string]$contract.displayNameKey;access=@{admin='MERCHANT_READ_WRITE';storefront='PUBLIC_READ'};capabilities=@{publishable=@{enabled=$true}};fieldDefinitions=$fields}
+                # Shopify owns the Admin access value for merchant-owned definitions. Gate 8
+                # requests Storefront readability and validates the resulting Admin readback.
+                $definition=@{name=([string]$contract.type -replace '_',' ');type=[string]$contract.type;displayNameKey=[string]$contract.displayNameKey;access=@{storefront='PUBLIC_READ'};capabilities=@{publishable=@{enabled=$true}};fieldDefinitions=$fields}
                 Write-OnboardingReceipt "$PlanReceipt.intent-$($action.ordinal).json" (New-OnboardingRecoverySnapshot $plan $actions $action)
                 try {
-                    $created=New-ShopifyHomeDefinition $context.Binding $admin $definition $Transport;$createdIds[[string]$action.resourceKey]=[string]$created.id
+                    $created=New-ShopifyHomeDefinition $context.Binding $admin $definition $Transport
+                    if([string]$created.id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$'){throw 'SHOPIFY_DEFINITION_READBACK_FAILED'}
+                    $createdIds[[string]$action.resourceKey]=[string]$created.id
                     $readback=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
                     if([string]$readback.Classification -eq 'INCOMPATIBLE'-or@($readback.Definitions[[string]$action.resourceKey]).Count-ne 1){throw 'SHOPIFY_DEFINITION_READBACK_FAILED'}
                     $action.providerResourceId=[string]$created.id;$action.status='SUCCEEDED';$action.afterClassification='CORRECT';$action.afterFingerprint=[string]$readback.Fingerprint
@@ -311,6 +434,7 @@ function Invoke-OnboardingApply {
                 Write-OnboardingReceipt "$PlanReceipt.intent-$($action.ordinal).json" (New-OnboardingRecoverySnapshot $plan $actions $action)
                 try {
                     $created=New-ShopifyAcceptanceProbe $context.Binding $admin $Transport
+                    if([string]$created.id -cnotmatch '^gid://shopify/Metaobject/[0-9]+$'){throw 'SHOPIFY_PROBE_READBACK_FAILED'}
                     $readback=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
                     if([string]$readback.Classification -cne 'COMPATIBLE'-or[string]$readback.ResourceId-cne[string]$created.id){throw 'SHOPIFY_PROBE_READBACK_FAILED'}
                     $action.providerResourceId=[string]$created.id;$action.status='SUCCEEDED';$action.afterClassification='CORRECT';$action.afterFingerprint=[string]$readback.Fingerprint
@@ -341,28 +465,9 @@ function Write-OnboardingLocalConfiguration {
     $map=[ordered]@{
       'shopify.storefrontPublicToken'='STOREFRONT_PUBLIC_TOKEN';'shopify.customerAccountClientId'='CUSTOMER_ACCOUNT_CLIENT_ID';'shopify.customerAccountIssuer'='CUSTOMER_ACCOUNT_ISSUER';'shopify.customerAccountAuthorizationEndpoint'='CUSTOMER_ACCOUNT_AUTHORIZATION_ENDPOINT';'shopify.customerAccountTokenEndpoint'='CUSTOMER_ACCOUNT_TOKEN_ENDPOINT';'shopify.customerAccountLogoutEndpoint'='CUSTOMER_ACCOUNT_LOGOUT_ENDPOINT';'shopify.customerAccountGraphqlEndpoint'='CUSTOMER_ACCOUNT_GRAPHQL_ENDPOINT';'shopify.customerAccountRedirectUri'='CUSTOMER_ACCOUNT_REDIRECT_URI'
     }
-    $values=[ordered]@{};foreach($entry in $map.GetEnumerator()){$name=Get-OnboardingCredentialName $Application $Profile ([string]$entry.Value);$value=Get-OnboardingCredential $name;if([string]::IsNullOrWhiteSpace($value)-or$value-match '[\r\n]'){throw 'MISSING_OR_UNSAFE_CLIENT_CONFIGURATION'};$values[$entry.Key]=[string]$value}
-    Assert-OnboardingVisibleAsciiValue $values['shopify.storefrontPublicToken'] 'shopify.storefrontPublicToken' 4096
-    Assert-OnboardingVisibleAsciiValue $values['shopify.customerAccountClientId'] 'shopify.customerAccountClientId' 1024
-    $expectedIssuer="https://shopify.com/authentication/$($context.Binding.shopify.shopId)"
-    if($values['shopify.customerAccountIssuer']-cne$expectedIssuer){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountIssuer'}
-    foreach($key in @('shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint')){[void](Assert-OnboardingHttpsClientEndpoint $values[$key] $key)}
-    $graphql=[uri](Assert-OnboardingHttpsClientEndpoint $values['shopify.customerAccountGraphqlEndpoint'] 'shopify.customerAccountGraphqlEndpoint')
-    $apiVersion=[string]$context.Registry.providerContracts.shopifyCustomerAccountApiVersion
-    if(-not$graphql.AbsolutePath.EndsWith("/$apiVersion/graphql",[StringComparison]::Ordinal)){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountGraphqlEndpoint'}
-    $identity=$selected.Application.identity.customerAccount
-    $expectedCallback="shop.$($context.Binding.shopify.shopId).$($identity.callbackSchemeSuffix)://$($identity.callbackHost)$($identity.callbackPath)"
-    if($values['shopify.customerAccountRedirectUri']-cne$expectedCallback){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountRedirectUri'}
-    $lines=@($map.Keys|ForEach-Object{"$_=$($values[$_])"})
-    $parent=Split-Path -Parent $destination;[IO.Directory]::CreateDirectory($parent)|Out-Null;Assert-OnboardingLocalWritePath $RepositoryRoot $destination 'localConfiguration';$temporary=Join-Path $parent ('.gate8-'+[guid]::NewGuid().ToString('N')+'.tmp')
-    $backup="$destination.bak";Assert-OnboardingLocalWritePath $RepositoryRoot $backup 'localConfigurationBackup'
-    if((Test-Path -LiteralPath $destination)-and(Test-Path -LiteralPath $backup)){throw 'LOCAL_CONFIGURATION_BACKUP_EXISTS'}
-    try{
-        [IO.File]::WriteAllText($temporary,(($lines-join"`n")+"`n"),[Text.UTF8Encoding]::new($false));Set-OnboardingPrivateFilePermissions $temporary
-        [void](Read-OnboardingProperties -Path $temporary -AllowedKeys @($map.Keys))
-        if(Test-Path -LiteralPath $destination){[IO.File]::Replace($temporary,$destination,$backup,$true);Set-OnboardingPrivateFilePermissions $backup}else{[IO.File]::Move($temporary,$destination)}
-        Set-OnboardingPrivateFilePermissions $destination
-    }finally{if(Test-Path $temporary){Remove-Item -LiteralPath $temporary -Force}}
+    $values=[ordered]@{};foreach($entry in $map.GetEnumerator()){$name=Get-OnboardingCredentialName $Application $Profile ([string]$entry.Value);$values[$entry.Key]=[string](Get-OnboardingCredential $name)}
+    $lines=Get-OnboardingValidatedClientConfigurationLines $context $values
+    Write-OnboardingPrivateProperties $RepositoryRoot $destination $lines
     Write-Output 'PASS: scoped client configuration was written atomically; values were not printed.'
 }
 function Write-OnboardingManualCheckpoint {
@@ -374,4 +479,4 @@ function Write-OnboardingManualCheckpoint {
     $full=Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath';[IO.Directory]::CreateDirectory((Split-Path -Parent $full))|Out-Null;[IO.File]::WriteAllText($full,((Get-OnboardingCanonicalJson $record)+"`n"),[Text.UTF8Encoding]::new($false));Write-Output 'PASS: sanitized manual registration checkpoint recorded.'
 }
 function Get-OnboardingRecovery { param([string]$RepositoryRoot,[string]$PlanReceipt) $path=Resolve-OnboardingEvidencePath $RepositoryRoot $PlanReceipt 'PlanReceipt';$receipt=Import-OnboardingReceipt -Path $path;[pscustomobject]@{application=$receipt.application;profile=$receipt.profile;kind=$receipt.kind;overallStatus=$receipt.overallStatus;nextAction='REINSPECT'} }
-Export-ModuleMember -Function @('Invoke-OnboardingInspect','New-OnboardingPlan','Invoke-OnboardingApply','Write-OnboardingLocalConfiguration','Write-OnboardingManualCheckpoint','Get-OnboardingRecovery','Get-OnboardingOperatorContext','Get-OnboardingCredentialName','Get-OnboardingCredential','Write-OnboardingReceipt')
+Export-ModuleMember -Function @('Invoke-OnboardingInspect','Invoke-OnboardingReadback','New-OnboardingPlan','Invoke-OnboardingApply','Write-OnboardingLocalConfiguration','Write-OnboardingManualCheckpoint','Get-OnboardingRecovery','Get-OnboardingOperatorContext','Get-OnboardingCredentialName','Get-OnboardingCredential','Write-OnboardingReceipt','Get-OnboardingValidatedClientConfigurationLines','Write-OnboardingPrivateProperties','Assert-OnboardingLocalWritePath','Set-OnboardingPrivateFilePermissions','Get-OnboardingOperatorDigest')

@@ -79,7 +79,7 @@ try {
         'Inspect' { Invoke-OnboardingInspect -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
         'Plan' { [void](New-OnboardingPlan -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -PriorReceipt $PriorReceipt); Write-Output 'PASS: redacted immutable onboarding Plan receipt created.'; exit 0 }
         'Apply' { [void](Invoke-OnboardingApply -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -PlanReceipt $PlanReceipt -ConfirmApplication $ConfirmApplication -ConfirmProfile $ConfirmProfile -ConfirmApply:$ConfirmApply -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -PriorReceipt $PriorReceipt -OutputPath $OutputPath); Write-Output 'PASS: bounded onboarding Apply completed and readback receipt was written.'; exit 0 }
-        'Readback' { Invoke-OnboardingInspect -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
+        'Readback' { Invoke-OnboardingReadback -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
         'Recover' { Get-OnboardingRecovery -RepositoryRoot $repoRoot -PlanReceipt $PlanReceipt | ConvertTo-Json; exit 0 }
         'GenerateLocalConfiguration' { Write-OnboardingLocalConfiguration -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -ConfirmApply:$ConfirmApply; exit 0 }
         'RecordManualCheckpoint' { Write-OnboardingManualCheckpoint -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -EvidenceRef $ApprovedEvidenceRef; exit 0 }
@@ -96,6 +96,8 @@ try {
     if ($message -match 'UNSAFE_|TARGET_|CONFIRM') { exit 7 }
     if ($message -match 'INCOMPATIBLE|DRIFT|COLLISION') { exit 4 }
     if ($message -match 'PARTIAL_APPLY') { exit 8 }
+    if ($message -match 'MOBILE_READBACK_FAILURE') { exit 6 }
+    if ($message -match '(CUSTOMER|FIREBASE|SHOPIFY)_.*(IDENTITY|SHOP_ID|CAPABILITY|ENDPOINT).*MISMATCH') { exit 4 }
     if ($message -match 'PROVIDER_|SHOPIFY_|FIREBASE_|CUSTOMER_') { exit 5 }
     exit 2
 }

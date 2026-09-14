@@ -162,7 +162,8 @@ function Assert-OnboardingIdentity {
         [Parameter(Mandatory)][System.Collections.IDictionary]$Identity,
         [Parameter(Mandatory)][string]$Role,
         [Parameter(Mandatory)][string]$RepositoryRoot,
-        [Parameter(Mandatory)][string]$Field
+        [Parameter(Mandatory)][string]$Field,
+        [switch]$AllowInvalidTld
     )
 
     $fields = @(
@@ -220,16 +221,16 @@ function Assert-OnboardingIdentity {
         -Allowed @('collectionAppLink', 'productAppLink', 'orderAppLink', 'legalSupport', 'checkout', 'assetLinks') `
         -Required @('collectionAppLink', 'productAppLink', 'orderAppLink', 'legalSupport', 'checkout', 'assetLinks') `
         -Field "$Field.webRoles"
-    $allowInvalidTld = $Role -ceq 'synthetic-conformance-application'
-    Assert-OnboardingAppLink -Link $Identity.webRoles.collectionAppLink -Field "$Field.webRoles.collectionAppLink" -AllowInvalidTld:$allowInvalidTld
-    Assert-OnboardingAppLink -Link $Identity.webRoles.productAppLink -Field "$Field.webRoles.productAppLink" -AllowInvalidTld:$allowInvalidTld
+    $permitInvalidTld = $Role -ceq 'synthetic-conformance-application' -or $AllowInvalidTld
+    Assert-OnboardingAppLink -Link $Identity.webRoles.collectionAppLink -Field "$Field.webRoles.collectionAppLink" -AllowInvalidTld:$permitInvalidTld
+    Assert-OnboardingAppLink -Link $Identity.webRoles.productAppLink -Field "$Field.webRoles.productAppLink" -AllowInvalidTld:$permitInvalidTld
     if ($null -ne $Identity.webRoles.orderAppLink) {
-        Assert-OnboardingAppLink -Link $Identity.webRoles.orderAppLink -Field "$Field.webRoles.orderAppLink" -AllowInvalidTld:$allowInvalidTld
+        Assert-OnboardingAppLink -Link $Identity.webRoles.orderAppLink -Field "$Field.webRoles.orderAppLink" -AllowInvalidTld:$permitInvalidTld
     }
     if ($null -ne $Identity.webRoles.legalSupport) {
         Assert-OnboardingObjectFields -Object $Identity.webRoles.legalSupport `
             -Allowed @('origin', 'paths') -Required @('origin', 'paths') -Field "$Field.webRoles.legalSupport"
-        Assert-OnboardingHttpsOrigin -Value ([string]$Identity.webRoles.legalSupport.origin) -Field "$Field.webRoles.legalSupport.origin" -AllowInvalidTld:$allowInvalidTld
+        Assert-OnboardingHttpsOrigin -Value ([string]$Identity.webRoles.legalSupport.origin) -Field "$Field.webRoles.legalSupport.origin" -AllowInvalidTld:$permitInvalidTld
         Assert-OnboardingObjectFields -Object $Identity.webRoles.legalSupport.paths `
             -Allowed @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice') `
             -Required @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice') `
@@ -264,6 +265,7 @@ function Assert-OnboardingProfile {
     param(
         [Parameter(Mandatory)][System.Collections.IDictionary]$Profile,
         [Parameter(Mandatory)][System.Collections.IDictionary]$Application,
+        [Parameter(Mandatory)][System.Collections.IDictionary]$ProviderContracts,
         [Parameter(Mandatory)][string]$RepositoryRoot,
         [Parameter(Mandatory)][int]$Index
     )
@@ -319,17 +321,35 @@ function Assert-OnboardingProfile {
         }
         Assert-OnboardingHost -HostName ([string]$Profile.storefront.domain) -Field "$field.storefront.domain"
         Assert-OnboardingKey -Value ([string]$Profile.storefront.sharedResourceGroup) -Field "$field.storefront.sharedResourceGroup"
+        if ([string]$Profile.storefront.apiVersion -cnotin @($ProviderContracts.allowedStorefrontApiVersions)) {
+            throw (New-OnboardingContractError -Code 'UNSUPPORTED_STOREFRONT_API_VERSION' -Field "$field.storefront.apiVersion")
+        }
+        if ([string]$Profile.storefront.publicTokenLocalKey -cne 'shopify.storefrontPublicToken') {
+            throw (New-OnboardingContractError -Code 'INVALID_PUBLIC_TOKEN_SOURCE' -Field "$field.storefront.publicTokenLocalKey")
+        }
+        $mediaOrigins = @(Assert-OnboardingArray -Value $Profile.storefront.mediaOrigins -Field "$field.storefront.mediaOrigins" -MaximumCount 8)
+        if ($mediaOrigins.Count -lt 1) { throw (New-OnboardingContractError -Code 'MISSING_MEDIA_ORIGIN' -Field "$field.storefront.mediaOrigins") }
+        foreach ($origin in $mediaOrigins) { Assert-OnboardingHost -HostName ([string]$origin) -Field "$field.storefront.mediaOrigins" }
     } else {
         if ($Profile.storefront.Contains('sharedResourceGroup')) {
             throw (New-OnboardingContractError -Code 'DISABLED_RESOURCE_GROUP' -Field "$field.storefront.sharedResourceGroup")
         }
-        Assert-OnboardingHost -HostName ([string]$Profile.storefront.domain) -Field "$field.storefront.domain" -AllowInvalidTld
+        if ($Profile.storefront.Contains('domain')) {
+            Assert-OnboardingHost -HostName ([string]$Profile.storefront.domain) -Field "$field.storefront.domain" -AllowInvalidTld
+        }
     }
     if ($Profile.storefront.Contains('catalog')) {
         Assert-OnboardingObjectFields -Object $Profile.storefront.catalog `
             -Allowed @('menuHandle', 'managementMode') -Required @('menuHandle', 'managementMode') -Field "$field.storefront.catalog"
         Assert-OnboardingEnum -Value ([string]$Profile.storefront.catalog.managementMode) `
             -Allowed @('validate-only', 'disabled') -Field "$field.storefront.catalog.managementMode"
+        if ([string]$Profile.storefront.catalog.menuHandle -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$') {
+            throw (New-OnboardingContractError -Code 'INVALID_MENU_HANDLE' -Field "$field.storefront.catalog.menuHandle")
+        }
+        $expectedCatalogMode = if ([string]$Profile.storefront.mode -ceq 'enabled') { 'validate-only' } else { 'disabled' }
+        if ([string]$Profile.storefront.catalog.managementMode -cne $expectedCatalogMode) {
+            throw (New-OnboardingContractError -Code 'STOREFRONT_MODE_CONFLICT' -Field "$field.storefront.catalog.managementMode")
+        }
     }
     if ($Profile.storefront.Contains('home')) {
         Assert-OnboardingObjectFields -Object $Profile.storefront.home `
@@ -340,6 +360,28 @@ function Assert-OnboardingProfile {
             -Allowed @('create-if-missing', 'disabled') -Field "$field.storefront.home.definitionManagementMode"
         Assert-OnboardingEnum -Value ([string]$Profile.storefront.home.entryManagementMode) `
             -Allowed @('validate-only', 'disabled') -Field "$field.storefront.home.entryManagementMode"
+        Assert-OnboardingEnum -Value ([string]$Profile.storefront.home.sourceMode) `
+            -Allowed @('shopify-metaobject', 'disabled') -Field "$field.storefront.home.sourceMode"
+        if ([string]$Profile.storefront.mode -ceq 'enabled') {
+            foreach ($required in @('rootType', 'rootHandle', 'contentSchemaVersion', 'definitionContract')) {
+                if (-not $Profile.storefront.home.Contains($required)) {
+                    throw (New-OnboardingContractError -Code 'MISSING_FIELD' -Field "$field.storefront.home.$required")
+                }
+            }
+            if ([string]$Profile.storefront.home.rootType -cne 'mobile_home' -or
+                [string]$Profile.storefront.home.rootHandle -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$' -or
+                [int]$Profile.storefront.home.contentSchemaVersion -ne [int]$ProviderContracts.gate7HomeContentSchemaVersion -or
+                [string]$Profile.storefront.home.definitionContract -cne 'gate7-v1' -or
+                [string]$Profile.storefront.home.definitionManagementMode -cne 'create-if-missing' -or
+                [string]$Profile.storefront.home.entryManagementMode -cne 'validate-only' -or
+                [string]$Profile.storefront.home.sourceMode -cne 'shopify-metaobject') {
+                throw (New-OnboardingContractError -Code 'HOME_CONTRACT_MISMATCH' -Field "$field.storefront.home")
+            }
+        } elseif ([string]$Profile.storefront.home.definitionManagementMode -cne 'disabled' -or
+            [string]$Profile.storefront.home.entryManagementMode -cne 'disabled' -or
+            [string]$Profile.storefront.home.sourceMode -cne 'disabled') {
+            throw (New-OnboardingContractError -Code 'STOREFRONT_MODE_CONFLICT' -Field "$field.storefront.home")
+        }
     }
 
     Assert-OnboardingObjectFields -Object $Profile.customerAccount `
@@ -353,6 +395,11 @@ function Assert-OnboardingProfile {
             }
         }
         Assert-OnboardingHttpsOrigin -Value ([string]$Profile.customerAccount.discoveryOrigin) -Field "$field.customerAccount.discoveryOrigin"
+        if ([string]$Profile.customerAccount.clientIdLocalKey -cne 'shopify.customerAccountClientId') {
+            throw (New-OnboardingContractError -Code 'INVALID_CUSTOMER_CLIENT_SOURCE' -Field "$field.customerAccount.clientIdLocalKey")
+        }
+    } elseif ($Profile.customerAccount.Count -ne 1) {
+        throw (New-OnboardingContractError -Code 'DISABLED_PROVIDER_FIELDS' -Field "$field.customerAccount")
     }
 
     Assert-OnboardingObjectFields -Object $Profile.firebase `
@@ -371,6 +418,8 @@ function Assert-OnboardingProfile {
             -Allowed @('validate-only') -Field "$field.firebase.registrationManagementMode"
         Assert-OnboardingEnum -Value ([string]$Profile.firebase.projectIdentitySource) `
             -Allowed @('provider-binding') -Field "$field.firebase.projectIdentitySource"
+    } elseif ($Profile.firebase.Count -ne 1) {
+        throw (New-OnboardingContractError -Code 'DISABLED_PROVIDER_FIELDS' -Field "$field.firebase")
     }
 
     Assert-OnboardingObjectFields -Object $Profile.protectedPersistence `
@@ -475,7 +524,7 @@ function Import-OnboardingRegistry {
             }
         }
         Assert-OnboardingIdentity -Identity $application.identity -Role ([string]$application.role) `
-            -RepositoryRoot $RepositoryRoot -Field "$field.identity"
+            -RepositoryRoot $RepositoryRoot -Field "$field.identity" -AllowInvalidTld:([bool]$application.fixtureOnly)
         $profiles = @(Assert-OnboardingArray -Value $application.profiles -Field "$field.profiles" -MaximumCount 8)
         if ($profiles.Count -lt 1) {
             throw (New-OnboardingContractError -Code 'MISSING_PROFILE' -Field "$field.profiles")
@@ -483,7 +532,7 @@ function Import-OnboardingRegistry {
         $profileKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
         for ($profileIndex = 0; $profileIndex -lt $profiles.Count; $profileIndex++) {
             $profile = $profiles[$profileIndex]
-            Assert-OnboardingProfile -Profile $profile -Application $application -RepositoryRoot $RepositoryRoot -Index $profileIndex
+            Assert-OnboardingProfile -Profile $profile -Application $application -ProviderContracts $registry.providerContracts -RepositoryRoot $RepositoryRoot -Index $profileIndex
             if (-not $profileKeys.Add([string]$profile.key)) {
                 throw (New-OnboardingContractError -Code 'DUPLICATE_PROFILE' -Field "$field.profiles")
             }
@@ -507,12 +556,41 @@ function Import-OnboardingRegistry {
         if (($sortedProfileKeys -join "`n") -cne ($declaredProfileKeys -join "`n")) {
             throw (New-OnboardingContractError -Code 'NONCANONICAL_ORDER' -Field "$field.profiles")
         }
+        $applicationModule = $moduleRecord[0]
+        $unitTasks = @($applicationModule.ciTasks.unit | ForEach-Object { [string]$_ })
+        $assembleTasks = @($applicationModule.ciTasks.assemble | ForEach-Object { [string]$_ })
+        $api30Tasks = @($applicationModule.ciTasks.api30 | ForEach-Object { [string]$_ })
+        foreach ($profile in $profiles) {
+            foreach ($variant in @($profile.variants)) {
+                $variantName = [string]$variant.name
+                $variantTaskName = $variantName.Substring(0, 1).ToUpperInvariant() + $variantName.Substring(1)
+                $project = [string]$application.module
+                if ("${project}:assemble$variantTaskName" -notin $assembleTasks) {
+                    throw (New-OnboardingContractError -Code 'MISSING_APPLICATION_CI_COVERAGE' -Field "${project}:${variantName}:assemble")
+                }
+                if ([string]$variant.buildType -ceq 'debug') {
+                    if ("${project}:test${variantTaskName}UnitTest" -notin $unitTasks -or
+                        "${project}:assemble${variantTaskName}AndroidTest" -notin $assembleTasks) {
+                        throw (New-OnboardingContractError -Code 'MISSING_APPLICATION_CI_COVERAGE' -Field "${project}:${variantName}:test")
+                    }
+                }
+            }
+        }
+        if (@($api30Tasks | Where-Object { $_ -match ('^' + [regex]::Escape([string]$application.module) + ':ciApi30[A-Za-z0-9]+AndroidTest$') }).Count -lt 1) {
+            throw (New-OnboardingContractError -Code 'MISSING_APPLICATION_CI_COVERAGE' -Field "$($application.module):api30")
+        }
         if ([string]$application.role -ceq 'synthetic-conformance-application') {
             if (@($application.providerModules).Count -ne 0 -or
                 [string]$application.releaseBoundary -cne 'never-production' -or
                 $null -ne $application.configurationProjection) {
                 throw (New-OnboardingContractError -Code 'SYNTHETIC_ROLE_VIOLATION' -Field $field)
             }
+        } elseif ([bool]$application.fixtureOnly) {
+            if ([string]$application.releaseBoundary -cne 'test-fixture-only') {
+                throw (New-OnboardingContractError -Code 'FIXTURE_ROLE_VIOLATION' -Field $field)
+            }
+        } elseif ([string]$application.releaseBoundary -cne 'nonproduction-only') {
+            throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
         }
     }
     $sortedApplicationKeys = @($applicationKeys | Sort-Object -CaseSensitive)

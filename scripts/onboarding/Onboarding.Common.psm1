@@ -309,6 +309,17 @@ function Protect-OnboardingOutput {
     return $safe
 }
 
+function Test-OnboardingShopifyCustomerUri {
+    param([Parameter(Mandatory)][uri]$Uri)
+
+    $hostName = $Uri.IdnHost.ToLowerInvariant()
+    return $Uri.Scheme -ceq 'https' -and
+        $Uri.IsDefaultPort -and
+        $Uri.UserInfo.Length -eq 0 -and
+        $Uri.Fragment.Length -eq 0 -and
+        ($hostName -ceq 'shopify.com' -or $hostName.EndsWith('.shopify.com', [System.StringComparison]::Ordinal))
+}
+
 function Invoke-OnboardingJsonRequest {
     [CmdletBinding()]
     param(
@@ -323,7 +334,21 @@ function Invoke-OnboardingJsonRequest {
     if ($Uri.Scheme -cne 'https' -or $Uri.UserInfo.Length -ne 0 -or $Uri.Fragment.Length -ne 0) {
         throw (New-OnboardingContractError -Code 'UNSAFE_PROVIDER_URI' -Field 'request')
     }
-    if ($null -ne $Transport) { return & $Transport $Method $Uri $Headers $Body $MaximumBytes }
+    if ($null -ne $Transport) {
+        $fixtureResponse = & $Transport $Method $Uri $Headers $Body $MaximumBytes
+        if ($fixtureResponse.PSObject.Properties.Name -contains 'RawBytes') {
+            $bytes = [byte[]]$fixtureResponse.RawBytes
+            if ($bytes.Length -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
+            try {
+                $fixtureText = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+                $fixtureData = if ([string]::IsNullOrWhiteSpace($fixtureText)) { $null } else { $fixtureText | ConvertFrom-Json -AsHashtable -Depth 32 }
+            } catch { throw 'PROVIDER_RESPONSE_INVALID_JSON' }
+            return [pscustomobject]@{ StatusCode = [int]$fixtureResponse.StatusCode; Data = $fixtureData; Headers = $fixtureResponse.Headers }
+        }
+        $fixtureBytes = if ($null -eq $fixtureResponse.Data) { 0 } else { [Text.Encoding]::UTF8.GetByteCount((Get-OnboardingCanonicalJson $fixtureResponse.Data)) }
+        if ($fixtureBytes -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
+        return $fixtureResponse
+    }
     $handler = [System.Net.Http.HttpClientHandler]::new()
     $handler.AllowAutoRedirect = $false
     $client = [System.Net.Http.HttpClient]::new($handler)
@@ -341,8 +366,10 @@ function Invoke-OnboardingJsonRequest {
             if ($memory.Length + $read -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
             $memory.Write($buffer, 0, $read)
         }
-        $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($memory.ToArray())
-        $data = if ([string]::IsNullOrWhiteSpace($text)) { $null } else { $text | ConvertFrom-Json -AsHashtable -Depth 32 }
+        try {
+            $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($memory.ToArray())
+            $data = if ([string]::IsNullOrWhiteSpace($text)) { $null } else { $text | ConvertFrom-Json -AsHashtable -Depth 32 }
+        } catch { throw 'PROVIDER_RESPONSE_INVALID_JSON' }
         return [pscustomobject]@{ StatusCode = [int]$response.StatusCode; Data = $data; Headers = $response.Headers }
     } catch {
         if ([string]$_.Exception.Message -match '^PROVIDER_') { throw }
@@ -360,6 +387,7 @@ Export-ModuleMember -Function @(
     'Get-OnboardingSha256'
     'Get-OnboardingCanonicalJson'
     'Protect-OnboardingOutput'
+    'Test-OnboardingShopifyCustomerUri'
     'Invoke-OnboardingJsonRequest'
     'New-OnboardingContractError'
     'Read-OnboardingStrictJson'

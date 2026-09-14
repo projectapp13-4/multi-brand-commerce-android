@@ -43,6 +43,7 @@ function Get-ModuleInventory {
             LogicalPath = [string]$_.gradleProject
             Directory = [string]$_.directory
             Role = [string]$_.role
+            AllowedDirectProjects = @($_.allowedDirectProjects | ForEach-Object { [string]$_ })
         }
     })
 }
@@ -1381,13 +1382,14 @@ try {
     Add-Check -Name 'project dependencies use auditable literal or type-safe syntax' -Passed ($unsupportedProjectDependencyModules.Count -eq 0) -Evidence $(if ($unsupportedProjectDependencyModules.Count -eq 0) { 'no computed project(...) arguments' } else { $unsupportedProjectDependencyModules -join ', ' })
 
     $sharedAndProviderModules = @($modules | Where-Object { $_.Role -in @('shared', 'provider') })
+    $applicationModules = @($modules | Where-Object { $_.Role -in @('real-brand-application', 'synthetic-conformance-application') })
     $sharedApplicationDependencies = [System.Collections.Generic.List[string]]::new()
     foreach ($module in $sharedAndProviderModules) {
         $moduleBuild = Read-Text "$($module.Directory)/build.gradle.kts"
         if ($null -eq $moduleBuild) {
             continue
         }
-        foreach ($applicationPath in @(':app', ':synthetic')) {
+        foreach ($applicationPath in @($applicationModules | ForEach-Object { $_.LogicalPath })) {
             if (Test-GradleProjectDependency -BuildScript $moduleBuild -TargetProject $applicationPath) {
                 $sharedApplicationDependencies.Add("$($module.LogicalPath) -> $applicationPath")
             }
@@ -1400,18 +1402,22 @@ try {
     }
     Add-Check -Name 'shared and provider modules do not depend on application modules' -Passed ($sharedApplicationDependencies.Count -eq 0) -Evidence $sharedApplicationDependencyEvidence
 
-    $syntheticBuild = Read-Text 'apps/synthetic/build.gradle.kts'
     $crossApplicationDependencies = [System.Collections.Generic.List[string]]::new()
-    if ($null -ne $appBuild -and (Test-GradleProjectDependency $appBuild ':synthetic')) {
-        $crossApplicationDependencies.Add(':app -> :synthetic')
-    }
-    if ($null -ne $syntheticBuild -and (Test-GradleProjectDependency $syntheticBuild ':app')) {
-        $crossApplicationDependencies.Add(':synthetic -> :app')
+    foreach ($applicationModule in $applicationModules) {
+        $applicationBuild = Read-Text "$($applicationModule.Directory)/build.gradle.kts"
+        foreach ($targetApplication in $applicationModules) {
+            if ($applicationModule.LogicalPath -ne $targetApplication.LogicalPath -and
+                $null -ne $applicationBuild -and
+                (Test-GradleProjectDependency $applicationBuild $targetApplication.LogicalPath)) {
+                $crossApplicationDependencies.Add("$($applicationModule.LogicalPath) -> $($targetApplication.LogicalPath)")
+            }
+        }
     }
     Add-Check -Name 'application modules do not depend on each other' -Passed ($crossApplicationDependencies.Count -eq 0) -Evidence $(if ($crossApplicationDependencies.Count -eq 0) { 'none' } else { $crossApplicationDependencies -join ', ' })
 
-    $syntheticFirebaseDependency = $null -ne $syntheticBuild -and
-        (Test-GradleProjectDependency $syntheticBuild ':firebase')
+    $syntheticModule = @($applicationModules | Where-Object { $_.Role -eq 'synthetic-conformance-application' } | Select-Object -First 1)
+    $syntheticBuild = if ($syntheticModule.Count -eq 1) { Read-Text "$($syntheticModule[0].Directory)/build.gradle.kts" } else { $null }
+    $syntheticFirebaseDependency = $null -ne $syntheticBuild -and (Test-GradleProjectDependency $syntheticBuild ':firebase')
     Add-Check -Name 'synthetic application does not depend on Firebase' -Passed (-not $syntheticFirebaseDependency) -Evidence $(if ($syntheticFirebaseDependency) { 'Firebase project dependency found' } else { 'none' })
 
     $mobileCoreBuild = Read-Text 'mobile-core/build.gradle.kts'

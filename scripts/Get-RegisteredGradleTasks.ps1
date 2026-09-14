@@ -24,6 +24,14 @@ $registered = @($registry.modules | ForEach-Object { [string]$_.gradleProject })
 if ((@($included | Sort-Object) -join "`n") -cne (@($registered | Sort-Object) -join "`n")) {
     throw 'ENROLLMENT_SETTINGS_MISMATCH'
 }
+$projectByAccessor = @{}
+foreach ($registeredModule in @($registry.modules)) {
+    $segments = ([string]$registeredModule.gradleProject).TrimStart(':').Split('-')
+    $accessor = $segments[0] + (($segments | Select-Object -Skip 1 | ForEach-Object {
+        $_.Substring(0, 1).ToUpperInvariant() + $_.Substring(1)
+    }) -join '')
+    $projectByAccessor[$accessor] = [string]$registeredModule.gradleProject
+}
 foreach ($module in @($registry.modules)) {
     $expectedDirectory = [string]$module.directory
     $actualDirectory = if ([string]$module.gradleProject -ceq ':synthetic') { 'apps/synthetic' } else { ([string]$module.gradleProject).TrimStart(':') }
@@ -33,19 +41,29 @@ foreach ($module in @($registry.modules)) {
     $buildFile = Join-Path $repoRoot "$actualDirectory\build.gradle.kts"
     $text = [System.IO.File]::ReadAllText($buildFile)
     $isApplication = $text.Contains('libs.plugins.android.application')
+    $isLibrary = $text.Contains('libs.plugins.android.library')
     $applicationRole = [string]$module.role -in @('real-brand-application', 'synthetic-conformance-application')
-    if ($isApplication -ne $applicationRole) { throw "ENROLLMENT_PLUGIN_ROLE_MISMATCH:$($module.gradleProject)" }
-    foreach ($forbidden in @($registry.modules | Where-Object { [string]$_.role -like '*application' })) {
-        if ([string]$module.gradleProject -ne [string]$forbidden.gradleProject -and
-            $text -match [regex]::Escape("project($([string]$forbidden.gradleProject)") ) {
-            throw "FORBIDDEN_APPLICATION_DEPENDENCY:$($module.gradleProject)"
-        }
+    if ($isApplication -ne $applicationRole -or $isLibrary -eq $applicationRole) { throw "ENROLLMENT_PLUGIN_ROLE_MISMATCH:$($module.gradleProject)" }
+    $actualDependencies = @(
+        [regex]::Matches($text, 'projects\.(?<accessor>[A-Za-z][A-Za-z0-9]*)') |
+            ForEach-Object {
+                $accessor = $_.Groups['accessor'].Value
+                if (-not $projectByAccessor.Contains($accessor)) { throw "UNKNOWN_PROJECT_ACCESSOR:$accessor" }
+                [string]$projectByAccessor[$accessor]
+            } |
+            Select-Object -Unique
+    )
+    $allowedDependencies = @($module.allowedDirectProjects | ForEach-Object { [string]$_ })
+    if ((@($actualDependencies | Sort-Object) -join "`n") -cne (@($allowedDependencies | Sort-Object) -join "`n")) {
+        throw "ENROLLMENT_DEPENDENCY_MISMATCH:$($module.gradleProject)"
     }
 }
 $workflow = [System.IO.File]::ReadAllText((Join-Path $repoRoot '.github\workflows\android-foundation.yml'))
 foreach ($task in @($registry.ciLanes[$Lane])) {
     $taskText = [string]$task
     if ($taskText -notmatch '^:[a-z][a-z0-9-]*:[A-Za-z][A-Za-z0-9]*$') { throw "UNSAFE_GRADLE_TASK:$taskText" }
-    if (-not $workflow.Contains($taskText)) { throw "CI_TASK_NOT_IN_WORKFLOW:$taskText" }
+}
+if ($workflow -notmatch [regex]::Escape("Get-RegisteredGradleTasks.ps1 -Lane $Lane") + '(?! -ValidateOnly)') {
+    throw "CI_LANE_NOT_EXECUTED:$Lane"
 }
 if (-not $ValidateOnly) { @($registry.ciLanes[$Lane]) | ForEach-Object { Write-Output ([string]$_) } }

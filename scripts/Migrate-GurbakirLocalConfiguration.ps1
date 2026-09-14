@@ -20,7 +20,6 @@ if ([string]::IsNullOrWhiteSpace($DestinationPath)) {
 $legacy = [System.IO.Path]::GetFullPath($LegacyPath)
 $destination = [System.IO.Path]::GetFullPath($DestinationPath)
 if (-not (Test-Path -LiteralPath $legacy -PathType Leaf)) { throw 'LEGACY_CONFIGURATION_MISSING' }
-if (Test-Path -LiteralPath $destination) { throw 'DESTINATION_EXISTS' }
 if (-not $destination.StartsWith($repoRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw 'UNSAFE_CONFIGURATION_PATH'
 }
@@ -51,6 +50,11 @@ $projectionPath = Join-Path $repoRoot "config\onboarding\generated\gurbakir\$Pro
 $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
 $registry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
 $selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile $Profile
+$expectedDestination = Test-OnboardingSafeRelativePath `
+    -RepositoryRoot $repoRoot `
+    -RelativePath ([string]$selected.Profile.localConfiguration) `
+    -Field 'localConfiguration'
+if ($destination -cne $expectedDestination) { throw 'UNSAFE_CONFIGURATION_PATH' }
 $expectedProjectionLines = Get-OnboardingProjectionLines `
     -Registry $registry `
     -ApplicationRecord $selected.Application `
@@ -83,14 +87,10 @@ $localKeys = @(
     'shopify.customerAccountTokenEndpoint', 'shopify.customerAccountLogoutEndpoint',
     'shopify.customerAccountGraphqlEndpoint', 'shopify.customerAccountRedirectUri'
 )
-$lines = foreach ($key in $localKeys) { '{0}={1}' -f $key, ([string]$legacyValues[$key]) }
-$parent = Split-Path -Parent $destination
-[System.IO.Directory]::CreateDirectory($parent) | Out-Null
-$temporary = Join-Path $parent ('.' + [System.IO.Path]::GetFileName($destination) + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
-try {
-    [System.IO.File]::WriteAllText($temporary, (($lines -join "`n") + "`n"), [System.Text.UTF8Encoding]::new($false))
-    [System.IO.File]::Move($temporary, $destination)
-} finally {
-    if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
-}
+$values = [ordered]@{}
+foreach ($key in $localKeys) { $values[$key] = [string]$legacyValues[$key] }
+Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Operator.psm1') -Force
+$context = Get-OnboardingOperatorContext -RepositoryRoot $repoRoot -Application 'gurbakir' -Profile $Profile
+$lines = Get-OnboardingValidatedClientConfigurationLines -Context $context -Values $values
+Write-OnboardingPrivateProperties -RepositoryRoot $repoRoot -Destination $destination -Lines $lines -RefuseOverwrite
 Write-Output "PASS: migrated legacy local configuration to application gurbakir profile $Profile; values were not printed."

@@ -27,6 +27,15 @@ internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
     }
     val projection = load(File(root, "config/onboarding/generated/gurbakir/$profile.properties"))
     val local = load(File(root, "config/local/gurbakir/$profile.properties"))
+    require(projection.getProperty("onboarding.schemaVersion") == "1")
+    require(projection.getProperty("onboarding.application") == "gurbakir")
+    require(projection.getProperty("onboarding.profile") == profile)
+    require(projection.getProperty("shopify.storefrontDomain") == "gurbakir.com") {
+        "Owned Storefront proofs cannot target an unapproved host."
+    }
+    require(projection.getProperty("shopify.storefrontApiVersion") == "2026-07") {
+        "Owned Storefront proofs require the pinned API version."
+    }
     return OwnedOnboardingConfiguration(
         storefront = StorefrontConfiguration(
             domain = projection.getProperty("shopify.storefrontDomain"),

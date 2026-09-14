@@ -24,7 +24,7 @@ function Import-ShopifyHomeSchemaContract {
         schemaVersion = 1
         contract = 'gate7-v1'
         adminApiVersion = '2026-07'
-        access = [ordered]@{ admin = 'MERCHANT_READ_WRITE'; storefront = 'PUBLIC_READ' }
+        access = [ordered]@{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
         capabilities = [ordered]@{ publishable = $true }
         definitions = @(
             [ordered]@{

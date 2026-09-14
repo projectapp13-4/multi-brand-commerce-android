@@ -14,6 +14,9 @@ function Get-OnboardingSecureDiscoveryEndpoint {
         throw 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH'
     }
     Assert-OnboardingHost -HostName $uri.IdnHost -Field "customerDiscovery.$Name"
+    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri)) {
+        throw 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH'
+    }
     return $uri.AbsoluteUri
 }
 

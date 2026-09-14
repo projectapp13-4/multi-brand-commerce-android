@@ -83,32 +83,18 @@ jobs:
           exit "$status"
 
       - name: JVM foundation tests
-        run: >-
-          ./gradlew --no-daemon
-          :mobile-core:testDebugUnitTest
-          :foundation:testDebugUnitTest
-          :account:testDebugUnitTest
-          :checkout:testDebugUnitTest
-          :storefront:testDebugUnitTest
-          :firebase:testDebugUnitTest
-          :synthetic:testDebugUnitTest
-          :app:testDevelopmentDebugUnitTest
-          :app:testStagingDebugUnitTest
+        shell: pwsh
+        run: |
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit)
+          & ./gradlew --no-daemon @tasks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Development and staging package verification
-        run: >-
-          ./gradlew --no-daemon
-          :mobile-core:assembleDebug
-          :mobile-core:assembleRelease
-          :app:assembleDevelopmentDebug
-          :app:assembleDevelopmentRelease
-          :app:assembleStagingDebug
-          :app:assembleStagingRelease
-          :app:assembleDevelopmentDebugAndroidTest
-          :app:assembleStagingDebugAndroidTest
-          :synthetic:assembleDebug
-          :synthetic:assembleRelease
-          :synthetic:assembleDebugAndroidTest
+        shell: pwsh
+        run: |
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
+          & ./gradlew --no-daemon @tasks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Synthetic package contract
         shell: pwsh
@@ -214,15 +200,11 @@ jobs:
         run: df -h
 
       - name: Core and development instrumentation tests
-        run: >-
-          ./gradlew --no-daemon --no-configuration-cache
-          :account:ciApi30DebugAndroidTest
-          :storefront:ciApi30DebugAndroidTest
-          :mobile-core:ciApi30DebugAndroidTest
-          :app:ciApi30DevelopmentDebugAndroidTest
-          :synthetic:ciApi30DebugAndroidTest
-          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          --stacktrace --info
+        shell: pwsh
+        run: |
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30)
+          & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   minimum-sdk-instrumentation:
     runs-on: ubuntu-latest
@@ -286,9 +268,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Shared active-path and synthetic minimum-SDK instrumentation tests
-        run: >-
-          ./gradlew --no-daemon --no-configuration-cache
-          :mobile-core:ciApi23DebugAndroidTest
-          :synthetic:ciApi23DebugAndroidTest
-          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          --stacktrace --info
+        shell: pwsh
+        run: |
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23)
+          & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
