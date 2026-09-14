@@ -170,7 +170,7 @@ function Set-OnboardingPrivateFilePermissions {
     param([Parameter(Mandatory)][string]$Path)
     if ($IsWindows) {
         $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-        & icacls.exe $Path '/inheritance:r' '/grant:r' "${sid}:(F)" | Out-Null
+        & icacls.exe $Path '/inheritance:r' '/grant:r' "*${sid}:(F)" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'LOCAL_CONFIGURATION_PERMISSION_FAILURE' }
     } else {
         [IO.File]::SetUnixFileMode($Path, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)
@@ -474,6 +474,9 @@ function Write-OnboardingManualCheckpoint {
     param([string]$RepositoryRoot,[string]$Application,[string]$Profile,[string]$OutputPath,[string]$EvidenceRef)
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
     $local=Read-OnboardingProperties -Path (Test-OnboardingSafeRelativePath $RepositoryRoot ([string]$context.Selected.Profile.localConfiguration) 'localConfiguration') -AllowedKeys @('shopify.storefrontPublicToken','shopify.customerAccountClientId','shopify.customerAccountIssuer','shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint','shopify.customerAccountGraphqlEndpoint','shopify.customerAccountRedirectUri')
+    [void](Get-OnboardingValidatedClientConfigurationLines -Context $context -Values $local)
+    Assert-OnboardingText -Value $EvidenceRef -Field 'approvedEvidenceRef'
+    if ($EvidenceRef -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$') { throw 'INVALID_APPROVED_EVIDENCE_REF' }
     $client=[string]$local['shopify.customerAccountClientId'];$callback=[string]$local['shopify.customerAccountRedirectUri'];$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($client))).ToLowerInvariant()
     $record=[ordered]@{schemaVersion=1;application=$Application;profile=$Profile;shopId=[string]$context.Binding.shopify.shopId;clientIdSha256=$hash;callback=$callback;recordedAtUtc=[DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ');approvedEvidenceRef=$EvidenceRef}
     $full=Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath';[IO.Directory]::CreateDirectory((Split-Path -Parent $full))|Out-Null;[IO.File]::WriteAllText($full,((Get-OnboardingCanonicalJson $record)+"`n"),[Text.UTF8Encoding]::new($false));Write-Output 'PASS: sanitized manual registration checkpoint recorded.'

@@ -719,6 +719,10 @@ function Invoke-OperatorApplySuite {
     [IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
     $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'
     $stagingBindingPath = Join-Path $repoRoot 'config\local\gurbakir\staging.providers.json'
+    $localConfigurationPath = Join-Path $repoRoot 'config\local\gurbakir\development.properties'
+    $manualCheckpointPath = Join-Path $temporaryRoot 'manual-checkpoint.json'
+    $localConfigurationExisted = Test-Path -LiteralPath $localConfigurationPath
+    $localConfigurationBytes = if ($localConfigurationExisted) { [IO.File]::ReadAllBytes($localConfigurationPath) } else { $null }
     [IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
     $bindingJson = '{"schemaVersion":1,"application":"gurbakir","profile":"development","approvedEvidenceRef":"owner-evidence:fixture-apply","shopify":{"adminShopDomain":"fixture-shop.myshopify.com","shopId":"1234567890"},"firebase":{"projectId":"fixture-project-123","projectNumber":"123456789012","androidAppIdsByVariant":{"developmentDebug":"1:123456789012:android:0123456789abcdef","developmentRelease":"1:123456789012:android:fedcba9876543210"}}}'
     [IO.File]::WriteAllText($bindingPath, $bindingJson, [Text.UTF8Encoding]::new($false))
@@ -933,6 +937,47 @@ function Invoke-OperatorApplySuite {
             'shopify.customerAccountLogoutEndpoint'='https://shopify.com/logout';'shopify.customerAccountGraphqlEndpoint'='https://shopify.com/customer-account/api/2026-07/graphql';
             'shopify.customerAccountRedirectUri'='shop.1234567890.gurbakir://oauth/callback'
         }
+        if (Test-Path -LiteralPath $localConfigurationPath) { Remove-Item -LiteralPath $localConfigurationPath -Force }
+        $context = Get-OnboardingOperatorContext $repoRoot 'gurbakir' 'development'
+        Write-OnboardingPrivateProperties `
+            -RepositoryRoot $repoRoot `
+            -Destination $localConfigurationPath `
+            -Lines (Get-OnboardingValidatedClientConfigurationLines -Context $context -Values $clientValues) `
+            -RefuseOverwrite
+        $invalidLines = Get-Content -LiteralPath $localConfigurationPath
+        $invalidLines = @($invalidLines | ForEach-Object {
+            if ($_ -clike 'shopify.customerAccountRedirectUri=*') {
+                'shopify.customerAccountRedirectUri=shop.999.gurbakir://oauth/callback'
+            } else {
+                $_
+            }
+        })
+        [IO.File]::WriteAllText($localConfigurationPath, (($invalidLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+        Assert-Throws `
+            -Action { Write-OnboardingManualCheckpoint $repoRoot 'gurbakir' 'development' $manualCheckpointPath 'owner-evidence:fixture-001' } `
+            -Pattern 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountRedirectUri' `
+            -Name 'manual checkpoint rejects a scoped callback that mismatches the independently bound shop'
+
+        Remove-Item -LiteralPath $localConfigurationPath -Force
+        Write-OnboardingPrivateProperties `
+            -RepositoryRoot $repoRoot `
+            -Destination $localConfigurationPath `
+            -Lines (Get-OnboardingValidatedClientConfigurationLines -Context $context -Values $clientValues) `
+            -RefuseOverwrite
+        Assert-Throws `
+            -Action { Write-OnboardingManualCheckpoint $repoRoot 'gurbakir' 'development' $manualCheckpointPath 'unsafe evidence with spaces' } `
+            -Pattern 'INVALID_APPROVED_EVIDENCE_REF' `
+            -Name 'manual checkpoint rejects an unbounded free-form evidence reference'
+        [void](Write-OnboardingManualCheckpoint $repoRoot 'gurbakir' 'development' $manualCheckpointPath 'owner-evidence:fixture-001')
+        $manualCheckpoint = Get-Content -LiteralPath $manualCheckpointPath -Raw | ConvertFrom-Json -AsHashtable
+        Assert-True `
+            -Condition (
+                [string]$manualCheckpoint.callback -ceq 'shop.1234567890.gurbakir://oauth/callback' -and
+                [string]$manualCheckpoint.approvedEvidenceRef -ceq 'owner-evidence:fixture-001' -and
+                [string]$manualCheckpoint.clientIdSha256 -cmatch '^[0-9a-f]{64}$' -and
+                ([string]$manualCheckpoint.clientIdSha256 -cnotmatch 'fixture-client-id')
+            ) `
+            -Name 'manual checkpoint records only validated callback identity, an approved evidence reference, and a client ID digest'
         $script:readbackArguments=@();$script:readbackPrivileged=@()
         $readbackRunner={param($arguments,$privilegedNames);$script:readbackArguments=@($arguments);$script:readbackPrivileged=@($privilegedNames);return 0}
         $readback=Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner $readbackRunner -ClientValues $clientValues
@@ -962,6 +1007,8 @@ function Invoke-OperatorApplySuite {
         if ($null -ne $outsideReceipt -and (Test-Path -LiteralPath $outsideReceipt)) { Remove-Item -LiteralPath $outsideReceipt -Force }
         if(Test-Path $bindingPath){Remove-Item -LiteralPath $bindingPath -Force}
         if(Test-Path $stagingBindingPath){Remove-Item -LiteralPath $stagingBindingPath -Force}
+        if(Test-Path -LiteralPath $localConfigurationPath){Remove-Item -LiteralPath $localConfigurationPath -Force}
+        if($localConfigurationExisted){[IO.File]::WriteAllBytes($localConfigurationPath,$localConfigurationBytes)}
         if(Test-Path $temporaryRoot){Remove-Item -LiteralPath $temporaryRoot -Recurse -Force}
     }
 }
