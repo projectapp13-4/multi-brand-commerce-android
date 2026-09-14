@@ -1087,7 +1087,7 @@ query HomeResources($ids: [ID!]!) {
             Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('featuredImage { ...HomeImageFields }', 'featuredImage { id }') + "`nfragment UnusedImage on Product { featuredImage { ...HomeImageFields } }") $validHomeResourcesQuery $validHomeImageFragment
         ))
         Add-SelfTestResult 'additional unbounded Home field is rejected' (-not (
-            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    schemaVersion:', '    collections(first: 99) { nodes { id } }`n    schemaVersion:')) $validHomeResourcesQuery $validHomeImageFragment
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    schemaVersion:', "    collections(first: 99) { nodes { id } }`n    schemaVersion:")) $validHomeResourcesQuery $validHomeImageFragment
         ))
         Add-SelfTestResult 'missing required Image url is rejected for Home' (-not (
             Test-HomeContentGraphQLContract $validHomeRootQuery $validHomeResourcesQuery 'fragment HomeImageFields on Image { altText width height }'
