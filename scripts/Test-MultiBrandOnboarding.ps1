@@ -1034,3 +1034,8 @@ switch ($Suite) {
 
 $results | Format-Table -AutoSize
 Write-Output ("Multi-Brand onboarding {0} suite: PASS ({1}/{1})" -f $Suite, $results.Count)
+
+# Negative native-command fixtures intentionally exercise nonzero child exits.
+# Do not leak their final LASTEXITCODE into a successful caller such as a
+# multi-command GitHub Actions pwsh step.
+$global:LASTEXITCODE = 0

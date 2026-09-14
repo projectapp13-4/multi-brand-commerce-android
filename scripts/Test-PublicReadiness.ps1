@@ -201,6 +201,14 @@ function Invoke-PublicReadinessValidation {
     $actionsDetail = if ($actionsPinned) { "all external Actions use immutable 40-character SHAs" } else { "unpinned: $($unpinnedActions -join ', ')" }
     $results.Add((New-CheckResult "sha-pinned-actions" $actionsPinned $actionsDetail))
 
+    $setupAndroidActions = [regex]::Matches($workflow, '(?m)^\s+-?\s*uses:\s*android-actions/setup-android@')
+    $boundedSetupAndroidActions = [regex]::Matches(
+        $workflow,
+        '(?m)^\s+-?\s*uses:\s*android-actions/setup-android@[^\r\n#]+(?:\s+#[^\r\n]*)?\r?\n\s+with:\s*\r?\n\s+packages:\s*platform-tools\s*$'
+    )
+    $androidSdkBootstrapOk = $setupAndroidActions.Count -gt 0 -and $boundedSetupAndroidActions.Count -eq $setupAndroidActions.Count
+    $results.Add((New-CheckResult "bounded-android-sdk-bootstrap" $androidSdkBootstrapOk "every setup-android action must explicitly install platform-tools instead of the removed legacy tools package"))
+
     $checkoutSafe = $workflow -match '(?m)^\s+persist-credentials:\s*false\s*$'
     $results.Add((New-CheckResult "checkout-credentials-disabled" $checkoutSafe "checkout must not persist GitHub credentials"))
 
@@ -355,6 +363,9 @@ jobs:
       - uses: actions/checkout@1111111111111111111111111111111111111111
         with:
           persist-credentials: false
+      - uses: android-actions/setup-android@2222222222222222222222222222222222222222
+        with:
+          packages: platform-tools
 '@
         "app/build.gradle.kts" = @'
 namespace = "com.gurbakir.mobile"
@@ -432,6 +443,7 @@ function Invoke-SelfTests {
         @{ Name = "forensic text reference fails"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'README.md') -Value 'docs/reference-apk/analysis/05_decompiled' }; ExpectedFailure = "no-forensic-text-references" },
         @{ Name = "unresolved rights fail"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'ASSET-LICENSES.md') -Value 'Publication gate: UNRESOLVED' }; ExpectedFailure = "asset-publication-rights" },
         @{ Name = "unpinned action fails"; Mutate = { param($root) (Get-Content (Join-Path $root '.github/workflows/android-foundation.yml') -Raw).Replace('@1111111111111111111111111111111111111111', '@main') | Set-Content -NoNewline (Join-Path $root '.github/workflows/android-foundation.yml') }; ExpectedFailure = "sha-pinned-actions" },
+        @{ Name = "implicit legacy Android SDK package fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('packages: platform-tools', 'packages: tools platform-tools') | Set-Content -NoNewline $p }; ExpectedFailure = "bounded-android-sdk-bootstrap" },
         @{ Name = "privileged pull request trigger fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; $value=(Get-Content -LiteralPath $p -Raw) + "`n  pull_request_target:`n"; [System.IO.File]::WriteAllText($p, $value, [System.Text.UTF8Encoding]::new($false)) }; ExpectedFailure = "external-fork-workflow-safety" },
         @{ Name = "application identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('com.gurbakir.mobile.dev', 'com.example.changed') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-application-identities" },
         @{ Name = "OAuth placeholder mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/build.gradle.kts') -Raw).Replace('manifestPlaceholders["appAuthRedirectScheme"]', 'manifestPlaceholders["renamedScheme"]') | Set-Content -NoNewline (Join-Path $root 'app/build.gradle.kts') }; ExpectedFailure = "gurbakir-oauth-app-links" },
