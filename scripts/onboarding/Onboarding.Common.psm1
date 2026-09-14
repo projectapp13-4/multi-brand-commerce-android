@@ -292,12 +292,75 @@ function Assert-OnboardingHost {
     }
 }
 
+function Get-OnboardingCanonicalJson {
+    param([Parameter(Mandatory)]$Value)
+    return ($Value | ConvertTo-Json -Depth 32 -Compress)
+}
+
+function Protect-OnboardingOutput {
+    param(
+        [AllowEmptyString()][string]$Text,
+        [string[]]$SensitiveValues = @()
+    )
+    $safe = $Text
+    foreach ($value in @($SensitiveValues | Where-Object { -not [string]::IsNullOrEmpty($_) } | Sort-Object Length -Descending)) {
+        $safe = $safe.Replace([string]$value, '<redacted>')
+    }
+    return $safe
+}
+
+function Invoke-OnboardingJsonRequest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('GET', 'POST')][string]$Method,
+        [Parameter(Mandatory)][uri]$Uri,
+        [hashtable]$Headers = @{},
+        [AllowEmptyString()][string]$Body = '',
+        [int]$MaximumBytes = 1048576,
+        [int]$TimeoutSeconds = 30,
+        [scriptblock]$Transport
+    )
+    if ($null -ne $Transport) { return & $Transport $Method $Uri $Headers $Body $MaximumBytes }
+    if ($Uri.Scheme -cne 'https' -or $null -ne $Uri.UserInfo -or $Uri.Fragment.Length -ne 0) {
+        throw (New-OnboardingContractError -Code 'UNSAFE_PROVIDER_URI' -Field 'request')
+    }
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    $handler.AllowAutoRedirect = $false
+    $client = [System.Net.Http.HttpClient]::new($handler)
+    $client.Timeout = [timespan]::FromSeconds($TimeoutSeconds)
+    try {
+        $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::new($Method), $Uri)
+        foreach ($key in $Headers.Keys) { [void]$request.Headers.TryAddWithoutValidation([string]$key, [string]$Headers[$key]) }
+        if ($Method -ceq 'POST') { $request.Content = [System.Net.Http.StringContent]::new($Body, [System.Text.Encoding]::UTF8, 'application/json') }
+        $response = $client.Send($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+        if ([int]$response.StatusCode -ge 300 -and [int]$response.StatusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
+        $stream = $response.Content.ReadAsStream()
+        $memory = [System.IO.MemoryStream]::new()
+        $buffer = [byte[]]::new(8192)
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            if ($memory.Length + $read -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
+            $memory.Write($buffer, 0, $read)
+        }
+        $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($memory.ToArray())
+        $data = if ([string]::IsNullOrWhiteSpace($text)) { $null } else { $text | ConvertFrom-Json -AsHashtable -Depth 32 }
+        return [pscustomobject]@{ StatusCode = [int]$response.StatusCode; Data = $data; Headers = $response.Headers }
+    } catch {
+        if ([string]$_.Exception.Message -match '^PROVIDER_') { throw }
+        throw (New-OnboardingContractError -Code 'PROVIDER_TRANSPORT_FAILURE' -Field $Uri.Host)
+    } finally {
+        $client.Dispose(); $handler.Dispose()
+    }
+}
+
 Export-ModuleMember -Function @(
     'Assert-OnboardingHost'
     'Assert-OnboardingObjectFields'
     'Assert-OnboardingText'
     'Get-OnboardingRepositoryRoot'
     'Get-OnboardingSha256'
+    'Get-OnboardingCanonicalJson'
+    'Protect-OnboardingOutput'
+    'Invoke-OnboardingJsonRequest'
     'New-OnboardingContractError'
     'Read-OnboardingStrictJson'
     'Read-OnboardingProperties'

@@ -349,14 +349,95 @@ function Invoke-EnrollmentSuite {
     }
 }
 
+function Invoke-OperatorReadOnlySuite {
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Shopify.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.CustomerAccount.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.AppLinks.psm1') -Force
+    $registry = Import-OnboardingRegistry -Path (Join-Path $repoRoot 'config\onboarding\application-registry.v1.json') -RepositoryRoot $repoRoot
+    $selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'development'
+    $binding = @{ shopify = @{ adminShopDomain = 'fixture-shop.myshopify.com'; shopId = '1234567890' } }
+    $script:adminBodies = [Collections.Generic.List[string]]::new()
+    $adminTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $script:adminBodies.Add([string]$body)
+        if ($body -match 'Gate8HomeDefinitions') {
+            return [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectDefinitions = @{ nodes = @(); pageInfo = @{ hasNextPage = $false; endCursor = $null } } } } }
+        }
+        return [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ menu = $null } } }
+    }
+    $homeState = Get-ShopifyHomeDefinitionState $binding 'fixture-admin-token' $adminTransport
+    Assert-True -Condition ($homeState.Classification -ceq 'ABSENT') -Name 'absent Home definitions classify without mutation'
+    Assert-True -Condition ($script:adminBodies[0] -match '"first":100') -Name 'Admin definition inspection uses fixed page size 100'
+    $menu = Get-ShopifyMenuState $binding 'fixture-admin-token' 'main-menu' $adminTransport
+    Assert-True -Condition ($menu.Classification -ceq 'ABSENT') -Name 'missing Menu remains validate-only absent state'
+    $discoveryTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $data = if ($uri.AbsolutePath -eq '/.well-known/openid-configuration') {
+            @{ issuer='https://shopify.com/authentication/1234567890'; authorization_endpoint='https://shopify.com/auth'; token_endpoint='https://shopify.com/token'; end_session_endpoint='https://shopify.com/logout'; jwks_uri='https://shopify.com/jwks'; code_challenge_methods_supported=@('S256'); grant_types_supported=@('authorization_code'); id_token_signing_alg_values_supported=@('RS256') }
+        } else { @{ graphql_api='https://shopify.com/customer-account/api/2026-07/graphql' } }
+        [pscustomobject]@{ StatusCode=200; Data=$data }
+    }
+    $customer = Get-OnboardingCustomerDiscovery $selected $binding $discoveryTransport
+    Assert-True -Condition ($customer.Callback -ceq 'shop.1234567890.gurbakir://oauth/callback') -Name 'Customer callback derives from pinned shop and app identity'
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Common.psm1') -Force
+    Assert-True -Condition ((Protect-OnboardingOutput 'failure fixture-secret' @('fixture-secret')) -ceq 'failure <redacted>') -Name 'loaded values are redacted before output'
+}
+
+function Invoke-OperatorApplySuite {
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ('gate8-apply-' + [guid]::NewGuid().ToString('N'))
+    [IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
+    $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
+    $bindingJson = '{"schemaVersion":1,"application":"gurbakir","profile":"development","approvedEvidenceRef":"owner-evidence:fixture-apply","shopify":{"adminShopDomain":"fixture-shop.myshopify.com","shopId":"1234567890"},"firebase":{"projectId":"fixture-project-123","projectNumber":"123456789012","androidAppIdsByVariant":{"developmentDebug":"1:123456789012:android:0123456789abcdef","developmentRelease":"1:123456789012:android:fedcba9876543210"}}}'
+    [IO.File]::WriteAllText($bindingPath, $bindingJson, [Text.UTF8Encoding]::new($false))
+    $credentialName = 'MB_GURBAKIR_DEVELOPMENT_SHOPIFY_ADMIN_TOKEN'
+    $previous = [Environment]::GetEnvironmentVariable($credentialName, 'Process')
+    [Environment]::SetEnvironmentVariable($credentialName, 'fixture-admin-token', 'Process')
+    $script:createdDefinitions = [Collections.Generic.List[object]]::new(); $script:probe = $null; $script:writeCount = 0
+    $transport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $request = $body | ConvertFrom-Json -AsHashtable
+        if ($request.query -match 'Gate8HomeDefinitions') {
+            return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitions=@{nodes=@($script:createdDefinitions);pageInfo=@{hasNextPage=$false;endCursor=$null}}}}}
+        }
+        if ($request.query -match 'query Gate8Probe') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectByHandle=$script:probe}}} }
+        if ($request.query -match 'Gate8DefinitionCreate') {
+            $script:writeCount++;$definition=$request.variables.definition;$id="gid://shopify/MetaobjectDefinition/$($script:writeCount)"
+            $node=@{id=$id;type=[string]$definition.type;name=[string]$definition.name;fieldDefinitions=@($definition.fieldDefinitions);capabilities=@{publishable=@{enabled=$true}};access=@{storefront='PUBLIC_READ'}};$script:createdDefinitions.Add($node)
+            return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitionCreate=@{metaobjectDefinition=@{id=$id;type=[string]$definition.type};userErrors=@()}}}}
+        }
+        if ($request.query -match 'Gate8ProbeCreate') {$script:writeCount++;$script:probe=@{id='gid://shopify/Metaobject/99';type='mobile_home';handle='gate8-operator-acceptance-v1';fields=@(@{key='schema_version';value='1'},@{key='declared_section_count';value='0'});capabilities=@{publishable=@{status='DRAFT'}}};return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectCreate=@{metaobject=$script:probe;userErrors=@()}}}}}
+        throw 'unexpected fixture operation'
+    }
+    try {
+        $planPath=Join-Path $temporaryRoot 'plan.json';$resultPath=Join-Path $temporaryRoot 'result.json'
+        [void](New-OnboardingPlan $repoRoot 'gurbakir' 'development' $planPath -IncludeAcceptanceProbe -Transport $transport)
+        Assert-Throws -Action { Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $planPath 'gurbakir' 'development' -IncludeAcceptanceProbe -Transport $transport } -Pattern 'CONFIRMATION_MISMATCH' -Name 'Apply requires explicit confirmation'
+        [void](Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $planPath 'gurbakir' 'development' -ConfirmApply -IncludeAcceptanceProbe -OutputPath $resultPath -Transport $transport)
+        Assert-True -Condition ($script:writeCount -eq 4) -Name 'Apply creates only three definitions and one DRAFT probe'
+        Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Registry.psm1') -Force
+        Assert-True -Condition ((Import-OnboardingReceipt $resultPath).kind -ceq 'RESULT') -Name 'Apply writes a closed redacted result receipt'
+    } finally {
+        [Environment]::SetEnvironmentVariable($credentialName, $previous, 'Process')
+        if(Test-Path $bindingPath){Remove-Item -LiteralPath $bindingPath -Force}
+        if(Test-Path $temporaryRoot){Remove-Item -LiteralPath $temporaryRoot -Recurse -Force}
+    }
+}
+
 switch ($Suite) {
     'Registry' { Invoke-RegistrySuite }
     'Configuration' { Invoke-ConfigurationSuite }
     'Enrollment' { Invoke-EnrollmentSuite }
+    'OperatorReadOnly' { Invoke-OperatorReadOnlySuite }
+    'OperatorApply' { Invoke-OperatorApplySuite }
+    'Security' { Invoke-OperatorReadOnlySuite }
     'All' {
         Invoke-RegistrySuite
         Invoke-ConfigurationSuite
         Invoke-EnrollmentSuite
+        Invoke-OperatorReadOnlySuite
+        Invoke-OperatorApplySuite
     }
     default {
         throw "Suite $Suite has not been implemented yet."

@@ -7,11 +7,14 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$expected = [ordered]@{
-    'app/src/developmentDebug/google-services.json' = @{ Package = 'com.gurbakir.mobile.dev.debug'; Environment = 'development' }
-    'app/src/developmentRelease/google-services.json' = @{ Package = 'com.gurbakir.mobile.dev'; Environment = 'development' }
-    'app/src/stagingDebug/google-services.json' = @{ Package = 'com.gurbakir.mobile.staging.debug'; Environment = 'staging' }
-    'app/src/stagingRelease/google-services.json' = @{ Package = 'com.gurbakir.mobile.staging'; Environment = 'staging' }
+Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Registry.psm1') -Force
+$registry = Import-OnboardingRegistry -Path (Join-Path $repoRoot 'config\onboarding\application-registry.v1.json') -RepositoryRoot $repoRoot
+$application = @($registry.applications | Where-Object { [string]$_.key -ceq 'gurbakir' })[0]
+$expected = [ordered]@{}
+foreach ($profile in @($application.profiles)) {
+    foreach ($variant in @($profile.variants)) {
+        $expected[[string]$variant.firebaseConfig] = @{ Package = [string]$variant.applicationId; Environment = [string]$profile.key; Binding = [string]$profile.providerBindingFile; Variant = [string]$variant.name }
+    }
 }
 
 function Find-ProhibitedJsonKey {
@@ -57,12 +60,19 @@ try {
         $relativePath = [string]$entry.Key
         $packageName = [string]$entry.Value.Package
         $environment = [string]$entry.Value.Environment
+        $bindingPath = [string]$entry.Value.Binding
+        if (-not (Test-Path -LiteralPath $bindingPath -PathType Leaf)) { throw "Required independent provider binding is missing for $environment." }
+        $profileRecord = @($application.profiles | Where-Object { [string]$_.key -ceq $environment })[0]
+        $binding = Import-OnboardingProviderBinding -Path $bindingPath -Application 'gurbakir' -Profile $environment -ExpectedFirebaseVariants @($profileRecord.variants | ForEach-Object { [string]$_.name })
         $json = Get-Content -LiteralPath $relativePath -Raw | ConvertFrom-Json
         if (Find-ProhibitedJsonKey -Value $json) {
             throw "A server/private credential key was found in $relativePath."
         }
         $projectId = [string]$json.project_info.project_id
         if ([string]::IsNullOrWhiteSpace($projectId)) { throw "Missing Firebase project_id in $relativePath." }
+        if ($projectId -cne [string]$binding.firebase.projectId -or [string]$json.project_info.project_number -cne [string]$binding.firebase.projectNumber) {
+            throw "Firebase project identity does not match the approved binding for $environment."
+        }
         [void]$projectIdsByEnvironment[$environment].Add($projectId)
 
         $clients = @($json.client)
@@ -73,6 +83,9 @@ try {
         $client = $matches[0]
         if ([string]::IsNullOrWhiteSpace([string]$client.client_info.mobilesdk_app_id)) {
             throw "Missing mobilesdk_app_id in $relativePath."
+        }
+        if ([string]$client.client_info.mobilesdk_app_id -cne [string]$binding.firebase.androidAppIdsByVariant[[string]$entry.Value.Variant]) {
+            throw "Firebase Android app identity does not match the approved binding for $environment."
         }
         $apiKeys = @($client.api_key | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.current_key) })
         if ($apiKeys.Count -lt 1) { throw "Missing Firebase Android public API key in $relativePath." }

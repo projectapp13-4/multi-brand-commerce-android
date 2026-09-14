@@ -11,7 +11,8 @@ param(
     [string]$ConfirmApplication = '',
     [string]$ConfirmProfile = '',
     [switch]$ConfirmApply,
-    [switch]$IncludeAcceptanceProbe
+    [switch]$IncludeAcceptanceProbe,
+    [string]$ApprovedEvidenceRef = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,11 +37,8 @@ try {
         $selected = Get-OnboardingApplicationProfile -Registry $registry -Application $Application -Profile $Profile
     }
 
-    if ($Command -cne 'Validate') {
-        throw (New-OnboardingContractError -Code 'COMMAND_NOT_IMPLEMENTED' -Field $Command)
-    }
-
-    $profiles = if ($null -ne $selected) {
+    if ($Command -ceq 'Validate') {
+      $profiles = if ($null -ne $selected) {
         @([pscustomobject]@{ Application = $selected.Application; Profile = $selected.Profile })
     } else {
         @(
@@ -51,7 +49,7 @@ try {
             }
         )
     }
-    foreach ($record in $profiles) {
+      foreach ($record in $profiles) {
         if ($null -eq $record.Application.configurationProjection) {
             continue
         }
@@ -63,13 +61,26 @@ try {
             -ProfileRecord $record.Profile `
             -RegistrySha256 $registrySha
         Test-OnboardingProjection -Path $projectionPath -ExpectedLines $expected
-    }
-    if ($ProjectionOnly) {
+      }
+      if ($ProjectionOnly) {
         Write-Output 'PASS: onboarding projections are valid; no credentials, network, Gradle, or repair action was used.'
-    } else {
+      } else {
         Write-Output 'PASS: onboarding registry and projections are valid. Missing ignored client configuration remains UNCONFIGURED.'
+      }
+      exit 0
     }
-    exit 0
+    if ($Application.Length -eq 0) { throw (New-OnboardingContractError -Code 'TARGET_PAIR_REQUIRED' -Field 'Application/Profile') }
+    Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Operator.psm1') -Force
+    switch ($Command) {
+        'Inspect' { Invoke-OnboardingInspect -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
+        'Plan' { [void](New-OnboardingPlan -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -IncludeAcceptanceProbe:$IncludeAcceptanceProbe); Write-Output 'PASS: redacted immutable onboarding Plan receipt created.'; exit 0 }
+        'Apply' { [void](Invoke-OnboardingApply -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -PlanReceipt $PlanReceipt -ConfirmApplication $ConfirmApplication -ConfirmProfile $ConfirmProfile -ConfirmApply:$ConfirmApply -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -OutputPath $OutputPath); Write-Output 'PASS: bounded onboarding Apply completed and readback receipt was written.'; exit 0 }
+        'Readback' { Invoke-OnboardingInspect -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
+        'Recover' { Get-OnboardingRecovery -PlanReceipt $PlanReceipt | ConvertTo-Json; exit 0 }
+        'GenerateLocalConfiguration' { Write-OnboardingLocalConfiguration -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -ConfirmApply:$ConfirmApply; exit 0 }
+        'RecordManualCheckpoint' { Write-OnboardingManualCheckpoint -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -EvidenceRef $ApprovedEvidenceRef; exit 0 }
+        default { throw (New-OnboardingContractError -Code 'COMMAND_NOT_IMPLEMENTED' -Field $Command) }
+    }
 } catch {
     $message = [string]$_.Exception.Message
     if ($message -match '^(?<code>[A-Z0-9_]+):') {
@@ -77,5 +88,9 @@ try {
     } else {
         [Console]::Error.WriteLine('FAIL [VALIDATION_FAILURE]')
     }
+    if ($message -match 'MISSING_.*(TOKEN|BINDING)|MISSING_FILE') { exit 3 }
+    if ($message -match 'UNSAFE_|TARGET_|CONFIRM') { exit 7 }
+    if ($message -match 'INCOMPATIBLE|DRIFT|COLLISION') { exit 4 }
+    if ($message -match 'PROVIDER_|SHOPIFY_|FIREBASE_|CUSTOMER_') { exit 5 }
     exit 2
 }
