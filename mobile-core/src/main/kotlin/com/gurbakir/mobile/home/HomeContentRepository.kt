@@ -50,7 +50,6 @@ constructor(
 
         val token = coordinator.begin()
         val now = clock.nowMillis()
-        val sessionSnapshot = coordinator.current(partition)
         val storedRead = store.read(partition, remote.supportedContentVersion, now)
         val rootResult = gateway.loadHomeDocument(remote.selector)
 
@@ -60,11 +59,10 @@ constructor(
             if (validation is HomeDocumentValidation.Accepted) {
                 return acceptRemote(token, validation.snapshot, observation, storedRead, now)
             }
-            return fallbackAfterFailure(
+            return resolveFailure(
+                token,
                 trigger,
                 HomeLoadFailure(HomeLoadFailureCategory.SERVICE, retryable = false),
-                sessionSnapshot,
-                storedRead,
                 remote,
                 now
             )
@@ -74,7 +72,33 @@ constructor(
             is StorefrontResult.Failure -> rootResult.error.toHomeLoadFailure()
             is StorefrontResult.Success -> HomeLoadFailure(HomeLoadFailureCategory.SERVICE, retryable = false)
         }
-        return fallbackAfterFailure(trigger, failure, sessionSnapshot, storedRead, remote, now)
+        return resolveFailure(token, trigger, failure, remote, now)
+    }
+
+    private suspend fun resolveFailure(
+        token: HomeRequestToken,
+        trigger: HomeLoadTrigger,
+        failure: HomeLoadFailure,
+        source: HomeRemoteSource.ShopifyMetaobject,
+        now: Long
+    ): HomeLoadResult = when (
+        val authority = coordinator.resolveFailure(
+            token,
+            partition,
+            source.supportedContentVersion,
+            now
+        )
+    ) {
+        is HomeFailureAuthority.Current -> fallbackAfterFailure(
+            trigger,
+            failure,
+            authority.sessionSnapshot,
+            authority.storedRead,
+            source,
+            now
+        )
+
+        HomeFailureAuthority.Superseded -> HomeLoadResult.Superseded
     }
 
     private suspend fun acceptRemote(

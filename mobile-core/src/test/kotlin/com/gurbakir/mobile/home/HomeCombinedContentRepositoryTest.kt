@@ -25,6 +25,8 @@ import com.gurbakir.storefront.StorefrontHomeResource
 import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontResult
 import java.net.URI
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -169,18 +171,42 @@ class HomeCombinedContentRepositoryTest {
         )
     }
 
+    @Test
+    fun `late failed request is superseded after newer remote acceptance`() = runTest {
+        val store = FakeStore(HomeStoreRead.NeverEstablished)
+        val coordinator = HomeContentAcceptanceCoordinator(store)
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val lateGateway = DeferredFailureGateway(started, release)
+        val lateRepository = repository(lateGateway, store, coordinator)
+        val newerRepository = repository(FakeGateway(StorefrontResult.Success(document())), store, coordinator)
+
+        val late = async { lateRepository.load(HomeLoadTrigger.INITIAL) }
+        started.await()
+        assertInstanceOf(HomeLoadResult.Accepted::class.java, newerRepository.load(HomeLoadTrigger.INITIAL))
+        release.complete(Unit)
+
+        assertEquals(HomeLoadResult.Superseded, late.await())
+    }
+
     private fun repository(gateway: FakeGateway, read: HomeStoreRead): DefaultHomeContentRepository {
         val store = FakeStore(read)
-        return DefaultHomeContentRepository(
-            gateway = gateway,
-            configuration = remoteConfiguration(),
-            validator = HomeContentValidator(),
-            store = store,
-            coordinator = HomeContentAcceptanceCoordinator(store),
-            clock = FixedClock(NOW),
-            partition = PARTITION
-        )
+        return repository(gateway, store, HomeContentAcceptanceCoordinator(store))
     }
+
+    private fun repository(
+        gateway: StorefrontHomeGateway,
+        store: HomeContentStore,
+        coordinator: HomeContentAcceptanceCoordinator
+    ): DefaultHomeContentRepository = DefaultHomeContentRepository(
+        gateway = gateway,
+        configuration = remoteConfiguration(),
+        validator = HomeContentValidator(),
+        store = store,
+        coordinator = coordinator,
+        clock = FixedClock(NOW),
+        partition = PARTITION
+    )
 
     private fun remoteConfiguration() = HomeConfiguration(
         remoteSource = HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", "primary")),
@@ -329,6 +355,26 @@ class HomeCombinedContentRepositoryTest {
             resources ?: HomeResourceBatch(keys.map { HomeResourceResolution(it, null) })
         )
         override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(packagedCollection)
+        override suspend fun loadHomeProduct(handle: String) = StorefrontResult.Success(null)
+    }
+
+    private class DeferredFailureGateway(
+        private val started: CompletableDeferred<Unit>,
+        private val release: CompletableDeferred<Unit>
+    ) : StorefrontHomeGateway {
+        override suspend fun loadHomeDocument(
+            selector: HomeDocumentSelector
+        ): StorefrontResult<HomeDocumentObservation?> {
+            started.complete(Unit)
+            release.await()
+            return StorefrontResult.Failure(StorefrontFailure.Transport(true))
+        }
+
+        override suspend fun loadHomeResources(keys: List<HomeResourceKey>) =
+            StorefrontResult.Success(HomeResourceBatch(emptyList()))
+
+        override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(null)
+
         override suspend fun loadHomeProduct(handle: String) = StorefrontResult.Success(null)
     }
 

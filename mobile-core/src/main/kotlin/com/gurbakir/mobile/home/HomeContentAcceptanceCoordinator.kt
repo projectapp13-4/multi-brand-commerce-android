@@ -14,6 +14,12 @@ sealed interface HomeAcceptance {
     data object Superseded : HomeAcceptance
 }
 
+sealed interface HomeFailureAuthority {
+    data class Current(val sessionSnapshot: HomeStoredSnapshot?, val storedRead: HomeStoreRead) : HomeFailureAuthority
+
+    data object Superseded : HomeFailureAuthority
+}
+
 @Singleton
 class HomeContentAcceptanceCoordinator
 @Inject
@@ -41,6 +47,19 @@ constructor(private val store: HomeContentStore) {
 
     suspend fun current(partition: HomeContentPartition): HomeStoredSnapshot? =
         mutex.withLock { sessionAuthority[partition] }
+
+    suspend fun resolveFailure(
+        token: HomeRequestToken,
+        partition: HomeContentPartition,
+        supportedContentVersion: Int,
+        nowMillis: Long
+    ): HomeFailureAuthority = mutex.withLock {
+        if (token.value != currentToken) return@withLock HomeFailureAuthority.Superseded
+        HomeFailureAuthority.Current(
+            sessionSnapshot = sessionAuthority[partition],
+            storedRead = store.read(partition, supportedContentVersion, nowMillis)
+        )
+    }
 
     suspend fun clearSession(partition: HomeContentPartition) {
         mutex.withLock { sessionAuthority.remove(partition) }

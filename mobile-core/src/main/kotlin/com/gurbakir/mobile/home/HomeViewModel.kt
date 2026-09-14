@@ -66,7 +66,7 @@ constructor(
 
                 is HomeLoadResult.Failed -> fail(result.failure, trigger)
 
-                HomeLoadResult.Superseded ->
+                HomeLoadResult.Superseded -> {
                     _state.update { state ->
                         state.copy(
                             presentation = state.presentation?.copy(refreshing = false),
@@ -75,6 +75,8 @@ constructor(
                             requestActive = false
                         )
                     }
+                    installExpiry(_state.value.presentation?.editorialExpiresAtMillis)
+                }
             }
         }
     }

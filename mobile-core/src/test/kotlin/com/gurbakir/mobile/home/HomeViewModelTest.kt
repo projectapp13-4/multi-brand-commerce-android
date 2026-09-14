@@ -67,6 +67,32 @@ class HomeViewModelTest {
         }
     }
 
+    @Test
+    fun `superseded refresh reinstalls expiry after the prior timer completes while active`() = runTest {
+        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
+            val refresh = CompletableDeferred<HomeLoadResult>()
+            val clock = ReleasableClock(now = 100L)
+            val viewModel =
+                HomeViewModel(
+                    QueueRepository(mutableListOf(accepted("initial", expiresAt = 200L)), refresh),
+                    HomeLoadingClock(),
+                    clock
+                )
+            runCurrent()
+            assertEquals(1, clock.waits)
+
+            viewModel.refreshContent()
+            runCurrent()
+            clock.now = 200L
+            clock.releaseFirstWait.complete(Unit)
+            runCurrent()
+            refresh.complete(HomeLoadResult.Superseded)
+            runCurrent()
+
+            assertEquals(2, clock.waits)
+        }
+    }
+
     private fun accepted(id: String, expiresAt: Long? = null): HomeLoadResult.Accepted = HomeLoadResult.Accepted(
         HomePresentation(
             editorial = HomeEditorialState.Packaged,
@@ -114,5 +140,17 @@ class HomeViewModelTest {
     private class FixedClock(var now: Long = 0L) : HomeEditorialClock {
         override fun nowMillis(): Long = now
         override suspend fun awaitUntil(deadlineMillis: Long) = awaitCancellation()
+    }
+
+    private class ReleasableClock(var now: Long) : HomeEditorialClock {
+        val releaseFirstWait = CompletableDeferred<Unit>()
+        var waits = 0
+
+        override fun nowMillis(): Long = now
+
+        override suspend fun awaitUntil(deadlineMillis: Long) {
+            waits += 1
+            if (waits == 1) releaseFirstWait.await() else awaitCancellation()
+        }
     }
 }
