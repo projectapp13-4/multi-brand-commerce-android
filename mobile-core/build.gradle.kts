@@ -46,6 +46,12 @@ android {
                     apiLevel = 30
                     systemImageSource = "aosp-atd"
                 }
+                create("ciApi23") {
+                    device = "Pixel 2"
+                    apiLevel = 23
+                    systemImageSource = "aosp"
+                    require64Bit = true
+                }
             }
         }
     }

@@ -105,13 +105,14 @@ class Gate2SyntheticConfigurationTest {
         val home = Gate2SyntheticConfiguration.home
         val catalog = Gate2SyntheticConfiguration.catalog
 
-        assertEquals("SYNTHETIC_HOME_RANGE", home.productRange.stableId)
-        assertEquals(3, home.productRange.itemLimit)
+        assertEquals(com.gurbakir.mobile.home.HomeRemoteSource.Disabled, home.remoteSource)
+        assertEquals("SYNTHETIC_HOME_RANGE", home.packagedFallback.productRange.stableId)
+        assertEquals(3, home.packagedFallback.productRange.itemLimit)
         assertEquals(
             listOf("synthetic-alpha", "synthetic-beta"),
-            home.productRange.sources.map { it.handle }
+            home.packagedFallback.productRange.sources.map { it.handle }
         )
-        assertEquals("synthetic-featured-product", home.featuredProduct.handle)
+        assertEquals("synthetic-featured-product", home.packagedFallback.featuredProduct.handle)
         assertEquals("synthetic-catalog-menu", catalog.menuHandle)
         assertEquals("DEVELOPMENT", Gate2SyntheticConfiguration.searchPartition.environmentId)
         assertEquals("ZZ", Gate2SyntheticConfiguration.searchPartition.marketId)

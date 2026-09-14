@@ -114,15 +114,12 @@ data class CartReference(
             "lineCount=${lines.size}, hasMoreLines=$hasMoreLines, warningCodes=$warningCodes)"
 }
 
-class UnconfiguredStorefrontGateway : StorefrontApi {
+class UnconfiguredStorefrontGateway :
+    StorefrontApi,
+    StorefrontHomeGateway by UnconfiguredStorefrontHomeGateway {
     override suspend fun loadShopSummary(): StorefrontResult<ShopSummary> = missingConfiguration()
 
     override suspend fun loadCatalogPage(after: Cursor?): StorefrontResult<CatalogPage> = missingConfiguration()
-
-    override suspend fun loadHomeCollection(handle: String): StorefrontResult<HomeCollectionSummary?> =
-        missingConfiguration()
-
-    override suspend fun loadHomeProduct(handle: String): StorefrontResult<HomeProductSummary?> = missingConfiguration()
 
     override suspend fun createCart(
         lines: List<CartLineInput>,
@@ -150,6 +147,19 @@ class UnconfiguredStorefrontGateway : StorefrontApi {
         cartId: SensitiveCartId,
         buyerAccessToken: SensitiveBuyerAccessToken?
     ): StorefrontResult<CartReference> = missingConfiguration()
+}
+
+private object UnconfiguredStorefrontHomeGateway : StorefrontHomeGateway {
+    override suspend fun loadHomeCollection(handle: String): StorefrontResult<HomeCollectionSummary?> =
+        missingConfiguration()
+
+    override suspend fun loadHomeProduct(handle: String): StorefrontResult<HomeProductSummary?> = missingConfiguration()
+
+    override suspend fun loadHomeDocument(selector: HomeDocumentSelector): StorefrontResult<HomeDocumentObservation?> =
+        missingConfiguration()
+
+    override suspend fun loadHomeResources(keys: List<HomeResourceKey>): StorefrontResult<HomeResourceBatch> =
+        missingConfiguration()
 }
 
 class UnconfiguredStorefrontCatalogGateway : StorefrontCatalogGateway {

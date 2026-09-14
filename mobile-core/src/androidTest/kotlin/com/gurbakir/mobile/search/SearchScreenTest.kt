@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.catalog.CatalogTestTags
 import com.gurbakir.mobile.performDeterministicClick
@@ -150,6 +151,7 @@ class SearchScreenTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 24)
     fun imeSearchIsTheOnlyExplicitSubmitAndClearsInputFocus() {
         var submitted = 0
         setSearchContent {

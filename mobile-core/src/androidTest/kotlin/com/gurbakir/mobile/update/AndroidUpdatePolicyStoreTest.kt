@@ -55,7 +55,7 @@ class AndroidUpdatePolicyStoreTest {
             assertTrue(store.deferUpdate(42, NOW, NOW + UPDATE_POLICY_CACHE_TTL_MILLIS))
             assertEquals(legacy, preferences.all)
         } finally {
-            context.deleteSharedPreferences(name)
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
         }
     }
 
@@ -94,7 +94,7 @@ class AndroidUpdatePolicyStoreTest {
                 )
             )
         } finally {
-            context.deleteSharedPreferences(name)
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
         }
     }
 
@@ -123,7 +123,7 @@ class AndroidUpdatePolicyStoreTest {
 
             assertNull(store.readPolicy(NOW))
         } finally {
-            context.deleteSharedPreferences(name)
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
         }
     }
 

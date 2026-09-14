@@ -404,6 +404,32 @@ function Get-GraphQLBlockBody {
     return $null
 }
 
+function Remove-GraphQLComments {
+    param([Parameter(Mandatory)] [string]$Text)
+
+    return [regex]::Replace($Text, '(?m)#.*$', '')
+}
+
+function Get-GraphQLOperationBody {
+    param(
+        [Parameter(Mandatory)] [string]$Text,
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    $cleanText = Remove-GraphQLComments $Text
+    $headers = @(
+        [regex]::Matches(
+            $cleanText,
+            "(?m)\bquery\s+$([regex]::Escape($Name))\s*\("
+        )
+    )
+    if ($headers.Count -ne 1) {
+        return $null
+    }
+    $openingBraceIndex = $cleanText.IndexOf('{', $headers[0].Index)
+    return Get-GraphQLBlockBody -Text $cleanText -OpeningBraceIndex $openingBraceIndex
+}
+
 function Get-GraphQLFragmentBody {
     param(
         [Parameter(Mandatory)] [string]$Text,
@@ -441,6 +467,7 @@ function Get-GraphQLTopLevelFields {
 
     $fields = [System.Collections.Generic.List[string]]::new()
     $depth = 0
+    $parenthesisDepth = 0
     $index = 0
     while ($index -lt $SelectionText.Length) {
         $character = $SelectionText[$index]
@@ -454,7 +481,17 @@ function Get-GraphQLTopLevelFields {
             $index++
             continue
         }
-        if ($depth -gt 0 -or [char]::IsWhiteSpace($character) -or $character -eq ',') {
+        if ($character -eq '(') {
+            $parenthesisDepth++
+            $index++
+            continue
+        }
+        if ($character -eq ')') {
+            $parenthesisDepth--
+            $index++
+            continue
+        }
+        if ($depth -gt 0 -or $parenthesisDepth -gt 0 -or [char]::IsWhiteSpace($character) -or $character -eq ',') {
             $index++
             continue
         }
@@ -602,6 +639,7 @@ function Test-CatalogDiscoveryOwnership {
         $internetDeclarations | Where-Object { $_.Value -notmatch '(?i)tools:node\s*=\s*"remove"' }
     )
     $syntheticInert = $SyntheticConfigurationText -match 'menuHandle\s*=\s*"synthetic-catalog-menu"' -and
+        $SyntheticConfigurationText -match 'remoteSource\s*=\s*HomeRemoteSource\.Disabled' -and
         $activeInternetDeclarations.Count -eq 0
     $expectedHomePairs = @(
         'bardaklar|home_collection_drinkware',
@@ -623,19 +661,85 @@ function Test-CatalogDiscoveryOwnership {
             }
         }
     )
-    $homeUnchanged = $actualHomePairs.Count -eq $expectedHomePairs.Count -and
+    $homePackagedFallbackPreserved = $actualHomePairs.Count -eq $expectedHomePairs.Count -and
         $homePairDifferences.Count -eq 0 -and
         @($expectedHomePairs | ForEach-Object { ($_ -split '\|', 2)[1] } | Where-Object {
             $HomeResourceText -notmatch [regex]::Escape($_)
         }).Count -eq 0
+    $homeRemoteOwnership = $HomeConfigurationText -match '(?s)BuildConfig\.HOME_CONTENT_ROOT_HANDLE\.takeIf\(String::isNotBlank\)\?\.let\s*\{\s*handle\s*->\s*HomeRemoteSource\.ShopifyMetaobject\s*\(\s*HomeDocumentSelector\("mobile_home",\s*handle\)\s*\)\s*\}\s*\?:\s*HomeRemoteSource\.Disabled\b' -and
+        $HomeConfigurationText -match 'HomePackagedFallback'
 
     return $catalogContract -and
         $appSelector -and
         $appLabelsRemoved -and
         $sharedCatalogNeutral -and
         $syntheticInert -and
-        $homeUnchanged -and
+        $homePackagedFallbackPreserved -and
+        $homeRemoteOwnership -and
         (Test-CatalogDiscoveryGraphQLContract $QueryText $ImageFragmentText)
+}
+
+function Test-HomeContentGraphQLContract {
+    param(
+        [Parameter(Mandatory)] [string]$RootQueryText,
+        [Parameter(Mandatory)] [string]$ResourcesQueryText,
+        [Parameter(Mandatory)] [string]$ImageFragmentText
+    )
+
+    $imageBody = Get-GraphQLFragmentBody $ImageFragmentText 'HomeImageFields' 'Image'
+    if ($null -eq $imageBody -or
+        -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $imageBody) @('url', 'altText', 'width', 'height'))) {
+        return $false
+    }
+    $rootText = Remove-GraphQLComments $RootQueryText
+    $resourcesText = Remove-GraphQLComments $ResourcesQueryText
+    $rootOperation = Get-GraphQLOperationBody $rootText 'HomeContentMetaobject'
+    $resourcesOperation = Get-GraphQLOperationBody $resourcesText 'HomeResources'
+    if ($null -in @($rootOperation, $resourcesOperation) -or
+        @([regex]::Matches($rootText, '(?m)\bquery\s+')).Count -ne 1 -or
+        @([regex]::Matches($resourcesText, '(?m)\bquery\s+')).Count -ne 1 -or
+        $rootText -match '(?m)\bfragment\s+' -or
+        $resourcesText -match '(?m)\bfragment\s+') {
+        return $false
+    }
+    if (-not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $rootOperation) @('metaobject')) -or
+        -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $resourcesOperation) @('nodes'))) {
+        return $false
+    }
+    $metaobjectHeader = [regex]::Match($rootOperation, '(?m)\bmetaobject\s*\([^{}]*\)\s*\{')
+    if (-not $metaobjectHeader.Success) {
+        return $false
+    }
+    $rootMetaobject = Get-GraphQLBlockBody $rootOperation $rootOperation.IndexOf('{', $metaobjectHeader.Index)
+    if ($null -eq $rootMetaobject -or
+        -not (Test-ExactStringSet @(Get-GraphQLTopLevelFields $rootMetaobject) @('id', 'handle', 'type', 'updatedAt', 'field', 'field', 'field'))) {
+        return $false
+    }
+    if (@([regex]::Matches($rootOperation, '\bfirst\s*:')).Count -ne 3 -or
+        @([regex]::Matches($resourcesOperation, '\bfirst\s*:')).Count -ne 1 -or
+        ($rootOperation + "`n" + $resourcesOperation) -match '\bfirst\s*:\s*(?!1\b|3\b|7\b)\d+') {
+        return $false
+    }
+    $queries = $rootOperation + "`n" + $resourcesOperation
+    if ($queries -match '(?i)\b(?:route|action|component|destination)[A-Za-z0-9_]*\s*:\s*url\b' -or
+        $queries -match '(?i)\b(?:routeUrl|actionUrl|componentUrl|destinationUrl)\b') {
+        return $false
+    }
+    if ($queries -match '(?m)^\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*:\s*)?url\b') {
+        return $false
+    }
+    return $rootText -match '(?s)\bquery\s+HomeContentMetaobject\s*\(\s*\$handle\s*:\s*MetaobjectHandleInput!\s*\)' -and
+        $rootOperation -match '\bmetaobject\s*\(\s*handle\s*:\s*\$handle\s*\)' -and
+        $rootOperation -match 'schemaVersion\s*:\s*field\s*\(\s*key\s*:\s*"schema_version"\s*\)' -and
+        $rootOperation -match 'field\s*\(\s*key\s*:\s*"declared_section_count"\s*\)' -and
+        $rootOperation -match '(?s)sections:\s*field\s*\(\s*key\s*:\s*"sections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*3\s*\)' -and
+        $rootOperation -match '(?s)collections:\s*field\s*\(\s*key\s*:\s*"collections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*7\s*\)' -and
+        @([regex]::Matches($rootOperation, '\bhasNextPage\b')).Count -eq 2 -and
+        $rootOperation -match '(?s)product:\s*field\s*\(\s*key\s*:\s*"product"\s*\).*?\btype\b.*?\bvalue\b.*?\breference\b' -and
+        $resourcesText -match '(?s)\bquery\s+HomeResources\s*\(\s*\$ids\s*:\s*\[ID!\]!\s*\)' -and
+        $resourcesOperation -match '\bnodes\s*\(\s*ids\s*:\s*\$ids\s*\)' -and
+        @([regex]::Matches($rootOperation, '\.\.\.HomeImageFields\b')).Count -eq 3 -and
+        @([regex]::Matches($resourcesOperation, '\.\.\.HomeImageFields\b')).Count -eq 3
 }
 
 function Invoke-PortabilitySelfTest {
@@ -761,7 +865,7 @@ val preferencesName = """prefix " gurbakir_secure_cart_development suffix"""
             AppCatalogConfigurationText = 'val value = CatalogConfiguration(menuHandle = BuildConfig.CATALOG_MENU_HANDLE)'
             AppResourceText = '<resources><string name="categories_empty">There are no categories to show right now.</string></resources>'
             MobileCatalogText = 'fun project(menu: CatalogDiscoveryMenu) = menu.items'
-            SyntheticConfigurationText = 'CatalogConfiguration(menuHandle = "synthetic-catalog-menu")'
+            SyntheticConfigurationText = 'CatalogConfiguration(menuHandle = "synthetic-catalog-menu"); HomeConfiguration(remoteSource = HomeRemoteSource.Disabled)'
             SyntheticManifestText = '<manifest package="com.example.gate2synthetic"><application /></manifest>'
             QueryText = @'
 query CatalogDiscoveryMenu($handle: String!) {
@@ -780,11 +884,16 @@ fragment CatalogDiscoveryLevel3 on MenuItem { ...CatalogDiscoveryItemFields item
 '@
             ImageFragmentText = 'fragment HomeImageFields on Image { url altText width height }'
             HomeConfigurationText = @'
+val source = BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
+  HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", handle))
+} ?: HomeRemoteSource.Disabled
+val fallback = HomePackagedFallback(
 HomeCollectionSource("HOME_RANGE_DRINKWARE", "bardaklar", R.string.home_collection_drinkware)
 HomeCollectionSource("HOME_RANGE_COFFEE_POTS", "cezveler", R.string.home_collection_coffee_pots)
 HomeCollectionSource("HOME_RANGE_PANS", "tavalar-sahanlar", R.string.home_collection_pans)
 HomeCollectionSource("HOME_RANGE_POTS", "tencereler", R.string.home_collection_pots)
 HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_collection_special)
+)
 '@
             HomeResourceText = 'home_collection_drinkware home_collection_coffee_pots home_collection_pans home_collection_pots home_collection_special'
         }
@@ -904,6 +1013,14 @@ HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_col
                 )
             }
             [pscustomobject]@{
+                Name = 'unused disabled Home source decoy is rejected'
+                Field = 'HomeConfigurationText'
+                Text = $validCatalogOwnership.HomeConfigurationText.Replace(
+                    '} ?: HomeRemoteSource.Disabled',
+                    "}`nval unusedDisabled = HomeRemoteSource.Disabled"
+                )
+            }
+            [pscustomobject]@{
                 Name = 'blank synthetic selector is rejected'
                 Field = 'SyntheticConfigurationText'
                 Text = 'CatalogConfiguration(menuHandle = "")'
@@ -921,6 +1038,60 @@ HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_col
             )
             Add-SelfTestResult $catalogMutation.Name (-not (Test-CatalogDiscoveryOwnership @mutatedCatalogOwnership))
         }
+        $validHomeRootQuery = @'
+query HomeContentMetaobject($handle: MetaobjectHandleInput!) {
+  metaobject(handle: $handle) {
+    id
+    handle
+    type
+    updatedAt
+    schemaVersion: field(key: "schema_version") { type value }
+    declaredSectionCount: field(key: "declared_section_count") { type value }
+    sections: field(key: "sections") {
+      type value references(first: 3) {
+        nodes { ... on Metaobject {
+          collections: field(key: "collections") { type value references(first: 7) { nodes { ... on Collection { image { ...HomeImageFields } products(first: 1) { nodes { featuredImage { ...HomeImageFields } } } } } pageInfo { hasNextPage } } }
+          product: field(key: "product") { type value reference { ... on Product { featuredImage { ...HomeImageFields } } } }
+        } }
+        pageInfo { hasNextPage }
+      }
+    }
+  }
+}
+'@
+        $validHomeResourcesQuery = @'
+query HomeResources($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on Collection { image { ...HomeImageFields } products(first: 1) { nodes { featuredImage { ...HomeImageFields } } } }
+    ... on Product { featuredImage { ...HomeImageFields } }
+  }
+}
+'@
+        $validHomeImageFragment = 'fragment HomeImageFields on Image { url altText width height }'
+        Add-SelfTestResult 'bounded Home GraphQL contract accepts required Image url only' (
+            Test-HomeContentGraphQLContract $validHomeRootQuery $validHomeResourcesQuery $validHomeImageFragment
+        )
+        Add-SelfTestResult 'aliased Home navigation url is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    updatedAt', "    updatedAt`n    destination: url")) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'missing stored section value is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)')) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'wrong Home schema-version field key is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('key: "schema_version"', 'key: "other_version"')) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'Home query comment cannot supply a missing stored section value' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)') + "`n# value references(first: 3)") $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'unrelated Home fragment cannot supply a missing image spread' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('featuredImage { ...HomeImageFields }', 'featuredImage { id }') + "`nfragment UnusedImage on Product { featuredImage { ...HomeImageFields } }") $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'additional unbounded Home field is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('    schemaVersion:', "    collections(first: 99) { nodes { id } }`n    schemaVersion:")) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'missing required Image url is rejected for Home' (-not (
+            Test-HomeContentGraphQLContract $validHomeRootQuery $validHomeResourcesQuery 'fragment HomeImageFields on Image { altText width height }'
+        ))
         Add-SelfTestResult 'computed merchant domain literal is detected' (@(Find-StringLiteralFingerprintMatches $computedLeakRecords '^gurbakircom$').Count -eq 1)
         Add-SelfTestResult 'computed protected identity literal is detected' (@(Find-StringLiteralFingerprintMatches $computedLeakRecords 'gurbakirsecure(?:cart|customersession)').Count -eq 1)
         Add-SelfTestResult 'computed concrete market literal is detected' (@(Find-ConcreteMarketLiteralMatches $computedLeakRecords).Count -eq 1)
@@ -1138,12 +1309,16 @@ try {
 
     $storefrontSchema = Join-Path $repoRoot 'storefront/src/main/graphql/com/gurbakir/storefront/schema.graphqls'
     $accountSchema = Join-Path $repoRoot 'account/src/main/graphql/com/gurbakir/account/schema.graphqls'
+    $homeContentOperation = Join-Path $repoRoot 'storefront/src/main/graphql/com/gurbakir/storefront/HomeContentMetaobject.graphql'
+    $homeResourcesOperation = Join-Path $repoRoot 'storefront/src/main/graphql/com/gurbakir/storefront/HomeResources.graphql'
     $graphqlInputsPresent =
         (Test-Path -LiteralPath $storefrontSchema -PathType Leaf) -and
         (Get-Item -LiteralPath $storefrontSchema).Length -gt 1000 -and
         (Test-Path -LiteralPath $accountSchema -PathType Leaf) -and
-        (Get-Item -LiteralPath $accountSchema).Length -gt 1000
-    Add-Check -Name 'Apollo schema inputs required by a clean build are tracked' -Passed $graphqlInputsPresent -Evidence 'Storefront and Customer Account schema.graphqls files are present and non-trivial'
+        (Get-Item -LiteralPath $accountSchema).Length -gt 1000 -and
+        (Test-Path -LiteralPath $homeContentOperation -PathType Leaf) -and
+        (Test-Path -LiteralPath $homeResourcesOperation -PathType Leaf)
+    Add-Check -Name 'Apollo schema and Gate 7 operation inputs required by a clean build are tracked' -Passed $graphqlInputsPresent -Evidence 'Storefront and Customer Account schemas plus both bounded Home operations are tracked'
 
     $mobileCatalogRecords = @(Get-ProductionSourceRecords $repoRoot 'mobile-core/src/main/kotlin/com/gurbakir/mobile/catalog')
     $catalogOwnershipInputs = @{
@@ -1160,6 +1335,12 @@ try {
     }
     $catalogOwnershipPassed = Test-CatalogDiscoveryOwnership @catalogOwnershipInputs
     Add-Check -Name 'Catalog discovery ownership is Menu-selected, bounded and route-safe' -Passed $catalogOwnershipPassed -Evidence $(if ($catalogOwnershipPassed) { 'BuildConfig selector, neutral bounded query/projection, MenuItem URL exclusion, Image URL, Home preservation and inert synthetic contract verified' } else { 'one or more Catalog discovery ownership invariants failed' })
+
+    $homeGraphQLPassed = Test-HomeContentGraphQLContract `
+        ([string](Read-Text 'storefront/src/main/graphql/com/gurbakir/storefront/HomeContentMetaobject.graphql')) `
+        ([string](Read-Text 'storefront/src/main/graphql/com/gurbakir/storefront/HomeResources.graphql')) `
+        ([string](Read-Text 'storefront/src/main/graphql/com/gurbakir/storefront/HomeImageFields.graphql'))
+    Add-Check -Name 'Home content operations preserve bounded declaration and route-safe media authority' -Passed $homeGraphQLPassed -Evidence $(if ($homeGraphQLPassed) { 'stored values, overflow sentinels, exact resource batch shape and Image.url-only media fields verified' } else { 'one or more bounded Home GraphQL invariants failed' })
 
     $forbiddenReferenceArtifacts = @($trackedFiles | Where-Object {
         $_ -like ('docs/reference-' + 'apk/*') -or

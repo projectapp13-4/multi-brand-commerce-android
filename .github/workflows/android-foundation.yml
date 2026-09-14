@@ -276,9 +276,10 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x gradlew
 
-      - name: Synthetic minimum-SDK instrumentation tests
+      - name: Shared active-path and synthetic minimum-SDK instrumentation tests
         run: >-
           ./gradlew --no-daemon --no-configuration-cache
+          :mobile-core:ciApi23DebugAndroidTest
           :synthetic:ciApi23DebugAndroidTest
           -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
           --stacktrace --info

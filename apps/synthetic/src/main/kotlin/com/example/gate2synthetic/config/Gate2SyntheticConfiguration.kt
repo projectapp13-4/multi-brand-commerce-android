@@ -23,7 +23,9 @@ import com.gurbakir.mobile.catalog.CatalogConfiguration
 import com.gurbakir.mobile.home.HomeCollectionSource
 import com.gurbakir.mobile.home.HomeConfiguration
 import com.gurbakir.mobile.home.HomeFeaturedProductConfiguration
+import com.gurbakir.mobile.home.HomePackagedFallback
 import com.gurbakir.mobile.home.HomeProductRangeConfiguration
+import com.gurbakir.mobile.home.HomeRemoteSource
 import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.search.SearchHistoryNormalizationPolicy
 import com.gurbakir.mobile.search.SearchHistoryPartition
@@ -77,30 +79,32 @@ internal object Gate2SyntheticConfiguration {
 
     val home: HomeConfiguration =
         HomeConfiguration(
-            productRange =
-                HomeProductRangeConfiguration(
-                    stableId = "SYNTHETIC_HOME_RANGE",
-                    titleResourceId = R.string.home_product_range_title,
-                    itemLimit = 3,
-                    sources =
-                        listOf(
-                            HomeCollectionSource(
-                                stableId = "SYNTHETIC_HOME_ALPHA",
-                                handle = "synthetic-alpha",
-                                labelResourceId = R.string.synthetic_alpha
-                            ),
-                            HomeCollectionSource(
-                                stableId = "SYNTHETIC_HOME_BETA",
-                                handle = "synthetic-beta",
-                                labelResourceId = R.string.synthetic_beta
+            remoteSource = HomeRemoteSource.Disabled,
+            packagedFallback =
+                HomePackagedFallback(
+                    productRange = HomeProductRangeConfiguration(
+                        stableId = "SYNTHETIC_HOME_RANGE",
+                        titleResourceId = R.string.home_product_range_title,
+                        itemLimit = 3,
+                        sources =
+                            listOf(
+                                HomeCollectionSource(
+                                    stableId = "SYNTHETIC_HOME_ALPHA",
+                                    handle = "synthetic-alpha",
+                                    labelResourceId = R.string.synthetic_alpha
+                                ),
+                                HomeCollectionSource(
+                                    stableId = "SYNTHETIC_HOME_BETA",
+                                    handle = "synthetic-beta",
+                                    labelResourceId = R.string.synthetic_beta
+                                )
                             )
-                        )
-                ),
-            featuredProduct =
-                HomeFeaturedProductConfiguration(
-                    stableId = "SYNTHETIC_HOME_FEATURED",
-                    titleResourceId = R.string.synthetic_featured,
-                    handle = "synthetic-featured-product"
+                    ),
+                    featuredProduct = HomeFeaturedProductConfiguration(
+                        stableId = "SYNTHETIC_HOME_FEATURED",
+                        titleResourceId = R.string.synthetic_featured,
+                        handle = "synthetic-featured-product"
+                    )
                 )
         )
 

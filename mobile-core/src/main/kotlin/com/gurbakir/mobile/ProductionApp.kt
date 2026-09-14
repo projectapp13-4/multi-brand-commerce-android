@@ -363,6 +363,7 @@ private fun HomeDestination(
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onHomeResumed() }
     val cartViewModel: CartViewModel = hiltViewModel()
     val cartState by cartViewModel.state.collectAsStateWithLifecycle()
     val wishlist = if (applicationComposition.capabilities.isEnabled(
@@ -378,13 +379,17 @@ private fun HomeDestination(
         brandDisplayName = brand.displayName,
         actions =
             HomeActions(
-                retryProductRange = viewModel::retryProductRange,
-                retryFeaturedProduct = viewModel::retryFeaturedProduct,
+                refreshContent = viewModel::refreshContent,
                 openCategories = {
                     navController.navigatePrimary(PrimaryNavigationDestination.CATEGORIES, applicationComposition)
                 },
                 openCart = { navController.navigate(CartRoute) },
-                openLegalSupport = { navController.navigate(LegalSupportRoute) },
+                openLegalSupport =
+                    if (!applicationComposition.capabilities.isEnabled(ApplicationCapability.CUSTOMER_ACCOUNT)) {
+                        { navController.navigate(LegalSupportRoute) }
+                    } else {
+                        null
+                    },
                 openCollection = { handle -> navController.navigate(CollectionRoute(handle)) },
                 openProduct = navController::navigateProduct,
                 onSetWishlist = wishlist?.onSetSaved

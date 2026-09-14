@@ -40,6 +40,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.core.R
@@ -167,6 +168,7 @@ class FoundationComponentsTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 26)
     fun commerceSkeletonUsesCallerGeometryWithoutMotionOrAccessibilityNoise() {
         var expectedColor = Color.Unspecified
         composeRule.setContent {

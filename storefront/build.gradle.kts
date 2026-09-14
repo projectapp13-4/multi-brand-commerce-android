@@ -74,6 +74,7 @@ apollo {
         schemaFile.set(storefrontSchemaFile)
         mapScalar("URL", "kotlin.String")
         mapScalar("Decimal", "kotlin.String", "com.apollographql.apollo.api.StringAdapter")
+        mapScalar("DateTime", "kotlin.String", "com.apollographql.apollo.api.StringAdapter")
 
         if (storefrontDomain.isNotBlank() && storefrontApiVersion.isNotBlank() && storefrontPublicToken.isNotBlank()) {
             introspection {

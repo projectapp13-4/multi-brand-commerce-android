@@ -1,135 +1,110 @@
 package com.gurbakir.mobile.home
 
-import com.gurbakir.storefront.HomeCollectionSummary
-import com.gurbakir.storefront.HomeProductSummary
-import com.gurbakir.storefront.StorefrontMedia
-import com.gurbakir.storefront.StorefrontMoney
-import java.math.BigDecimal
-import java.net.URI
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
     @Test
-    fun `initial sections load independently and product retry retains valid content`() = runTest {
+    fun `healthy manual refresh retains content and prevents overlapping requests`() = runTest {
         withMainDispatcher(StandardTestDispatcher(testScheduler)) {
-            val first = collectionItem("first")
-            val second = collectionItem("second")
-            val featured = featuredItem()
-            val repository =
-                FakeHomeContentRepository(
-                    productRangeResult = HomeSectionLoad.Content(listOf(first), partialFailure = null),
-                    featuredProductResult = HomeSectionLoad.Content(featured, partialFailure = null)
+            val replacement = CompletableDeferred<HomeLoadResult>()
+            val repository = QueueRepository(mutableListOf(accepted("initial")), replacement)
+            val viewModel = HomeViewModel(repository, HomeLoadingClock(), FixedClock())
+            advanceUntilIdle()
+
+            viewModel.refreshContent()
+            viewModel.refreshContent()
+            runCurrent()
+
+            assertEquals(2, repository.calls)
+            assertTrue(viewModel.state.value.requestActive)
+            assertTrue(requireNotNull(viewModel.state.value.presentation).refreshing)
+
+            replacement.complete(accepted("replacement"))
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.requestActive)
+            assertEquals("replacement", viewModel.state.value.presentation?.renderedSections?.single()?.stableId)
+        }
+    }
+
+    @Test
+    fun `resume at the editorial deadline hides expired content while one refresh runs`() = runTest {
+        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
+            val clock = FixedClock(now = 100L)
+            val repository = PendingAfterInitial(accepted("fresh", expiresAt = 200L))
+            val viewModel = HomeViewModel(repository, HomeLoadingClock(), clock)
+            runCurrent()
+            assertEquals("fresh", viewModel.state.value.presentation?.renderedSections?.single()?.stableId)
+
+            clock.now = 200L
+            viewModel.onHomeResumed()
+            viewModel.onHomeResumed()
+            runCurrent()
+
+            assertEquals(2, repository.calls)
+            assertTrue(viewModel.state.value.expired)
+            assertTrue(viewModel.state.value.requestActive)
+            assertNull(viewModel.state.value.presentation)
+            repository.complete(
+                HomeLoadResult.Failed(HomeLoadFailure(HomeLoadFailureCategory.CONNECTION, true))
+            )
+            runCurrent()
+        }
+    }
+
+    @Test
+    fun `superseded refresh reinstalls expiry after the prior timer completes while active`() = runTest {
+        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
+            val refresh = CompletableDeferred<HomeLoadResult>()
+            val clock = ReleasableClock(now = 100L)
+            val viewModel =
+                HomeViewModel(
+                    QueueRepository(mutableListOf(accepted("initial", expiresAt = 200L)), refresh),
+                    HomeLoadingClock(),
+                    clock
                 )
-            val viewModel = HomeViewModel(repository, HomeLoadingClock())
-            advanceUntilIdle()
+            runCurrent()
+            assertEquals(1, clock.waits)
 
-            assertEquals(listOf(first), viewModel.state.value.productRange.contentValue())
-            assertEquals(featured, viewModel.state.value.featuredProduct.contentValue())
+            viewModel.refreshContent()
+            runCurrent()
+            clock.now = 200L
+            clock.releaseFirstWait.complete(Unit)
+            runCurrent()
+            refresh.complete(HomeLoadResult.Superseded)
+            runCurrent()
 
-            repository.productRangeResult = HomeSectionLoad.Content(listOf(second), partialFailure = null)
-            viewModel.retryProductRange()
-
-            val refreshing = viewModel.state.value.productRange as HomeSectionUiState.Content
-            assertTrue(refreshing.refreshing)
-            assertEquals(listOf(first), refreshing.value)
-            assertEquals(featured, viewModel.state.value.featuredProduct.contentValue())
-
-            advanceUntilIdle()
-            assertEquals(listOf(second), viewModel.state.value.productRange.contentValue())
+            assertEquals(2, clock.waits)
         }
     }
 
-    @Test
-    fun `featured retry does not replace a successful product range`() = runTest {
-        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
-            val range = listOf(collectionItem("range"))
-            val repository =
-                FakeHomeContentRepository(
-                    productRangeResult = HomeSectionLoad.Content(range, partialFailure = null),
-                    featuredProductResult = HomeSectionLoad.Empty
-                )
-            val viewModel = HomeViewModel(repository, HomeLoadingClock())
-            advanceUntilIdle()
-
-            repository.featuredProductResult =
-                HomeSectionLoad.Error(HomeLoadFailure(HomeLoadFailureCategory.CONNECTION, retryable = true))
-            viewModel.retryFeaturedProduct()
-            advanceUntilIdle()
-
-            assertEquals(range, viewModel.state.value.productRange.contentValue())
-            assertTrue(viewModel.state.value.featuredProduct is HomeSectionUiState.Error)
-        }
-    }
-
-    @Test
-    fun `pending initial load becomes recoverable after eight seconds and retry cancels it`() = runTest {
-        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
-            val repository = RetryablePendingRepository()
-            val viewModel = HomeViewModel(repository, HomeLoadingClock())
-            runCurrent()
-
-            advanceTimeBy(7_999)
-            assertTrue(viewModel.state.value.productRange is HomeSectionUiState.Loading)
-
-            advanceTimeBy(1)
-            runCurrent()
-            assertTrue(viewModel.state.value.productRange is HomeSectionUiState.SlowLoading)
-
-            viewModel.retryProductRange()
-            assertTrue(viewModel.state.value.productRange is HomeSectionUiState.Loading)
-            runCurrent()
-
-            assertTrue(repository.firstRequestCancelled)
-            assertEquals(2, repository.productRangeCalls)
-            assertTrue(viewModel.state.value.productRange is HomeSectionUiState.Empty)
-        }
-    }
-
-    @Test
-    fun `slow retry retains valid content until replacement arrives`() = runTest {
-        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
-            val first = collectionItem("retained")
-            val replacement = collectionItem("replacement")
-            val nextResult = CompletableDeferred<HomeSectionLoad<List<HomeCollectionItem>>>()
-            val repository = RetainedContentRepository(first, nextResult)
-            val viewModel = HomeViewModel(repository, HomeLoadingClock())
-            runCurrent()
-
-            viewModel.retryProductRange()
-            val refreshing = viewModel.state.value.productRange as HomeSectionUiState.Content
-            assertEquals(listOf(first), refreshing.value)
-            assertTrue(refreshing.refreshing)
-
-            advanceTimeBy(8_000)
-            runCurrent()
-            val slow = viewModel.state.value.productRange as HomeSectionUiState.Content
-            assertEquals(listOf(first), slow.value)
-            assertTrue(slow.refreshing)
-            assertTrue(slow.slowLoading)
-
-            nextResult.complete(HomeSectionLoad.Content(listOf(replacement), partialFailure = null))
-            runCurrent()
-            val completed = viewModel.state.value.productRange as HomeSectionUiState.Content
-            assertEquals(listOf(replacement), completed.value)
-            assertTrue(!completed.refreshing)
-            assertTrue(!completed.slowLoading)
-        }
-    }
+    private fun accepted(id: String, expiresAt: Long? = null): HomeLoadResult.Accepted = HomeLoadResult.Accepted(
+        HomePresentation(
+            editorial = HomeEditorialState.Packaged,
+            renderedSections = listOf(
+                HomeRenderedSection.CollectionGrid(id, HomeText.Remote(id), emptyList())
+            ),
+            source = HomeContentSource.PACKAGED,
+            resourceStatus = HomeResourceStatus.COMPLETE,
+            editorialExpiresAtMillis = expiresAt
+        ),
+        HomePersistenceStatus.NOT_APPLICABLE
+    )
 
     private suspend fun withMainDispatcher(dispatcher: TestDispatcher, block: suspend () -> Unit) {
         Dispatchers.setMain(dispatcher)
@@ -140,77 +115,42 @@ class HomeViewModelTest {
         }
     }
 
-    private fun collectionItem(id: String): HomeCollectionItem {
-        val source = homeTestConfiguration.productRange.sources.first().copy(stableId = id, handle = id)
-        return HomeCollectionItem(
-            source = source,
-            summary = HomeCollectionSummary("gid://shopify/Collection/$id", id, id, media())
-        )
-    }
-
-    private fun featuredItem(): HomeFeaturedItem = HomeFeaturedItem(
-        source = homeTestConfiguration.featuredProduct,
-        summary =
-            HomeProductSummary(
-                id = "gid://shopify/Product/featured",
-                handle = homeTestConfiguration.featuredProduct.handle,
-                title = "Bakır Tava",
-                availableForSale = true,
-                media = media(),
-                price = StorefrontMoney(BigDecimal("0.00"), "TRY")
-            )
-    )
-
-    private fun media(): StorefrontMedia =
-        StorefrontMedia(URI("https://cdn.shopify.com/s/files/1/test.jpg"), "Bakır ürün", 300, 400)
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <T> HomeSectionUiState<T>.contentValue(): T = (this as HomeSectionUiState.Content<T>).value
-
-    private class FakeHomeContentRepository(
-        var productRangeResult: HomeSectionLoad<List<HomeCollectionItem>>,
-        var featuredProductResult: HomeSectionLoad<HomeFeaturedItem>
+    private class QueueRepository(
+        private val immediate: MutableList<HomeLoadResult>,
+        private val pending: CompletableDeferred<HomeLoadResult>
     ) : HomeContentRepository {
-        override suspend fun loadProductRange(): HomeSectionLoad<List<HomeCollectionItem>> = productRangeResult
-
-        override suspend fun loadFeaturedProduct(): HomeSectionLoad<HomeFeaturedItem> = featuredProductResult
+        var calls = 0
+        override suspend fun load(trigger: HomeLoadTrigger): HomeLoadResult {
+            calls += 1
+            return if (immediate.isNotEmpty()) immediate.removeAt(0) else pending.await()
+        }
     }
 
-    private class RetryablePendingRepository : HomeContentRepository {
-        var productRangeCalls = 0
-        var firstRequestCancelled = false
-
-        override suspend fun loadProductRange(): HomeSectionLoad<List<HomeCollectionItem>> {
-            productRangeCalls += 1
-            return if (productRangeCalls == 1) {
-                try {
-                    awaitCancellation()
-                } finally {
-                    firstRequestCancelled = true
-                }
-            } else {
-                HomeSectionLoad.Empty
-            }
+    private class PendingAfterInitial(private val initial: HomeLoadResult) : HomeContentRepository {
+        private val pending = CompletableDeferred<HomeLoadResult>()
+        var calls = 0
+        override suspend fun load(trigger: HomeLoadTrigger): HomeLoadResult {
+            calls += 1
+            return if (calls == 1) initial else pending.await()
         }
 
-        override suspend fun loadFeaturedProduct(): HomeSectionLoad<HomeFeaturedItem> = HomeSectionLoad.Empty
+        fun complete(result: HomeLoadResult) = pending.complete(result)
     }
 
-    private class RetainedContentRepository(
-        private val first: HomeCollectionItem,
-        private val nextResult: CompletableDeferred<HomeSectionLoad<List<HomeCollectionItem>>>
-    ) : HomeContentRepository {
-        private var productRangeCalls = 0
+    private class FixedClock(var now: Long = 0L) : HomeEditorialClock {
+        override fun nowMillis(): Long = now
+        override suspend fun awaitUntil(deadlineMillis: Long) = awaitCancellation()
+    }
 
-        override suspend fun loadProductRange(): HomeSectionLoad<List<HomeCollectionItem>> {
-            productRangeCalls += 1
-            return if (productRangeCalls == 1) {
-                HomeSectionLoad.Content(listOf(first), partialFailure = null)
-            } else {
-                nextResult.await()
-            }
+    private class ReleasableClock(var now: Long) : HomeEditorialClock {
+        val releaseFirstWait = CompletableDeferred<Unit>()
+        var waits = 0
+
+        override fun nowMillis(): Long = now
+
+        override suspend fun awaitUntil(deadlineMillis: Long) {
+            waits += 1
+            if (waits == 1) releaseFirstWait.await() else awaitCancellation()
         }
-
-        override suspend fun loadFeaturedProduct(): HomeSectionLoad<HomeFeaturedItem> = HomeSectionLoad.Empty
     }
 }

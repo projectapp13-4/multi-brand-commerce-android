@@ -16,7 +16,9 @@ import com.gurbakir.mobile.home.GurbakirHomeConfiguration
 import com.gurbakir.mobile.home.HomeCollectionSource
 import com.gurbakir.mobile.home.HomeConfiguration
 import com.gurbakir.mobile.home.HomeFeaturedProductConfiguration
+import com.gurbakir.mobile.home.HomePackagedFallback
 import com.gurbakir.mobile.home.HomeProductRangeConfiguration
+import com.gurbakir.mobile.home.HomeRemoteSource
 import com.gurbakir.mobile.navigation.GurbakirDeepLinkConfiguration
 import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.order.GurbakirTrackingUrlPolicy
@@ -57,26 +59,45 @@ class GurbakirCompositionTest {
     fun `app supplies exact home market handles ordering resources and featured product`() {
         assertEquals(
             HomeConfiguration(
-                HomeProductRangeConfiguration(
-                    "HOME_PRODUCT_RANGE",
-                    R.string.home_product_range_title,
-                    5,
-                    listOf(
-                        HomeCollectionSource("HOME_RANGE_DRINKWARE", "bardaklar", R.string.home_collection_drinkware),
-                        HomeCollectionSource(
-                            "HOME_RANGE_COFFEE_POTS",
-                            "cezveler",
-                            R.string.home_collection_coffee_pots
-                        ),
-                        HomeCollectionSource("HOME_RANGE_PANS", "tavalar-sahanlar", R.string.home_collection_pans),
-                        HomeCollectionSource("HOME_RANGE_POTS", "tencereler", R.string.home_collection_pots),
-                        HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_collection_special)
+                BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
+                    HomeRemoteSource.ShopifyMetaobject(
+                        com.gurbakir.storefront.HomeDocumentSelector("mobile_home", handle)
                     )
-                ),
-                HomeFeaturedProductConfiguration(
-                    "HOME_FEATURED_PRODUCT",
-                    R.string.home_featured_product_title,
-                    "bakir-tava-ve-sahan-el-dovmesi-cift-pirinc-kulplu"
+                } ?: HomeRemoteSource.Disabled,
+                HomePackagedFallback(
+                    HomeProductRangeConfiguration(
+                        "HOME_PRODUCT_RANGE",
+                        R.string.home_product_range_title,
+                        5,
+                        listOf(
+                            HomeCollectionSource(
+                                "HOME_RANGE_DRINKWARE",
+                                "bardaklar",
+                                R.string.home_collection_drinkware
+                            ),
+                            HomeCollectionSource(
+                                "HOME_RANGE_COFFEE_POTS",
+                                "cezveler",
+                                R.string.home_collection_coffee_pots
+                            ),
+                            HomeCollectionSource(
+                                "HOME_RANGE_PANS",
+                                "tavalar-sahanlar",
+                                R.string.home_collection_pans
+                            ),
+                            HomeCollectionSource("HOME_RANGE_POTS", "tencereler", R.string.home_collection_pots),
+                            HomeCollectionSource(
+                                "HOME_RANGE_SPECIAL",
+                                "ozel-urunlerimiz",
+                                R.string.home_collection_special
+                            )
+                        )
+                    ),
+                    HomeFeaturedProductConfiguration(
+                        "HOME_FEATURED_PRODUCT",
+                        R.string.home_featured_product_title,
+                        "bakir-tava-ve-sahan-el-dovmesi-cift-pirinc-kulplu"
+                    )
                 )
             ),
             ApplicationModule.provideHomeConfiguration()

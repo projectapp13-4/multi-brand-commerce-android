@@ -1,6 +1,9 @@
 package com.gurbakir.mobile.home
 
 import androidx.annotation.StringRes
+import com.gurbakir.storefront.HomeDocumentSelector
+
+const val HOME_EDITORIAL_TTL_MILLIS = 86_400_000L
 
 data class HomeCollectionSource(val stableId: String, val handle: String, @param:StringRes val labelResourceId: Int)
 
@@ -17,7 +20,22 @@ data class HomeFeaturedProductConfiguration(
     val handle: String
 )
 
-data class HomeConfiguration(
+sealed interface HomeRemoteSource {
+    data object Disabled : HomeRemoteSource
+
+    data class ShopifyMetaobject(val selector: HomeDocumentSelector, val supportedContentVersion: Int = 1) :
+        HomeRemoteSource
+}
+
+data class HomePackagedFallback(
     val productRange: HomeProductRangeConfiguration,
     val featuredProduct: HomeFeaturedProductConfiguration
 )
+
+data class HomeConfiguration(val remoteSource: HomeRemoteSource, val packagedFallback: HomePackagedFallback)
+
+sealed interface HomeText {
+    data class Remote(val value: String) : HomeText
+
+    data class Packaged(@param:StringRes val resourceId: Int) : HomeText
+}
