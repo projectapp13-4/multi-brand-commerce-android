@@ -72,6 +72,17 @@ class AndroidHomeContentStoreTest {
         )
     }
 
+    @Test
+    fun invalidReplacementIsUnconfirmedInsteadOfThrowing() = runBlocking {
+        val invalidMarker = marker().copy(firstEstablishedAtMillis = -1L)
+
+        assertEquals(HomeStoreWrite.UNCONFIRMED, store.replace(invalidMarker, stored()))
+        assertEquals(
+            HomeStoreRead.NeverEstablished,
+            store.read(partition, supportedContentVersion = 1, nowMillis = 2_000L)
+        )
+    }
+
     private val partition =
         HomeContentPartition(
             applicationId = "com.gurbakir.mobile.core.test",

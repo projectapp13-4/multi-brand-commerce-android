@@ -730,6 +730,7 @@ function Test-HomeContentGraphQLContract {
     }
     return $rootText -match '(?s)\bquery\s+HomeContentMetaobject\s*\(\s*\$handle\s*:\s*MetaobjectHandleInput!\s*\)' -and
         $rootOperation -match '\bmetaobject\s*\(\s*handle\s*:\s*\$handle\s*\)' -and
+        $rootOperation -match 'schemaVersion\s*:\s*field\s*\(\s*key\s*:\s*"schema_version"\s*\)' -and
         $rootOperation -match 'field\s*\(\s*key\s*:\s*"declared_section_count"\s*\)' -and
         $rootOperation -match '(?s)sections:\s*field\s*\(\s*key\s*:\s*"sections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*3\s*\)' -and
         $rootOperation -match '(?s)collections:\s*field\s*\(\s*key\s*:\s*"collections"\s*\).*?\btype\b.*?\bvalue\b.*?references\s*\(\s*first\s*:\s*7\s*\)' -and
@@ -1075,6 +1076,9 @@ query HomeResources($ids: [ID!]!) {
         ))
         Add-SelfTestResult 'missing stored section value is rejected' (-not (
             Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)')) $validHomeResourcesQuery $validHomeImageFragment
+        ))
+        Add-SelfTestResult 'wrong Home schema-version field key is rejected' (-not (
+            Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('key: "schema_version"', 'key: "other_version"')) $validHomeResourcesQuery $validHomeImageFragment
         ))
         Add-SelfTestResult 'Home query comment cannot supply a missing stored section value' (-not (
             Test-HomeContentGraphQLContract ($validHomeRootQuery.Replace('type value references(first: 3)', 'type references(first: 3)') + "`n# value references(first: 3)") $validHomeResourcesQuery $validHomeImageFragment

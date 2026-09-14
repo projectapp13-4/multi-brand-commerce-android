@@ -111,7 +111,6 @@ sealed interface HomeRemoteSource {
     data class ShopifyMetaobject(
         val selector: HomeDocumentSelector,
         val supportedContentVersion: Int = 1,
-        val ttlMillis: Long = 86_400_000L,
     ) : HomeRemoteSource
 }
 

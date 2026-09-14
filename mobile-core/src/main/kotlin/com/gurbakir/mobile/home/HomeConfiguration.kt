@@ -23,11 +23,8 @@ data class HomeFeaturedProductConfiguration(
 sealed interface HomeRemoteSource {
     data object Disabled : HomeRemoteSource
 
-    data class ShopifyMetaobject(
-        val selector: HomeDocumentSelector,
-        val supportedContentVersion: Int = 1,
-        val ttlMillis: Long = HOME_EDITORIAL_TTL_MILLIS
-    ) : HomeRemoteSource
+    data class ShopifyMetaobject(val selector: HomeDocumentSelector, val supportedContentVersion: Int = 1) :
+        HomeRemoteSource
 }
 
 data class HomePackagedFallback(

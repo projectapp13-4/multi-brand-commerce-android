@@ -44,7 +44,7 @@ constructor(
         val remote = configuration.remoteSource
         if (remote is HomeRemoteSource.Disabled) return loadPackagedFallback()
         remote as HomeRemoteSource.ShopifyMetaobject
-        if (!remote.selector.isValid() || remote.ttlMillis != HOME_EDITORIAL_TTL_MILLIS) {
+        if (!remote.selector.isValid()) {
             return configurationFailure()
         }
 
@@ -58,7 +58,7 @@ constructor(
             val observation = requireNotNull(rootResult.value)
             val validation = validator.validate(remote.selector, observation, remote.supportedContentVersion)
             if (validation is HomeDocumentValidation.Accepted) {
-                return acceptRemote(token, validation.snapshot, observation, remote, storedRead, now)
+                return acceptRemote(token, validation.snapshot, observation, storedRead, now)
             }
             return fallbackAfterFailure(
                 trigger,
@@ -81,11 +81,10 @@ constructor(
         token: HomeRequestToken,
         snapshot: RemoteHomeSnapshot,
         observation: HomeDocumentObservation,
-        source: HomeRemoteSource.ShopifyMetaobject,
         storedRead: HomeStoreRead,
         now: Long
     ): HomeLoadResult {
-        val deadline = HomeEditorialClockPolicy.deadline(now, source.ttlMillis)
+        val deadline = HomeEditorialClockPolicy.deadline(now, HOME_EDITORIAL_TTL_MILLIS)
             ?: return HomeLoadResult.Failed(HomeLoadFailure(HomeLoadFailureCategory.CONFIGURATION, false))
         val stored = HomeStoredSnapshot(partition, now, deadline, snapshot)
         val existingMarker = (storedRead as? HomeStoreRead.Established)?.marker

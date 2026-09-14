@@ -438,13 +438,67 @@ function Test-SyntheticDexFirebaseFree {
         $DexText -notmatch 'com/gurbakir/firebase/'
 }
 
+function Get-ParenthesizedBody {
+    param(
+        [Parameter(Mandatory)] [string]$Text,
+        [Parameter(Mandatory)] [int]$OpeningParenthesisIndex
+    )
+
+    if ($OpeningParenthesisIndex -lt 0 -or
+        $OpeningParenthesisIndex -ge $Text.Length -or
+        $Text[$OpeningParenthesisIndex] -ne '(') {
+        return $null
+    }
+    $depth = 0
+    $inString = $false
+    $escaped = $false
+    for ($index = $OpeningParenthesisIndex; $index -lt $Text.Length; $index++) {
+        $character = $Text[$index]
+        if ($inString) {
+            if ($escaped) {
+                $escaped = $false
+            } elseif ($character -eq '\') {
+                $escaped = $true
+            } elseif ($character -eq '"') {
+                $inString = $false
+            }
+            continue
+        }
+        if ($character -eq '"') {
+            $inString = $true
+        } elseif ($character -eq '(') {
+            $depth++
+        } elseif ($character -eq ')') {
+            $depth--
+            if ($depth -eq 0) {
+                return $Text.Substring(
+                    $OpeningParenthesisIndex + 1,
+                    $index - $OpeningParenthesisIndex - 1
+                )
+            }
+        }
+    }
+    return $null
+}
+
 function Test-SyntheticHomeSourceContract {
     param([Parameter(Mandatory)] [string]$SourceText)
 
-    return $SourceText -match 'HomeConfiguration\s*\(' -and
-        $SourceText -match 'remoteSource\s*=\s*HomeRemoteSource\.Disabled' -and
-        $SourceText -match 'packagedFallback\s*=\s*HomePackagedFallback\s*\(' -and
-        $SourceText -notmatch 'HomeRemoteSource\.ShopifyMetaobject'
+    $headers = @(
+        [regex]::Matches(
+            $SourceText,
+            '(?s)\bval\s+home\s*:\s*HomeConfiguration\s*=\s*HomeConfiguration\s*\('
+        )
+    )
+    if ($headers.Count -ne 1) {
+        return $false
+    }
+    $openingParenthesis = $SourceText.IndexOf('(', $headers[0].Index)
+    $initializer = Get-ParenthesizedBody $SourceText $openingParenthesis
+    return $null -ne $initializer -and
+        $initializer -match '\bremoteSource\s*=\s*HomeRemoteSource\.Disabled\b' -and
+        $initializer -match '\bpackagedFallback\s*=\s*HomePackagedFallback\s*\(' -and
+        $initializer -notmatch '\bHomeRemoteSource\.ShopifyMetaobject\b'
 }
 
 function Test-SyntheticHomeDexContentBoundary {
@@ -595,11 +649,15 @@ Lnet/openid/appauth/AuthorizationManagementActivity;
 Lnet/openid/appauth/AuthorizationService;
 Lnet/openid/appauth/RedirectUriReceiverActivity;
 '@
-    $safeSyntheticHomeSource = 'HomeConfiguration(remoteSource = HomeRemoteSource.Disabled, packagedFallback = HomePackagedFallback())'
+    $safeSyntheticHomeSource = 'val home: HomeConfiguration = HomeConfiguration(remoteSource = HomeRemoteSource.Disabled, packagedFallback = HomePackagedFallback())'
     $remoteSyntheticHomeSource = $safeSyntheticHomeSource.Replace(
         'HomeRemoteSource.Disabled',
         'HomeRemoteSource.ShopifyMetaobject(selector)'
     )
+    $remoteWithDisabledDecoy = $remoteSyntheticHomeSource + "`nval unused = HomeRemoteSource.Disabled"
+    $missingFallbackWithDecoy =
+        $safeSyntheticHomeSource.Replace('packagedFallback = HomePackagedFallback()', 'other = Unit') +
+        "`nval packagedFallback = HomePackagedFallback()"
     $gurbakirHomeDex = $safeDexText + "`nbardaklar"
     $retiredAccountStringRestored = $safeDexText + "`nhttps://accounts.gate2.invalid/oauth/authorize"
     $exportedAppAuthActivity = $safeManifest.Replace(
@@ -759,6 +817,8 @@ E: data-extraction-rules
         [pscustomobject]@{ test = 'project Firebase DEX namespace is rejected'; passed = -not (Test-SyntheticDexFirebaseFree $gurbakirFirebaseDex) }
         [pscustomobject]@{ test = 'synthetic Home source is explicitly disabled'; passed = (Test-SyntheticHomeSourceContract $safeSyntheticHomeSource) }
         [pscustomobject]@{ test = 'synthetic remote Home source is rejected'; passed = -not (Test-SyntheticHomeSourceContract $remoteSyntheticHomeSource) }
+        [pscustomobject]@{ test = 'unconsumed Disabled decoy cannot mask remote Home source'; passed = -not (Test-SyntheticHomeSourceContract $remoteWithDisabledDecoy) }
+        [pscustomobject]@{ test = 'unconsumed fallback decoy cannot complete Home source'; passed = -not (Test-SyntheticHomeSourceContract $missingFallbackWithDecoy) }
         [pscustomobject]@{ test = 'neutral schema and selector strings remain allowed in DEX'; passed = (Test-SyntheticHomeDexContentBoundary $safeDexText) }
         [pscustomobject]@{ test = 'concrete Gürbakır Home content is rejected from DEX'; passed = -not (Test-SyntheticHomeDexContentBoundary $gurbakirHomeDex) }
         [pscustomobject]@{ test = 'neutral archive fixture is Firebase-free'; passed = (Test-SyntheticArchiveFirebaseFree @('AndroidManifest.xml', 'classes.dex')) }

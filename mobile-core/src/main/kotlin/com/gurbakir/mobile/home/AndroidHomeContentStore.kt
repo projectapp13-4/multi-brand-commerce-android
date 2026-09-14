@@ -93,20 +93,20 @@ constructor(
     }
 
     @SuppressLint("UseKtx") // KTX edit(commit = true) discards the commit result required by this contract.
-    override suspend fun replace(marker: HomeEstablishmentRecord, snapshot: HomeStoredSnapshot): HomeStoreWrite {
-        require(marker.partition == snapshot.partition)
-        val encodedMarker = codec.encodeMarker(marker)
-        val encodedSnapshot = codec.encodeSnapshot(snapshot)
-        return withContext(dispatcher) {
+    override suspend fun replace(marker: HomeEstablishmentRecord, snapshot: HomeStoredSnapshot): HomeStoreWrite =
+        withContext(dispatcher) {
             mutex.withLock {
+                val encoded = runCatching {
+                    require(marker.partition == snapshot.partition)
+                    codec.encodeMarker(marker) to codec.encodeSnapshot(snapshot)
+                }.getOrNull() ?: return@withLock HomeStoreWrite.UNCONFIRMED
                 preferences.edit()
-                    .putString(HOME_ESTABLISHMENT_KEY, encodedMarker)
-                    .putString(HOME_SNAPSHOT_KEY, encodedSnapshot)
+                    .putString(HOME_ESTABLISHMENT_KEY, encoded.first)
+                    .putString(HOME_SNAPSHOT_KEY, encoded.second)
                     .commit()
                     .toStoreWrite()
             }
         }
-    }
 
     override suspend fun evictSnapshot(partition: HomeContentPartition): HomeStoreWrite = withContext(dispatcher) {
         mutex.withLock {
