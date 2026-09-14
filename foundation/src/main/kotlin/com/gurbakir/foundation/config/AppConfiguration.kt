@@ -183,4 +183,10 @@ private fun String.isValidShopifyMobileRedirectUri(): Boolean = runCatching {
         uri.fragment == null
 }.getOrDefault(false)
 
-private fun String.isValidHttpUserAgent(): Boolean = length in 1..128 && this == trim() && all { it.code in 0x20..0x7e }
+private const val MAXIMUM_USER_AGENT_LENGTH = 128
+private const val FIRST_VISIBLE_ASCII = 0x20
+private const val LAST_VISIBLE_ASCII = 0x7e
+
+private fun String.isValidHttpUserAgent(): Boolean = length in 1..MAXIMUM_USER_AGENT_LENGTH &&
+    this == trim() &&
+    all { it.code in FIRST_VISIBLE_ASCII..LAST_VISIBLE_ASCII }
