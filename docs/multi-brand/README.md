@@ -1,11 +1,11 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–6 complete; Gate 6 technically closed; Multi-Brand work remains unfinished**
+Status: **Gates 0–7 complete; Gate 7 technically closed; Multi-Brand work remains unfinished**
 
 ## Purpose
 
 This directory preserves accepted architecture reasoning, approved execution
-plans, and Gate 1–6 implementation/evidence records for evolving the Gürbakır
+plans, and Gate 1–7 implementation/evidence records for evolving the Gürbakır
 application into a multi-brand Android monorepo. It is a navigation and status
 index, not a duplicate architecture specification.
 
@@ -17,7 +17,7 @@ accepted target -> ../architecture/*
 durable rationale -> ../decisions/*
 investigation/history -> research/*
 approved gate execution -> plans/* or recorded owner-approved scope
-historical gate outcome -> GATE-1 through GATE-6 completion handoffs
+historical gate outcome -> GATE-1 through GATE-7 completion handoffs
 current lifecycle status -> this index and ../README.md
 product/release boundary -> ../phase3/*
 ```
@@ -61,6 +61,7 @@ architecture.
 | 4 | Owner-approved execution scope, [handoff](GATE-4-COMPLETION-HANDOFF.md) | Technically closed |
 | 5 | [Handoff](GATE-5-COMPLETION-HANDOFF.md) | Technically closed |
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
+| 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 
 ## Gate 6 closure evidence
 
@@ -83,6 +84,37 @@ The [Gate 6 completion handoff](GATE-6-COMPLETION-HANDOFF.md) intentionally
 remains its pre-merge record and therefore still says that merge and technical
 closure were not yet proven at that checkpoint.
 
+## Gate 7 closure evidence
+
+Gate 7 moved the bounded Home editorial contract to an application-selected
+Shopify metaobject root while Android retained finite native rendering,
+capability ownership, typed Product/Collection navigation, refresh/expiry
+behavior, validation, persistence policy and executable authority. Only the
+approved collection-grid and featured-product section families are supported;
+remote content cannot define arbitrary native routes, components or code.
+
+Gate 7 closure was verified on the public repository:
+
+- final PR-head candidate:
+  `e0a62e9047f2cc6d3241bdb3b4c963fdbdae27e0`;
+- protected PR: `#6`;
+- merge commit:
+  `3b22707f27f71973383cf176503f8d967ece9b05`;
+- exact merged-main push run: `34816195929`;
+- `validate`: successful;
+- API 30 `instrumentation`: successful; and
+- API 23 `minimum-sdk-instrumentation`: successful.
+
+Configured non-production Shopify/client acceptance, bounded LKG behavior,
+process-restart recovery and the Account-disabled Legal/Support correction were
+recorded before merge. The public Storefront token noted during local evidence
+collection was assessed as public mobile client configuration rather than a
+private/Admin secret; it was not committed or placed in PR/CI evidence.
+
+The [Gate 7 completion handoff](GATE-7-COMPLETION-HANDOFF.md) intentionally
+remains its pre-merge implementation/evidence record and is not rewritten to
+claim merge or post-merge events.
+
 ## Implemented migration state
 
 ```text
@@ -96,6 +128,9 @@ guarded recovery for unavailable shared routes
 application-owned Firebase/local-default selection with provider-neutral :mobile-core
 physical Firebase exclusion for :synthetic
 application-selected bounded Shopify Menu discovery for Categories
+application-selected bounded Shopify Home editorial content with finite native rendering
+editorial-only Home LKG persistence; current commerce truth remains live Storefront-owned
+synthetic Home remote source disabled and credential-free
 no second real merchant application
 no runtime merchant switch
 no normative brand flavor dimension
@@ -103,18 +138,20 @@ no normative brand flavor dimension
 
 ## Unfinished continuation boundary
 
-Closing Gate 6 does not finish Multi-Brand work. Future gates must be separately
+Closing Gate 7 does not finish Multi-Brand work. Future gates must be separately
 planned from current source and architecture. They must preserve:
 
 - Gürbakır `:app` as the first real application and validation brand;
 - the eight-module dependency graph and application-owned composition model;
 - migration-sensitive application, persistence, provider, OAuth, App Link, and
   Firebase identities;
-- the `:synthetic` isolation/conformance role; and
+- the `:synthetic` isolation/conformance role;
+- bounded merchant-content authority with native executable behavior retained by Android; and
 - honest separation between reusable contracts and concrete brand behavior.
 
-A future real brand, production onboarding/configuration/signing/publication,
-external provider mutation, and P3-16 are not authorized or proven by the
-completed gates or by repository publication.
+Gate 8 provisioning/onboarding automation, a second real merchant/store pilot,
+Gate 9 cumulative conformance, production onboarding/configuration/signing/
+publication and P3-16 remain unstarted or separately governed unless later
+evidence and approval establish otherwise.
 
 The repository-wide authority map remains [docs/README.md](../README.md).
