@@ -256,7 +256,7 @@ internal fun capabilityComposition(
         if (wishlist) CapabilityState.ENABLED else CapabilityState.DISABLED,
         if (account) {
             CustomerAccountCapability.Enabled(
-                CustomerAccountConfiguration("", "", "", "", "", "", "", emptySet())
+                CustomerAccountConfiguration("", "", "", "", "", "", "", "", emptySet())
             )
         } else {
             CustomerAccountCapability.Disabled

@@ -290,9 +290,47 @@ function Invoke-RegistrySuite {
     }
 }
 
+function Invoke-ConfigurationSuite {
+    $appBuild = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'app\build.gradle.kts'),
+        [System.Text.Encoding]::UTF8
+    )
+    $storefrontBuild = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'storefront\build.gradle.kts'),
+        [System.Text.Encoding]::UTF8
+    )
+    $manifest = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'app\src\main\AndroidManifest.xml'),
+        [System.Text.Encoding]::UTF8
+    )
+
+    Assert-True -Condition (-not $appBuild.Contains('config/local.defaults.properties')) `
+        -Name 'app build no longer reads root defaults'
+    Assert-True -Condition (-not $appBuild.Contains('config/local.properties')) `
+        -Name 'app build no longer reads root local configuration'
+    Assert-True -Condition ($appBuild.Contains('config/onboarding/generated/gurbakir')) `
+        -Name 'app build reads deterministic profile projections'
+    Assert-True -Condition ($appBuild.Contains('config/local/gurbakir')) `
+        -Name 'app build scopes controlled client values by application and profile'
+    Assert-True -Condition (-not $storefrontBuild.Contains('config/local.properties')) `
+        -Name 'Storefront proofs do not read root local configuration'
+    Assert-True -Condition ($manifest.Contains('${collectionAppLinkHost}')) `
+        -Name 'manifest consumes role-specific generated link placeholders'
+    Assert-True -Condition (Test-Path -LiteralPath (Join-Path $repoRoot 'scripts\Migrate-GurbakirLocalConfiguration.ps1')) `
+        -Name 'explicit one-profile migration helper exists'
+    Assert-True -Condition (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'config\local.defaults.properties'))) `
+        -Name 'superseded root defaults are removed'
+    Assert-True -Condition (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'config\local.properties.example'))) `
+        -Name 'superseded root example is removed'
+}
+
 switch ($Suite) {
     'Registry' { Invoke-RegistrySuite }
-    'All' { Invoke-RegistrySuite }
+    'Configuration' { Invoke-ConfigurationSuite }
+    'All' {
+        Invoke-RegistrySuite
+        Invoke-ConfigurationSuite
+    }
     default {
         throw "Suite $Suite has not been implemented yet."
     }

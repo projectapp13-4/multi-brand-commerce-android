@@ -53,6 +53,7 @@ data class CustomerAccountConfiguration(
     val logoutEndpoint: String,
     val graphqlEndpoint: String,
     val redirectUri: String,
+    val userAgent: String,
     val scopes: Set<String>
 ) {
     fun validationIssues(): Set<ConfigurationIssue> = buildSet {
@@ -65,6 +66,7 @@ data class CustomerAccountConfiguration(
         if (!redirectUri.isValidShopifyMobileRedirectUri()) {
             add(ConfigurationIssue.CUSTOMER_ACCOUNT_REDIRECT_URI)
         }
+        if (!userAgent.isValidHttpUserAgent()) add(ConfigurationIssue.CUSTOMER_ACCOUNT_USER_AGENT)
         if (scopes != REQUIRED_CUSTOMER_ACCOUNT_SCOPES) add(ConfigurationIssue.CUSTOMER_ACCOUNT_SCOPES)
     }
 
@@ -151,6 +153,7 @@ enum class ConfigurationIssue {
     CUSTOMER_ACCOUNT_LOGOUT_ENDPOINT,
     CUSTOMER_ACCOUNT_GRAPHQL_ENDPOINT,
     CUSTOMER_ACCOUNT_REDIRECT_URI,
+    CUSTOMER_ACCOUNT_USER_AGENT,
     CUSTOMER_ACCOUNT_SCOPES
 }
 
@@ -179,3 +182,5 @@ private fun String.isValidShopifyMobileRedirectUri(): Boolean = runCatching {
         uri.query == null &&
         uri.fragment == null
 }.getOrDefault(false)
+
+private fun String.isValidHttpUserAgent(): Boolean = length in 1..128 && this == trim() && all { it.code in 0x20..0x7e }

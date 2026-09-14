@@ -1,5 +1,6 @@
 package com.gurbakir.mobile.legal
 
+import com.gurbakir.mobile.BuildConfig
 import com.gurbakir.mobile.R
 import java.time.LocalDate
 import javax.inject.Inject
@@ -20,38 +21,38 @@ class PackagedLegalSupportRepository @Inject constructor() : LegalSupportReposit
                     id = LegalPageId.SUPPORT,
                     titleResourceId = R.string.legal_support_page_support,
                     summaryResourceId = R.string.legal_support_page_support_summary,
-                    path = "/pages/contact",
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_SUPPORT,
                     source = LegalPageSource.MERCHANT_PAGE
                 ),
                 page(
                     id = LegalPageId.PRIVACY,
                     titleResourceId = R.string.legal_support_page_privacy,
                     summaryResourceId = R.string.legal_support_page_privacy_summary,
-                    path = "/policies/privacy-policy"
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_PRIVACY
                 ),
                 page(
                     id = LegalPageId.TERMS,
                     titleResourceId = R.string.legal_support_page_terms,
                     summaryResourceId = R.string.legal_support_page_terms_summary,
-                    path = "/policies/terms-of-service"
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_TERMS
                 ),
                 page(
                     id = LegalPageId.SHIPPING,
                     titleResourceId = R.string.legal_support_page_shipping,
                     summaryResourceId = R.string.legal_support_page_shipping_summary,
-                    path = "/policies/shipping-policy"
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_SHIPPING
                 ),
                 page(
                     id = LegalPageId.RETURNS,
                     titleResourceId = R.string.legal_support_page_returns,
                     summaryResourceId = R.string.legal_support_page_returns_summary,
-                    path = "/policies/refund-policy"
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_RETURNS
                 ),
                 page(
                     id = LegalPageId.LEGAL_NOTICE,
                     titleResourceId = R.string.legal_support_page_notice,
                     summaryResourceId = R.string.legal_support_page_notice_summary,
-                    path = "/policies/legal-notice"
+                    path = BuildConfig.LEGAL_SUPPORT_PATH_LEGAL_NOTICE
                 )
             )
 
@@ -65,7 +66,7 @@ class PackagedLegalSupportRepository @Inject constructor() : LegalSupportReposit
             id = id,
             titleResourceId = titleResourceId,
             summaryResourceId = summaryResourceId,
-            canonicalUrl = "https://gurbakir.com$path",
+            canonicalUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + path,
             baselineVersion = LEGAL_BASELINE_VERSION,
             adoptedAt = LEGAL_BASELINE_ADOPTION_DATE,
             sourceEffectiveDate =

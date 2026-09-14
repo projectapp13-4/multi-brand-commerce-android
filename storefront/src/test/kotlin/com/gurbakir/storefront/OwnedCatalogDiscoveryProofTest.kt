@@ -1,9 +1,5 @@
 package com.gurbakir.storefront
 
-import com.gurbakir.foundation.config.ControlledPublicToken
-import com.gurbakir.foundation.config.StorefrontConfiguration
-import java.io.File
-import java.util.Properties
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,7 +10,7 @@ class OwnedCatalogDiscoveryProofTest {
     @Test
     fun `configured client reads the selected owned Catalog Menu and distinguishes a missing Menu`() {
         assumeTrue(System.getProperty("gurbakir.runOwnedStorefrontProof") == "true")
-        val owned = loadOwnedConfiguration()
+        val owned = loadOwnedOnboardingConfiguration()
 
         assertEquals("gurbakir.com", owned.storefront.domain)
         assertEquals("2026-07", owned.storefront.apiVersion)
@@ -56,24 +52,6 @@ class OwnedCatalogDiscoveryProofTest {
         }
     }
 
-    private fun loadOwnedConfiguration(): OwnedCatalogConfiguration {
-        val repoRoot = requireNotNull(System.getProperty("gurbakir.repoRoot"))
-        val localFile = File(repoRoot, "config/local.properties")
-        assertTrue(localFile.isFile, "Ignored owned Storefront configuration must exist")
-        val properties = Properties().apply { localFile.inputStream().use(::load) }
-        return OwnedCatalogConfiguration(
-            storefront =
-                StorefrontConfiguration(
-                    domain = properties.getProperty("shopify.storefrontDomain", "").trim(),
-                    apiVersion = properties.getProperty("shopify.storefrontApiVersion", "").trim(),
-                    publicToken = ControlledPublicToken.from(
-                        properties.getProperty("shopify.storefrontPublicToken", "")
-                    )
-                ),
-            menuHandle = properties.getProperty("shopify.catalogMenuHandle", "").trim()
-        )
-    }
-
     private fun verifyOwnedShop(client: com.apollographql.apollo.ApolloClient, expectedDomain: String) {
         val result =
             runBlocking { ApolloStorefrontGateway(client, StorefrontMediaPolicy(expectedDomain)).loadShopSummary() }
@@ -100,8 +78,6 @@ class OwnedCatalogDiscoveryProofTest {
         (!node.hasCollectionFilters && node.target is CatalogDiscoveryTarget.Collection) ||
             node.children.anyUsableUnfilteredCollection()
     }
-
-    private data class OwnedCatalogConfiguration(val storefront: StorefrontConfiguration, val menuHandle: String)
 
     private companion object {
         val missingMenuCandidates =

@@ -15,12 +15,13 @@ import com.gurbakir.foundation.config.BrandShapeTokens
 import com.gurbakir.foundation.config.BrandSpacingTokens
 import com.gurbakir.foundation.config.BrandTextStyleTokens
 import com.gurbakir.foundation.config.BrandTypographyTokens
+import com.gurbakir.mobile.BuildConfig
 
 object GurbakirBrand {
     val configuration: BrandConfiguration =
         BrandConfiguration(
-            key = "gurbakir",
-            displayName = "Gürbakır",
+            key = BuildConfig.BRAND_KEY,
+            displayName = BuildConfig.BRAND_DISPLAY_NAME,
             designTokens =
                 BrandDesignTokens(
                     colors =
@@ -112,11 +113,11 @@ object GurbakirBrand {
                 ),
             legalLinks =
                 BrandLegalLinks(
-                    privacyPolicyUrl = "https://gurbakir.com/policies/privacy-policy",
-                    termsUrl = "https://gurbakir.com/policies/terms-of-service",
-                    supportUrl = "https://gurbakir.com/pages/contact"
+                    privacyPolicyUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_PRIVACY,
+                    termsUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_TERMS,
+                    supportUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_SUPPORT
                 ),
-            analyticsEventNamespace = "gurbakir"
+            analyticsEventNamespace = BuildConfig.ANALYTICS_NAMESPACE
         )
 }
 

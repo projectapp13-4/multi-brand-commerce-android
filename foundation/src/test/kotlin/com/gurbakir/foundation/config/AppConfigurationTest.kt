@@ -19,7 +19,7 @@ class AppConfigurationTest {
             )
         val enabled = disabled.copy(
             customerAccount = CustomerAccountCapability.Enabled(
-                CustomerAccountConfiguration("", "", "", "", "", "", "", emptySet())
+                CustomerAccountConfiguration("", "", "", "", "", "", "", "", emptySet())
             )
         )
         val app = AppConfiguration(
@@ -50,6 +50,7 @@ class AppConfigurationTest {
                 ConfigurationIssue.CUSTOMER_ACCOUNT_LOGOUT_ENDPOINT,
                 ConfigurationIssue.CUSTOMER_ACCOUNT_GRAPHQL_ENDPOINT,
                 ConfigurationIssue.CUSTOMER_ACCOUNT_REDIRECT_URI,
+                ConfigurationIssue.CUSTOMER_ACCOUNT_USER_AGENT,
                 ConfigurationIssue.CUSTOMER_ACCOUNT_SCOPES
             ),
             app.copy(
@@ -211,11 +212,33 @@ class AppConfigurationTest {
                 logoutEndpoint = "https://shop.example/authentication/logout",
                 graphqlEndpoint = "https://shop.example/customer/api/2026-07/graphql",
                 redirectUri = "shop.123456.gurbakir://oauth/callback",
+                userAgent = "Fixture-Android",
                 scopes = REQUIRED_CUSTOMER_ACCOUNT_SCOPES
             )
 
         assertTrue(configuration.validationIssues().isEmpty())
         assertFalse(configuration.toString().contains("public-client-id"))
+    }
+
+    @Test
+    fun `customer account rejects unsafe user agent input`() {
+        val valid =
+            CustomerAccountConfiguration(
+                clientId = "public-client-id",
+                issuer = "https://shopify.com/authentication/123456",
+                authorizationEndpoint = "https://shop.example/authentication/oauth/authorize",
+                tokenEndpoint = "https://shop.example/authentication/oauth/token",
+                logoutEndpoint = "https://shop.example/authentication/logout",
+                graphqlEndpoint = "https://shop.example/customer/api/2026-07/graphql",
+                redirectUri = "shop.123456.fixture://oauth/callback",
+                userAgent = "Fixture-Android",
+                scopes = REQUIRED_CUSTOMER_ACCOUNT_SCOPES
+            )
+
+        assertEquals(
+            setOf(ConfigurationIssue.CUSTOMER_ACCOUNT_USER_AGENT),
+            valid.copy(userAgent = "unsafe\r\nheader").validationIssues()
+        )
     }
 
     @Test
@@ -229,6 +252,7 @@ class AppConfigurationTest {
                 logoutEndpoint = "https://shop.example/authentication/logout",
                 graphqlEndpoint = "https://shop.example/customer/api/2026-07/graphql",
                 redirectUri = "gurbakir://oauth/callback",
+                userAgent = "Test-Android",
                 scopes = setOf("openid")
             ).validationIssues()
 

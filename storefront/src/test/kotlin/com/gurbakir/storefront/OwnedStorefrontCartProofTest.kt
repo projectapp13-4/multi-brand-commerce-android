@@ -1,9 +1,6 @@
 package com.gurbakir.storefront
 
-import com.gurbakir.foundation.config.ControlledPublicToken
 import com.gurbakir.foundation.config.StorefrontConfiguration
-import java.io.File
-import java.util.Properties
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -17,7 +14,7 @@ class OwnedStorefrontCartProofTest {
     @Test
     fun `owned non production store supports a bounded synthetic cart lifecycle`() {
         assumeTrue(System.getProperty("gurbakir.runOwnedCartProof") == "true")
-        val configuration = ownedConfiguration()
+        val configuration = loadOwnedOnboardingConfiguration().storefront
         assertEquals("gurbakir.com", configuration.domain)
         assertEquals("2026-07", configuration.apiVersion)
         assertTrue(configuration.validationIssues().isEmpty())
@@ -116,22 +113,6 @@ class OwnedStorefrontCartProofTest {
 
         is StorefrontFailure.UserErrors ->
             "user-errors:${errors.map { it.code ?: "UNCLASSIFIED" }.sorted().joinToString(",")}"
-    }
-
-    private fun ownedConfiguration(): StorefrontConfiguration {
-        val repoRoot = requireNotNull(System.getProperty("gurbakir.repoRoot"))
-        val properties =
-            Properties().apply {
-                File(repoRoot, "config/local.properties").inputStream().use(::load)
-            }
-        return StorefrontConfiguration(
-            domain = properties.getProperty("shopify.storefrontDomain", "").trim(),
-            apiVersion = properties.getProperty("shopify.storefrontApiVersion", "").trim(),
-            publicToken =
-                ControlledPublicToken.from(
-                    properties.getProperty("shopify.storefrontPublicToken", "")
-                )
-        )
     }
 
     private companion object {

@@ -24,9 +24,18 @@ object BuildConfigurationSource {
     val current: AppConfiguration = AppConfiguration(
         brand = GurbakirBrand.configuration,
         environment = environment,
-        localization = LocalizationPolicy(defaultLocaleTag = "tr", supportedLocaleTags = listOf("tr", "en")),
-        market = MarketConfiguration(id = "TR", countryCode = "TR", currencyCode = "TRY"),
-        protectedPersistence = protectedPersistenceFor(environment),
+        localization =
+            LocalizationPolicy(
+                defaultLocaleTag = BuildConfig.DEFAULT_LOCALE,
+                supportedLocaleTags = BuildConfig.SUPPORTED_LOCALES.split(',')
+            ),
+        market =
+            MarketConfiguration(
+                id = BuildConfig.MARKET_ID,
+                countryCode = BuildConfig.MARKET_COUNTRY_CODE,
+                currencyCode = BuildConfig.MARKET_CURRENCY_CODE
+            ),
+        protectedPersistence = projectedProtectedPersistence(),
         storefront =
             StorefrontConfiguration(
                 domain = BuildConfig.STOREFRONT_DOMAIN,
@@ -42,6 +51,7 @@ object BuildConfigurationSource {
                 logoutEndpoint = BuildConfig.CUSTOMER_ACCOUNT_LOGOUT_ENDPOINT,
                 graphqlEndpoint = BuildConfig.CUSTOMER_ACCOUNT_GRAPHQL_ENDPOINT,
                 redirectUri = BuildConfig.CUSTOMER_ACCOUNT_REDIRECT_URI,
+                userAgent = BuildConfig.CUSTOMER_ACCOUNT_USER_AGENT,
                 scopes =
                     BuildConfig.CUSTOMER_ACCOUNT_SCOPES
                         .split(' ')
@@ -74,38 +84,20 @@ internal fun gurbakirComposition(configuration: CustomerAccountConfiguration): A
 }
 
 internal fun resolveEnvironmentId(rawValue: String): EnvironmentId = when (rawValue) {
-    "development" -> EnvironmentId.DEVELOPMENT
-    "staging" -> EnvironmentId.STAGING
+    "DEVELOPMENT" -> EnvironmentId.DEVELOPMENT
+    "STAGING" -> EnvironmentId.STAGING
     else -> error("Unsupported application environment.")
 }
 
-internal fun protectedPersistenceFor(environment: EnvironmentId): ProtectedPersistenceConfiguration =
-    when (environment) {
-        EnvironmentId.DEVELOPMENT ->
-            ProtectedPersistenceConfiguration(
-                cart =
-                    ProtectedStoreIdentity(
-                        preferencesName = "gurbakir_secure_cart_development",
-                        keyAlias = "gurbakir.cart.development.v1"
-                    ),
-                customerSession =
-                    ProtectedStoreIdentity(
-                        preferencesName = "gurbakir_secure_customer_session_development",
-                        keyAlias = "gurbakir.customer.session.development.v1"
-                    )
-            )
-
-        EnvironmentId.STAGING ->
-            ProtectedPersistenceConfiguration(
-                cart =
-                    ProtectedStoreIdentity(
-                        preferencesName = "gurbakir_secure_cart_staging",
-                        keyAlias = "gurbakir.cart.staging.v1"
-                    ),
-                customerSession =
-                    ProtectedStoreIdentity(
-                        preferencesName = "gurbakir_secure_customer_session_staging",
-                        keyAlias = "gurbakir.customer.session.staging.v1"
-                    )
-            )
-    }
+internal fun projectedProtectedPersistence(): ProtectedPersistenceConfiguration = ProtectedPersistenceConfiguration(
+    cart =
+        ProtectedStoreIdentity(
+            preferencesName = BuildConfig.CART_PREFERENCES,
+            keyAlias = BuildConfig.CART_KEY_ALIAS
+        ),
+    customerSession =
+        ProtectedStoreIdentity(
+            preferencesName = BuildConfig.CUSTOMER_PREFERENCES,
+            keyAlias = BuildConfig.CUSTOMER_KEY_ALIAS
+        )
+)

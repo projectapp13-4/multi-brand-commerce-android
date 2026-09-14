@@ -357,6 +357,7 @@ class AddressControllerTest {
             logoutEndpoint = "https://shop.example/authentication/logout",
             graphqlEndpoint = "https://shop.example/customer/api/2026-07/graphql",
             redirectUri = "shop.123456.example://oauth/callback",
+            userAgent = "Test-Android",
             scopes = REQUIRED_CUSTOMER_ACCOUNT_SCOPES
         )
     }

@@ -1,3 +1,4 @@
+import java.nio.charset.StandardCharsets
 import java.util.Properties
 
 plugins {
@@ -6,20 +7,37 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-val localConfiguration = Properties().apply {
-    val localFile = rootProject.file("config/local.properties")
-    if (localFile.isFile) {
-        localFile.inputStream().use(::load)
+val selectedApplication = providers.gradleProperty("onboardingApplication").orNull
+val selectedProfile = providers.gradleProperty("onboardingProfile").orNull
+check((selectedApplication == null) == (selectedProfile == null)) {
+    "onboardingApplication and onboardingProfile must be supplied together."
+}
+if (selectedApplication != null) {
+    check(selectedApplication == "gurbakir" && selectedProfile in setOf("development", "staging")) {
+        "Storefront proofs require an enrolled application/profile."
     }
 }
-val storefrontDomain = localConfiguration.getProperty("shopify.storefrontDomain", "").trim()
-val storefrontApiVersion = localConfiguration.getProperty("shopify.storefrontApiVersion", "").trim()
-val storefrontPublicToken = localConfiguration.getProperty("shopify.storefrontPublicToken", "").trim()
+fun readUtf8(path: String): Properties = Properties().apply {
+    rootProject.file(path).reader(StandardCharsets.UTF_8).use(::load)
+}
+val selectedProjection = selectedProfile?.let { readUtf8("config/onboarding/generated/gurbakir/$it.properties") }
+val selectedLocalFile = selectedProfile?.let { rootProject.file("config/local/gurbakir/$it.properties") }
+val selectedLocal = selectedLocalFile?.takeIf(File::isFile)?.let {
+    readUtf8(it.relativeTo(rootProject.projectDir).invariantSeparatorsPath)
+}
+val storefrontDomain = selectedProjection?.getProperty("shopify.storefrontDomain", "")?.trim().orEmpty()
+val storefrontApiVersion = selectedProjection?.getProperty("shopify.storefrontApiVersion", "")?.trim().orEmpty()
+val storefrontPublicToken = selectedLocal?.getProperty("shopify.storefrontPublicToken", "")?.trim().orEmpty()
 val storefrontSchemaFile = file("src/main/graphql/com/gurbakir/storefront/schema.graphqls")
 val runOwnedStorefrontProof =
     providers.gradleProperty("gurbakirRunOwnedStorefrontProof").orNull?.toBooleanStrictOrNull() ?: false
 val runOwnedCartProof =
     providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull() ?: false
+val runOwnedHomeReadback =
+    providers.gradleProperty("onboardingRunOwnedHomeReadback").orNull?.toBooleanStrictOrNull() ?: false
+check(!(runOwnedStorefrontProof || runOwnedCartProof || runOwnedHomeReadback) || selectedApplication != null) {
+    "Opted-in Storefront proofs require explicit onboardingApplication and onboardingProfile."
+}
 
 android {
     namespace = "com.gurbakir.storefront"
@@ -45,6 +63,9 @@ android {
                 it.systemProperty("gurbakir.repoRoot", rootProject.projectDir.absolutePath)
                 it.systemProperty("gurbakir.runOwnedStorefrontProof", runOwnedStorefrontProof.toString())
                 it.systemProperty("gurbakir.runOwnedCartProof", runOwnedCartProof.toString())
+                it.systemProperty("onboarding.runOwnedHomeReadback", runOwnedHomeReadback.toString())
+                it.systemProperty("onboarding.application", selectedApplication.orEmpty())
+                it.systemProperty("onboarding.profile", selectedProfile.orEmpty())
             }
         }
         managedDevices {

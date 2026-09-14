@@ -62,7 +62,9 @@ class CustomerAccountFeatureBindingsTest {
             CapabilityState.DISABLED,
             CapabilityState.DISABLED,
             if (account) {
-                CustomerAccountCapability.Enabled(CustomerAccountConfiguration("", "", "", "", "", "", "", emptySet()))
+                CustomerAccountCapability.Enabled(
+                    CustomerAccountConfiguration("", "", "", "", "", "", "", "", emptySet())
+                )
             } else {
                 CustomerAccountCapability.Disabled
             }
