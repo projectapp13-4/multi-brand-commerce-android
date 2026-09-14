@@ -62,6 +62,29 @@ function Assert-Throws {
     throw "Assertion failed: $Name did not reject the hostile fixture."
 }
 
+function Get-TestFileSnapshot {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $exists = Test-Path -LiteralPath $Path -PathType Leaf
+    [pscustomobject]@{
+        Exists = $exists
+        Bytes = if ($exists) { [System.IO.File]::ReadAllBytes($Path) } else { $null }
+    }
+}
+
+function Restore-TestFileSnapshot {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)]$Snapshot
+    )
+
+    if (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force }
+    if ([bool]$Snapshot.Exists) {
+        [System.IO.Directory]::CreateDirectory((Split-Path -Parent $Path)) | Out-Null
+        [System.IO.File]::WriteAllBytes($Path, [byte[]]$Snapshot.Bytes)
+    }
+}
+
 function Invoke-RegistrySuite {
     $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
     $registry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
@@ -457,6 +480,21 @@ function Invoke-ConfigurationSuite {
         -Name 'app build scopes controlled client values by application and profile'
     Assert-True -Condition (-not $storefrontBuild.Contains('config/local.properties')) `
         -Name 'Storefront proofs do not read root local configuration'
+    Assert-True `
+        -Condition (
+            $storefrontBuild.Contains('JsonSlurper') -and
+            $storefrontBuild.Contains('configurationProjection') -and
+            $storefrontBuild.Contains('localConfiguration') -and
+            -not $storefrontBuild.Contains('config/onboarding/generated/gurbakir') -and
+            -not $storefrontBuild.Contains('config/local/gurbakir')
+        ) `
+        -Name 'shared Storefront proof configuration resolves the selected enrolled application and profile'
+    $readme = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'README.md'), [System.Text.Encoding]::UTF8)
+    $bootstrapDirectory = $readme.IndexOf('New-Item -ItemType Directory -Force .\config\local\gurbakir', [StringComparison]::Ordinal)
+    $bootstrapCopy = $readme.IndexOf('Copy-Item .\config\onboarding\examples\gurbakir-development.properties.example', [StringComparison]::Ordinal)
+    Assert-True `
+        -Condition ($bootstrapDirectory -ge 0 -and $bootstrapCopy -gt $bootstrapDirectory) `
+        -Name 'README bootstrap creates the ignored profile directory before copying configuration'
     Assert-True -Condition ($manifest.Contains('${collectionAppLinkHost}')) `
         -Name 'manifest consumes role-specific generated link placeholders'
     Assert-True -Condition (Test-Path -LiteralPath (Join-Path $repoRoot 'scripts\Migrate-GurbakirLocalConfiguration.ps1')) `
@@ -498,6 +536,16 @@ shopify.customerAccountScopes=openid email customer-account-api:full
 }
 
 function Invoke-EnrollmentSuite {
+    $taskResolver = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1'),
+        [System.Text.Encoding]::UTF8
+    )
+    Assert-True `
+        -Condition (
+            $taskResolver.Contains('projectDir') -and
+            -not $taskResolver.Contains("gradleProject -ceq ':synthetic'")
+        ) `
+        -Name 'task resolver derives explicit Gradle project directories without a synthetic special case'
     foreach ($lane in @('unit', 'assemble', 'api30', 'api23')) {
         & (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1') -Lane $lane -ValidateOnly
         Assert-True -Condition $true -Name "registry and workflow cover $lane lane"
@@ -721,16 +769,15 @@ function Invoke-OperatorApplySuite {
     $stagingBindingPath = Join-Path $repoRoot 'config\local\gurbakir\staging.providers.json'
     $localConfigurationPath = Join-Path $repoRoot 'config\local\gurbakir\development.properties'
     $manualCheckpointPath = Join-Path $temporaryRoot 'manual-checkpoint.json'
-    $localConfigurationExisted = Test-Path -LiteralPath $localConfigurationPath
-    $localConfigurationBytes = if ($localConfigurationExisted) { [IO.File]::ReadAllBytes($localConfigurationPath) } else { $null }
+    $bindingSnapshot = Get-TestFileSnapshot -Path $bindingPath
+    $stagingBindingSnapshot = Get-TestFileSnapshot -Path $stagingBindingPath
+    $localConfigurationSnapshot = Get-TestFileSnapshot -Path $localConfigurationPath
     [IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
     $bindingJson = '{"schemaVersion":1,"application":"gurbakir","profile":"development","approvedEvidenceRef":"owner-evidence:fixture-apply","shopify":{"adminShopDomain":"fixture-shop.myshopify.com","shopId":"1234567890"},"firebase":{"projectId":"fixture-project-123","projectNumber":"123456789012","androidAppIdsByVariant":{"developmentDebug":"1:123456789012:android:0123456789abcdef","developmentRelease":"1:123456789012:android:fedcba9876543210"}}}'
-    [IO.File]::WriteAllText($bindingPath, $bindingJson, [Text.UTF8Encoding]::new($false))
     $credentialName = 'MB_GURBAKIR_DEVELOPMENT_SHOPIFY_ADMIN_TOKEN'
     $stagingCredentialName = 'MB_GURBAKIR_STAGING_SHOPIFY_ADMIN_TOKEN'
     $previous = [Environment]::GetEnvironmentVariable($credentialName, 'Process')
     $previousStaging = [Environment]::GetEnvironmentVariable($stagingCredentialName, 'Process')
-    [Environment]::SetEnvironmentVariable($credentialName, 'fixture-admin-token', 'Process')
     $script:createdDefinitions = [Collections.Generic.List[object]]::new(); $script:probe = $null; $script:writeCount = 0; $script:lockObserved = $false
     $transport = {
         param($method, $uri, $headers, $body, $maximumBytes)
@@ -758,7 +805,10 @@ function Invoke-OperatorApplySuite {
         if ($request.query -match 'Gate8ProbeCreate') {$script:writeCount++;$script:probe=@{id='gid://shopify/Metaobject/99';type='mobile_home';handle='gate8-operator-acceptance-v1';fields=@(@{key='schema_version';value='1'},@{key='declared_section_count';value='0'});capabilities=@{publishable=@{status='DRAFT'}}};return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectCreate=@{metaobject=$script:probe;userErrors=@()}}}}}
         throw 'unexpected fixture operation'
     }
+    $outsideReceipt = $null
     try {
+        [IO.File]::WriteAllText($bindingPath, $bindingJson, [Text.UTF8Encoding]::new($false))
+        [Environment]::SetEnvironmentVariable($credentialName, 'fixture-admin-token', 'Process')
         $outsideReceipt = Join-Path ([IO.Path]::GetTempPath()) ('gate8-outside-' + [guid]::NewGuid().ToString('N') + '.json')
         Assert-Throws `
             -Action { New-OnboardingPlan $repoRoot 'gurbakir' 'development' $outsideReceipt -Transport $transport } `
@@ -1005,11 +1055,34 @@ function Invoke-OperatorApplySuite {
         [Environment]::SetEnvironmentVariable($credentialName, $previous, 'Process')
         [Environment]::SetEnvironmentVariable($stagingCredentialName, $previousStaging, 'Process')
         if ($null -ne $outsideReceipt -and (Test-Path -LiteralPath $outsideReceipt)) { Remove-Item -LiteralPath $outsideReceipt -Force }
-        if(Test-Path $bindingPath){Remove-Item -LiteralPath $bindingPath -Force}
-        if(Test-Path $stagingBindingPath){Remove-Item -LiteralPath $stagingBindingPath -Force}
-        if(Test-Path -LiteralPath $localConfigurationPath){Remove-Item -LiteralPath $localConfigurationPath -Force}
-        if($localConfigurationExisted){[IO.File]::WriteAllBytes($localConfigurationPath,$localConfigurationBytes)}
+        Restore-TestFileSnapshot -Path $bindingPath -Snapshot $bindingSnapshot
+        Restore-TestFileSnapshot -Path $stagingBindingPath -Snapshot $stagingBindingSnapshot
+        Restore-TestFileSnapshot -Path $localConfigurationPath -Snapshot $localConfigurationSnapshot
         if(Test-Path $temporaryRoot){Remove-Item -LiteralPath $temporaryRoot -Recurse -Force}
+    }
+}
+
+function Invoke-OperatorApplyPreservationRegression {
+    $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'
+    $stagingBindingPath = Join-Path $repoRoot 'config\local\gurbakir\staging.providers.json'
+    $bindingSnapshot = Get-TestFileSnapshot -Path $bindingPath
+    $stagingBindingSnapshot = Get-TestFileSnapshot -Path $stagingBindingPath
+    $developmentSentinel = [System.Text.UTF8Encoding]::new($false).GetBytes('{"fixture":"preserve-development"}')
+    $stagingSentinel = [System.Text.UTF8Encoding]::new($false).GetBytes('{"fixture":"preserve-staging"}')
+    try {
+        [System.IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
+        [System.IO.File]::WriteAllBytes($bindingPath, $developmentSentinel)
+        [System.IO.File]::WriteAllBytes($stagingBindingPath, $stagingSentinel)
+        Invoke-OperatorApplySuite
+        Assert-True `
+            -Condition (
+                [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($bindingPath)) -ceq [Convert]::ToBase64String($developmentSentinel) -and
+                [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($stagingBindingPath)) -ceq [Convert]::ToBase64String($stagingSentinel)
+            ) `
+            -Name 'operator Apply self-tests restore pre-existing ignored provider bindings byte for byte'
+    } finally {
+        Restore-TestFileSnapshot -Path $bindingPath -Snapshot $bindingSnapshot
+        Restore-TestFileSnapshot -Path $stagingBindingPath -Snapshot $stagingBindingSnapshot
     }
 }
 
@@ -1018,14 +1091,14 @@ switch ($Suite) {
     'Configuration' { Invoke-ConfigurationSuite }
     'Enrollment' { Invoke-EnrollmentSuite }
     'OperatorReadOnly' { Invoke-OperatorReadOnlySuite }
-    'OperatorApply' { Invoke-OperatorApplySuite }
-    'Security' { Invoke-OperatorReadOnlySuite; Invoke-OperatorApplySuite }
+    'OperatorApply' { Invoke-OperatorApplyPreservationRegression }
+    'Security' { Invoke-OperatorReadOnlySuite; Invoke-OperatorApplyPreservationRegression }
     'All' {
         Invoke-RegistrySuite
         Invoke-ConfigurationSuite
         Invoke-EnrollmentSuite
         Invoke-OperatorReadOnlySuite
-        Invoke-OperatorApplySuite
+        Invoke-OperatorApplyPreservationRegression
     }
     default {
         throw "Suite $Suite has not been implemented yet."

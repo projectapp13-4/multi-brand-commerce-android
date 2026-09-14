@@ -84,6 +84,7 @@ Requirements are JDK 17 and Android SDK Platform 36 with Build Tools 36.0.0.
 The pinned wrapper supplies Gradle 9.4.1; do not substitute a global Gradle.
 
 ```powershell
+New-Item -ItemType Directory -Force .\config\local\gurbakir | Out-Null
 Copy-Item .\config\onboarding\examples\gurbakir-development.properties.example .\config\local\gurbakir\development.properties
 pwsh -NoProfile -File scripts/Invoke-MultiBrandOnboarding.ps1 -Command Validate
 .\gradlew.bat spotlessCheck detekt lint

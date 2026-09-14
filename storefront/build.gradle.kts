@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -14,11 +15,98 @@ val selectedProfile = providers.gradleProperty("onboardingProfile").orNull
 check((selectedApplication == null) == (selectedProfile == null)) {
     "onboardingApplication and onboardingProfile must be supplied together."
 }
-if (selectedApplication != null) {
-    check(selectedApplication == "gurbakir" && selectedProfile in setOf("development", "staging")) {
-        "Storefront proofs require an enrolled application/profile."
-    }
+
+data class StorefrontOnboardingTarget(
+    val application: String,
+    val profile: String,
+    val projectionFile: File,
+    val localFile: File,
+    val domain: String,
+    val apiVersion: String
+)
+
+fun requireMap(value: Any?, field: String): Map<*, *> {
+    check(value is Map<*, *>) { "$field must be an object." }
+    return value
 }
+
+fun requireList(value: Any?, field: String): List<*> {
+    check(value is List<*>) { "$field must be an array." }
+    return value
+}
+
+fun repositoryFile(relativePath: String): File {
+    check(relativePath.isNotBlank() && '\\' !in relativePath) { "Onboarding path is not repository-relative." }
+    val repositoryRoot = rootProject.projectDir.canonicalFile
+    val resolved = rootProject.file(relativePath).canonicalFile
+    check(resolved.toPath().startsWith(repositoryRoot.toPath())) { "Onboarding path escapes the repository root." }
+    return resolved
+}
+val onboardingRegistryFile = rootProject.file("config/onboarding/application-registry.v1.json")
+val registryDigest = MessageDigest.getInstance("SHA-256")
+    .digest(onboardingRegistryFile.readBytes())
+    .joinToString("") { "%02x".format(it) }
+val selectedTarget = if (selectedApplication != null && selectedProfile != null) {
+    check(
+        selectedApplication.matches(Regex("^[a-z][a-z0-9-]{1,31}$")) &&
+            selectedProfile.matches(Regex("^[a-z][a-z0-9-]{1,31}$"))
+    ) {
+        "Storefront proofs require a valid enrolled application/profile."
+    }
+    val registry = requireMap(JsonSlurper().parse(onboardingRegistryFile), "registry")
+    val applications = requireList(registry["applications"], "applications")
+        .mapIndexed { index, value -> requireMap(value, "applications[$index]") }
+        .filter { it["key"] == selectedApplication }
+    check(applications.size == 1) { "Storefront proofs require an enrolled application/profile." }
+    val application = applications.single()
+    check(application["role"] == "real-brand-application" && application["fixtureOnly"] == false) {
+        "Storefront proofs reject synthetic or fixture-only applications."
+    }
+    val profiles = requireList(application["profiles"], "profiles")
+        .mapIndexed { index, value -> requireMap(value, "profiles[$index]") }
+        .filter { it["key"] == selectedProfile }
+    check(profiles.size == 1) { "Storefront proofs require an enrolled application/profile." }
+    val profile = profiles.single()
+    val storefront = requireMap(profile["storefront"], "storefront")
+    check(storefront["mode"] == "enabled") { "Storefront proofs require an enabled Storefront profile." }
+    val domain = storefront["domain"] as? String ?: error("Storefront domain is required.")
+    val apiVersion = storefront["apiVersion"] as? String ?: error("Storefront API version is required.")
+    val providerContracts = requireMap(registry["providerContracts"], "providerContracts")
+    val allowedVersions = requireList(providerContracts["allowedStorefrontApiVersions"], "allowedStorefrontApiVersions")
+    check(apiVersion in allowedVersions) { "Storefront API version is not allowed by the registry." }
+    val projectionRoot = application["configurationProjection"] as? String
+        ?: error("Storefront application projection is required.")
+    val localConfiguration = profile["localConfiguration"] as? String
+        ?: error("Storefront local configuration is required.")
+    StorefrontOnboardingTarget(
+        application = selectedApplication,
+        profile = selectedProfile,
+        projectionFile = repositoryFile("$projectionRoot/$selectedProfile.properties"),
+        localFile = repositoryFile(localConfiguration),
+        domain = domain,
+        apiVersion = apiVersion
+    )
+} else {
+    null
+}
+
+val projectionKeyInventory = setOf(
+    "onboarding.schemaVersion", "onboarding.sourceRegistrySha256", "onboarding.application", "onboarding.profile",
+    "app.brandKey", "app.brandDisplayName", "app.profileDisplayName", "app.analyticsNamespace", "app.environmentId",
+    "app.defaultLocale", "app.supportedLocales", "app.marketId", "app.marketCountryCode", "app.marketCurrencyCode",
+    "app.supportedTerritory", "app.searchNormalizationLocale", "app.databaseName", "app.customerAccountMode",
+    "app.customerAccountUserAgent", "app.customerAccountCallbackSchemeSuffix", "app.customerAccountCallbackHost",
+    "app.customerAccountCallbackPath", "app.customerAccountScopes", "app.cartPreferences", "app.cartKeyAlias",
+    "app.customerPreferences", "app.customerKeyAlias", "android.applicationId.debug", "android.applicationId.release",
+    "web.collectionAppLinkOrigin", "web.collectionAppLinkPathPrefix", "web.productAppLinkOrigin",
+    "web.productAppLinkPathPrefix", "web.orderAppLinkOrigin", "web.orderAppLinkPathPrefix", "web.legalSupportOrigin",
+    "web.legalSupportPath.support", "web.legalSupportPath.privacy", "web.legalSupportPath.terms",
+    "web.legalSupportPath.shipping", "web.legalSupportPath.returns", "web.legalSupportPath.legalNotice",
+    "web.checkoutHostPolicy", "web.assetLinksMode", "web.manifestAutoVerify", "shopify.storefrontMode",
+    "shopify.storefrontDomain", "shopify.storefrontApiVersion", "shopify.storefrontMediaOrigins",
+    "shopify.catalogMenuHandle", "shopify.homeRootType", "shopify.homeRootHandle", "shopify.homeContentSchemaVersion",
+    "firebase.mode", "firebase.ownershipKey", "firebase.configPath.debug", "firebase.configPath.release"
+)
 fun readCanonicalUtf8(path: String, allowedKeys: Set<String>, allowAbsent: Boolean = false): Properties {
     val file = rootProject.file(path)
     if (!file.isFile) {
@@ -47,14 +135,13 @@ fun readCanonicalUtf8(path: String, allowedKeys: Set<String>, allowAbsent: Boole
     }
     return Properties().apply { file.reader(StandardCharsets.UTF_8).use(::load) }
 }
-val projectionKeyInventory = rootProject.file("config/onboarding/generated/gurbakir/development.properties")
-    .readLines(StandardCharsets.UTF_8)
-    .map { it.substringBefore('=') }
-    .toSet()
-val selectedProjection = selectedProfile?.let {
-    readCanonicalUtf8("config/onboarding/generated/gurbakir/$it.properties", projectionKeyInventory)
+val selectedProjection = selectedTarget?.let {
+    readCanonicalUtf8(
+        it.projectionFile.relativeTo(rootProject.projectDir).invariantSeparatorsPath,
+        projectionKeyInventory
+    )
 }
-val selectedLocalFile = selectedProfile?.let { rootProject.file("config/local/gurbakir/$it.properties") }
+val selectedLocalFile = selectedTarget?.localFile
 val selectedLocal = selectedLocalFile?.takeIf(File::isFile)?.let {
     readCanonicalUtf8(
         it.relativeTo(rootProject.projectDir).invariantSeparatorsPath,
@@ -74,17 +161,14 @@ val storefrontDomain = selectedProjection?.getProperty("shopify.storefrontDomain
 val storefrontApiVersion = selectedProjection?.getProperty("shopify.storefrontApiVersion", "")?.trim().orEmpty()
 val storefrontPublicToken = selectedLocal?.getProperty("shopify.storefrontPublicToken", "")?.trim().orEmpty()
 if (selectedProjection != null) {
-    val registryDigest = MessageDigest.getInstance("SHA-256")
-        .digest(rootProject.file("config/onboarding/application-registry.v1.json").readBytes())
-        .joinToString("") { "%02x".format(it) }
     check(
         selectedProjection.getProperty("onboarding.schemaVersion") == "1" &&
             selectedProjection.getProperty("onboarding.sourceRegistrySha256") == registryDigest &&
-            selectedProjection.getProperty("onboarding.application") == "gurbakir" &&
-            selectedProjection.getProperty("onboarding.profile") == selectedProfile &&
-            storefrontDomain == "gurbakir.com" && storefrontApiVersion == "2026-07"
+            selectedProjection.getProperty("onboarding.application") == selectedTarget?.application &&
+            selectedProjection.getProperty("onboarding.profile") == selectedTarget?.profile &&
+            storefrontDomain == selectedTarget?.domain && storefrontApiVersion == selectedTarget?.apiVersion
     ) {
-        "Storefront proof projection does not match the enrolled Gürbakır profile."
+        "Storefront proof projection does not match the enrolled application/profile."
     }
 }
 val storefrontSchemaFile = file("src/main/graphql/com/gurbakir/storefront/schema.graphqls")
@@ -145,7 +229,18 @@ android {
             isReturnDefaultValues = true
             all {
                 it.useJUnitPlatform()
-                it.systemProperty("gurbakir.repoRoot", rootProject.projectDir.absolutePath)
+                it.systemProperty("onboarding.repoRoot", rootProject.projectDir.absolutePath)
+                it.systemProperty(
+                    "onboarding.projectionPath",
+                    selectedTarget?.projectionFile?.relativeTo(
+                        rootProject.projectDir
+                    )?.invariantSeparatorsPath.orEmpty()
+                )
+                it.systemProperty(
+                    "onboarding.localConfigurationPath",
+                    selectedTarget?.localFile?.relativeTo(rootProject.projectDir)?.invariantSeparatorsPath.orEmpty()
+                )
+                it.systemProperty("onboarding.registrySha256", registryDigest)
                 it.systemProperty("gurbakir.runOwnedStorefrontProof", runOwnedStorefrontProof.toString())
                 it.systemProperty("gurbakir.runOwnedCartProof", runOwnedCartProof.toString())
                 it.systemProperty("onboarding.runOwnedHomeReadback", runOwnedHomeReadback.toString())

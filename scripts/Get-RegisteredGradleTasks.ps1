@@ -24,6 +24,20 @@ $registered = @($registry.modules | ForEach-Object { [string]$_.gradleProject })
 if ((@($included | Sort-Object) -join "`n") -cne (@($registered | Sort-Object) -join "`n")) {
     throw 'ENROLLMENT_SETTINGS_MISMATCH'
 }
+$projectDirectoryByPath = @{}
+foreach ($registeredPath in $registered) {
+    $projectDirectoryByPath[$registeredPath] = $registeredPath.TrimStart(':')
+}
+foreach ($mapping in [regex]::Matches(
+    $settings,
+    'project\("(?<path>:[a-z][a-z0-9-]*)"\)\.projectDir\s*=\s*file\("(?<directory>[^"\r\n]+)"\)'
+)) {
+    $path = [string]$mapping.Groups['path'].Value
+    if ($path -notin $registered -or -not $projectDirectoryByPath.ContainsKey($path)) {
+        throw "ENROLLMENT_SETTINGS_DIRECTORY_UNKNOWN:$path"
+    }
+    $projectDirectoryByPath[$path] = [string]$mapping.Groups['directory'].Value
+}
 $projectByAccessor = @{}
 foreach ($registeredModule in @($registry.modules)) {
     $segments = ([string]$registeredModule.gradleProject).TrimStart(':').Split('-')
@@ -34,7 +48,7 @@ foreach ($registeredModule in @($registry.modules)) {
 }
 foreach ($module in @($registry.modules)) {
     $expectedDirectory = [string]$module.directory
-    $actualDirectory = if ([string]$module.gradleProject -ceq ':synthetic') { 'apps/synthetic' } else { ([string]$module.gradleProject).TrimStart(':') }
+    $actualDirectory = [string]$projectDirectoryByPath[[string]$module.gradleProject]
     if ($expectedDirectory -cne $actualDirectory -or -not (Test-Path -LiteralPath (Join-Path $repoRoot $actualDirectory) -PathType Container)) {
         throw "ENROLLMENT_DIRECTORY_MISMATCH:$($module.gradleProject)"
     }

@@ -14,28 +14,33 @@ internal data class OwnedOnboardingConfiguration(
 )
 
 internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
-    val application = System.getProperty("onboarding.application")
+    val application = requireNotNull(System.getProperty("onboarding.application")) {
+        "An explicit enrolled application is required."
+    }
     val profile = requireNotNull(System.getProperty("onboarding.profile")) {
         "An explicit enrolled profile is required."
     }
-    require(application == "gurbakir") { "An explicit enrolled application is required." }
-    require(profile in setOf("development", "staging")) { "An explicit enrolled profile is required." }
-    val root = File(requireNotNull(System.getProperty("gurbakir.repoRoot")))
+    val root = File(requireNotNull(System.getProperty("onboarding.repoRoot"))).canonicalFile
+    fun resolve(property: String): File {
+        val relative = requireNotNull(System.getProperty(property)) { "$property is required." }
+        require(relative.isNotBlank() && '\\' !in relative) { "$property must be a repository-relative path." }
+        val resolved = File(root, relative).canonicalFile
+        require(resolved.toPath().startsWith(root.toPath())) { "$property escapes the repository root." }
+        return resolved
+    }
     fun load(file: File): Properties = Properties().apply {
         require(file.isFile) { "Required onboarding configuration is missing." }
         file.reader(StandardCharsets.UTF_8).use(::load)
     }
-    val projection = load(File(root, "config/onboarding/generated/gurbakir/$profile.properties"))
-    val local = load(File(root, "config/local/gurbakir/$profile.properties"))
+    val projection = load(resolve("onboarding.projectionPath"))
+    val local = load(resolve("onboarding.localConfigurationPath"))
     require(projection.getProperty("onboarding.schemaVersion") == "1")
-    require(projection.getProperty("onboarding.application") == "gurbakir")
+    require(
+        projection.getProperty("onboarding.sourceRegistrySha256") ==
+            requireNotNull(System.getProperty("onboarding.registrySha256"))
+    )
+    require(projection.getProperty("onboarding.application") == application)
     require(projection.getProperty("onboarding.profile") == profile)
-    require(projection.getProperty("shopify.storefrontDomain") == "gurbakir.com") {
-        "Owned Storefront proofs cannot target an unapproved host."
-    }
-    require(projection.getProperty("shopify.storefrontApiVersion") == "2026-07") {
-        "Owned Storefront proofs require the pinned API version."
-    }
     return OwnedOnboardingConfiguration(
         storefront = StorefrontConfiguration(
             domain = projection.getProperty("shopify.storefrontDomain"),
