@@ -320,10 +320,10 @@ function Invoke-OnboardingJsonRequest {
         [int]$TimeoutSeconds = 30,
         [scriptblock]$Transport
     )
-    if ($null -ne $Transport) { return & $Transport $Method $Uri $Headers $Body $MaximumBytes }
-    if ($Uri.Scheme -cne 'https' -or $null -ne $Uri.UserInfo -or $Uri.Fragment.Length -ne 0) {
+    if ($Uri.Scheme -cne 'https' -or $Uri.UserInfo.Length -ne 0 -or $Uri.Fragment.Length -ne 0) {
         throw (New-OnboardingContractError -Code 'UNSAFE_PROVIDER_URI' -Field 'request')
     }
+    if ($null -ne $Transport) { return & $Transport $Method $Uri $Headers $Body $MaximumBytes }
     $handler = [System.Net.Http.HttpClientHandler]::new()
     $handler.AllowAutoRedirect = $false
     $client = [System.Net.Http.HttpClient]::new($handler)

@@ -15,7 +15,9 @@ internal data class OwnedOnboardingConfiguration(
 
 internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
     val application = System.getProperty("onboarding.application")
-    val profile = System.getProperty("onboarding.profile")
+    val profile = requireNotNull(System.getProperty("onboarding.profile")) {
+        "An explicit enrolled profile is required."
+    }
     require(application == "gurbakir") { "An explicit enrolled application is required." }
     require(profile in setOf("development", "staging")) { "An explicit enrolled profile is required." }
     val root = File(requireNotNull(System.getProperty("gurbakir.repoRoot")))

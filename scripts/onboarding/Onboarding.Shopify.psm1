@@ -13,10 +13,161 @@ function Invoke-ShopifyAdminOperation {
     return $response.Data.data
 }
 
+function Import-ShopifyHomeSchemaContract {
+    [CmdletBinding()]
+    param()
+
+    $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $path = Join-Path $repositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $schema = Read-OnboardingStrictJson -Path $path -MaximumBytes 65536
+    $expected = [ordered]@{
+        schemaVersion = 1
+        contract = 'gate7-v1'
+        adminApiVersion = '2026-07'
+        access = [ordered]@{ admin = 'MERCHANT_READ_WRITE'; storefront = 'PUBLIC_READ' }
+        capabilities = [ordered]@{ publishable = $true }
+        definitions = @(
+            [ordered]@{
+                type = 'mobile_home_collection_grid'
+                displayNameKey = 'title'
+                fields = @(
+                    [ordered]@{ key = 'title'; type = 'single_line_text_field'; required = $true; validations = [ordered]@{ min = 1; max = 80 } }
+                    [ordered]@{ key = 'collections'; type = 'list.collection_reference'; required = $true; validations = [ordered]@{ min = 1; max = 6 } }
+                )
+            }
+            [ordered]@{
+                type = 'mobile_home_featured_product'
+                displayNameKey = 'title'
+                fields = @(
+                    [ordered]@{ key = 'title'; type = 'single_line_text_field'; required = $true; validations = [ordered]@{ min = 1; max = 80 } }
+                    [ordered]@{ key = 'product'; type = 'product_reference'; required = $true; validations = [ordered]@{} }
+                )
+            }
+            [ordered]@{
+                type = 'mobile_home'
+                displayNameKey = 'schema_version'
+                fields = @(
+                    [ordered]@{ key = 'schema_version'; type = 'number_integer'; required = $true; validations = [ordered]@{ min = 1; max = 1 } }
+                    [ordered]@{ key = 'declared_section_count'; type = 'number_integer'; required = $true; validations = [ordered]@{ min = 0; max = 2 } }
+                    [ordered]@{ key = 'sections'; type = 'list.mixed_reference'; required = $false; validations = [ordered]@{ max = 2; definitionTypes = @('mobile_home_collection_grid', 'mobile_home_featured_product') } }
+                )
+            }
+        )
+    }
+    if ((Get-OnboardingCanonicalJson $schema) -cne (Get-OnboardingCanonicalJson $expected)) {
+        throw 'UNSUPPORTED_HOME_SCHEMA_CONTRACT'
+    }
+    return $schema
+}
+
+function Test-ShopifyHomeDefinitionCompatibility {
+    param(
+        [Parameter(Mandatory)]$Definition,
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][hashtable]$DefinitionsByType,
+        [Parameter(Mandatory)]$Schema
+    )
+
+    if ([string]$Definition.id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$' -or
+        [string]$Definition.type -cne [string]$Contract.type -or
+        [string]$Definition.displayNameKey -cne [string]$Contract.displayNameKey -or
+        [string]$Definition.access.admin -cne [string]$Schema.access.admin -or
+        [string]$Definition.access.storefront -cne [string]$Schema.access.storefront -or
+        $Definition.capabilities.publishable.enabled -ne $true) {
+        return $false
+    }
+
+    $actualFields = @($Definition.fieldDefinitions)
+    $expectedFields = @($Contract.fields)
+    if ($actualFields.Count -ne $expectedFields.Count) { return $false }
+    foreach ($fieldContract in $expectedFields) {
+        $matchingFields = @($actualFields | Where-Object { [string]$_.key -ceq [string]$fieldContract.key })
+        if ($matchingFields.Count -ne 1) { return $false }
+        $actualField = $matchingFields[0]
+        if ([string]$actualField.type.name -cne [string]$fieldContract.type -or
+            [bool]$actualField.required -ne [bool]$fieldContract.required) {
+            return $false
+        }
+
+        $expectedValidations = [System.Collections.Generic.List[string]]::new()
+        foreach ($entry in $fieldContract.validations.GetEnumerator()) {
+            if ([string]$entry.Key -ceq 'definitionTypes') {
+                foreach ($childType in @($entry.Value)) {
+                    $children = @($DefinitionsByType[[string]$childType])
+                    if ($children.Count -ne 1) { return $false }
+                    $expectedValidations.Add(('metaobject_definition_id={0}' -f [string]$children[0].id))
+                }
+            } else {
+                $expectedValidations.Add(('{0}={1}' -f [string]$entry.Key, [string]$entry.Value))
+            }
+        }
+        $actualValidations = @(
+            foreach ($validation in @($actualField.validations)) {
+                '{0}={1}' -f [string]$validation.name, [string]$validation.value
+            }
+        )
+        if ((@($expectedValidations | Sort-Object -CaseSensitive) -join "`n") -cne
+            (@($actualValidations | Sort-Object -CaseSensitive) -join "`n")) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Get-ShopifyHomeDefinitionFingerprint {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Definitions)
+
+    $normalized = @(
+        foreach ($definition in @($Definitions | Sort-Object type)) {
+            [ordered]@{
+                id = [string]$definition.id
+                type = [string]$definition.type
+                displayNameKey = [string]$definition.displayNameKey
+                fields = @(
+                    foreach ($field in @($definition.fieldDefinitions | Sort-Object key)) {
+                        [ordered]@{
+                            key = [string]$field.key
+                            type = [string]$field.type.name
+                            required = [bool]$field.required
+                            validations = @(
+                                foreach ($validation in @($field.validations | Sort-Object name, value)) {
+                                    [ordered]@{ name = [string]$validation.name; value = [string]$validation.value }
+                                }
+                            )
+                        }
+                    }
+                )
+                access = [ordered]@{ admin = [string]$definition.access.admin; storefront = [string]$definition.access.storefront }
+                publishable = [bool]$definition.capabilities.publishable.enabled
+            }
+        }
+    )
+    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ definitions = $normalized })
+    return [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
+}
+
+function Get-ShopifyVerifiedTargetState {
+    [CmdletBinding()]
+    param($Binding, [string]$Token, [scriptblock]$Transport)
+
+    $query = 'query Gate8VerifyShop{shop{id myshopifyDomain}}'
+    $data = Invoke-ShopifyAdminOperation $Binding $Token $query @{} $Transport
+    $shopId = [string]$data.shop.id
+    if ($shopId -cnotmatch '^gid://shopify/Shop/(?<id>[0-9]+)$' -or
+        [string]$Matches.id -cne [string]$Binding.shopify.shopId -or
+        [string]$data.shop.myshopifyDomain -cne [string]$Binding.shopify.adminShopDomain) {
+        throw 'SHOPIFY_TARGET_IDENTITY_MISMATCH'
+    }
+    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ id = $shopId; myshopifyDomain = [string]$data.shop.myshopifyDomain })
+    $hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
+    return [pscustomobject]@{ Classification = 'PASS'; Fingerprint = $hash }
+}
+
 function Get-ShopifyHomeDefinitionState {
     [CmdletBinding()]
     param($Binding, [string]$Token, [scriptblock]$Transport)
-    $query = 'query Gate8HomeDefinitions($first:Int!,$after:String){metaobjectDefinitions(first:$first,after:$after){nodes{id type name fieldDefinitions{key type{name} required validations{name value}} capabilities{publishable{enabled}} access{storefront}} pageInfo{hasNextPage endCursor}}}'
+    $schema = Import-ShopifyHomeSchemaContract
+    $query = 'query Gate8HomeDefinitions($first:Int!,$after:String){metaobjectDefinitions(first:$first,after:$after){nodes{id type name displayNameKey fieldDefinitions{key name type{name} required validations{name value}} capabilities{publishable{enabled}} access{admin storefront}} pageInfo{hasNextPage endCursor}}}'
     $nodes = [System.Collections.Generic.List[object]]::new()
     $after = $null
     for ($page = 1; $page -le 5; $page++) {
@@ -32,10 +183,18 @@ function Get-ShopifyHomeDefinitionState {
     $byType = @{}
     foreach ($type in $managedTypes) { $byType[$type] = @($selected | Where-Object { [string]$_.type -ceq $type }) }
     if (@($byType.Values | Where-Object { $_.Count -gt 1 }).Count -gt 0) { throw 'SHOPIFY_DEFINITION_IDENTITY_CONFLICT' }
-    $classification = if ($selected.Count -eq 0) { 'ABSENT' } elseif ($selected.Count -eq 3) { 'COMPATIBLE' } else { 'COMPATIBLE' }
-    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ definitions = @($selected | Sort-Object type | ForEach-Object { [ordered]@{ id = $_.id; type = $_.type; fields = $_.fieldDefinitions; capabilities = $_.capabilities; access = $_.access } }) })
-    $hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
-    [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; Definitions = $byType }
+    $compatible = $true
+    foreach ($contract in @($schema.definitions)) {
+        $definitions = @($byType[[string]$contract.type])
+        if ($definitions.Count -eq 1 -and
+            -not (Test-ShopifyHomeDefinitionCompatibility -Definition $definitions[0] -Contract $contract -DefinitionsByType $byType -Schema $schema)) {
+            $compatible = $false
+        }
+    }
+    $classification = if ($selected.Count -eq 0) { 'ABSENT' } elseif ($compatible) { 'COMPATIBLE' } else { 'INCOMPATIBLE' }
+    $missingTypes = @($managedTypes | Where-Object { @($byType[$_]).Count -eq 0 })
+    $hash = Get-ShopifyHomeDefinitionFingerprint -Definitions $selected
+    [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; Definitions = $byType; MissingTypes = $missingTypes }
 }
 
 function Get-ShopifyMenuState {
@@ -87,4 +246,4 @@ function Get-ShopifyAcceptanceProbeState {
     [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; ResourceId = if ($null -eq $probe) { $null } else { [string]$probe.id } }
 }
 
-Export-ModuleMember -Function @('Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')
+Export-ModuleMember -Function @('Import-ShopifyHomeSchemaContract', 'Get-ShopifyVerifiedTargetState', 'Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')

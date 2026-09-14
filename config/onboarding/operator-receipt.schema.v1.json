@@ -30,17 +30,18 @@
     "application": { "type": "string" },
     "profile": { "type": "string" },
     "runtimeEnvironment": { "enum": ["DEVELOPMENT", "STAGING"] },
-    "releaseBoundary": { "type": "string" },
+    "releaseBoundary": { "enum": ["nonproduction-only", "never-production", "test-fixture-only"] },
     "createdAtUtc": { "type": "string", "format": "date-time" },
     "expiresAtUtc": { "type": ["string", "null"], "format": "date-time" },
     "verifiedTarget": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["shopId", "adminShopDomain", "firebaseProjectId", "firebaseProjectNumber"],
       "properties": {
-        "shopId": { "type": ["string", "null"] },
-        "adminShopDomain": { "type": ["string", "null"] },
-        "firebaseProjectId": { "type": ["string", "null"] },
-        "firebaseProjectNumber": { "type": ["string", "null"] }
+        "shopId": { "type": ["string", "null"], "pattern": "^[0-9]{1,20}$" },
+        "adminShopDomain": { "type": ["string", "null"], "pattern": "^[a-z0-9](?:[a-z0-9-]{0,60}[a-z0-9])?\\.myshopify\\.com$" },
+        "firebaseProjectId": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" },
+        "firebaseProjectNumber": { "type": ["string", "null"], "pattern": "^[0-9]{1,20}$" }
       }
     },
     "digests": {
@@ -60,7 +61,7 @@
       "maxItems": 16,
       "items": { "$ref": "#/$defs/action" }
     },
-    "overallStatus": { "type": "string" },
+    "overallStatus": { "enum": ["PLANNED", "SUCCEEDED", "BLOCKED", "FAILED", "PARTIAL"] },
     "diagnosticCodes": {
       "type": "array",
       "maxItems": 32,
@@ -130,20 +131,14 @@
         },
         "beforeClassification": { "$ref": "#/$defs/resourceClassification" },
         "intendedAction": { "enum": ["NONE", "CREATE", "ATOMIC_REPLACE"] },
-        "beforeFingerprint": {
-          "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }]
-        },
+        "beforeFingerprint": { "$ref": "#/$defs/digest" },
         "providerResourceId": {
           "type": ["string", "null"],
           "pattern": "^gid://shopify/[A-Za-z][A-Za-z0-9]*/[0-9]+$"
         },
         "status": { "enum": ["PLANNED", "NO_OP", "SUCCEEDED", "BLOCKED", "FAILED", "AMBIGUOUS"] },
-        "afterClassification": {
-          "anyOf": [{ "$ref": "#/$defs/resourceClassification" }, { "type": "null" }]
-        },
-        "afterFingerprint": {
-          "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }]
-        }
+        "afterClassification": { "$ref": "#/$defs/resourceClassification" },
+        "afterFingerprint": { "$ref": "#/$defs/digest" }
       }
     },
     "readback": {
@@ -158,9 +153,7 @@
         "classification": {
           "enum": ["PASS", "FAIL", "NOT_RUN", "PARTIAL", "EXTERNALLY_BLOCKED", "NOT_APPLICABLE"]
         },
-        "identityFingerprint": {
-          "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }]
-        }
+        "identityFingerprint": { "$ref": "#/$defs/digest" }
       }
     },
     "recovery": {
@@ -173,7 +166,7 @@
           "enum": ["LOCAL_CONFIGURATION", "SHOPIFY_HOME_DEFINITION", "SHOPIFY_HOME_ACCEPTANCE_PROBE"]
         },
         "resourceKey": { "type": "string" },
-        "classification": { "type": "string" },
+        "classification": { "$ref": "#/$defs/resourceClassification" },
         "nextAction": { "enum": ["REINSPECT", "RESTORE_LOCAL_BACKUP", "MANUAL_REVIEW", "NO_ACTION"] }
       }
     }

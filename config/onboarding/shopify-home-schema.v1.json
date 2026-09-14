@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "contract": "gate7-v1",
   "adminApiVersion": "2026-07",
-  "access": { "storefront": "PUBLIC_READ" },
+  "access": { "admin": "MERCHANT_READ_WRITE", "storefront": "PUBLIC_READ" },
   "capabilities": { "publishable": true },
   "definitions": [
     {

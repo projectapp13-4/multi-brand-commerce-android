@@ -9,8 +9,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Common.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Registry.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'onboarding\Onboarding.Common.psm1') -Force
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if ([string]::IsNullOrWhiteSpace($LegacyPath)) { $LegacyPath = Join-Path $repoRoot 'config\local.properties' }
@@ -48,7 +48,17 @@ $allowedLegacy = @(
 )
 foreach ($key in $legacyValues.Keys) { if ($key -notin $allowedLegacy) { throw "UNSUPPORTED_LEGACY_KEY:$key" } }
 $projectionPath = Join-Path $repoRoot "config\onboarding\generated\gurbakir\$Profile.properties"
-$projection = Read-OnboardingProperties -Path $projectionPath -AllowedKeys (Get-OnboardingProjectionKeyOrder)
+$registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+$registry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
+$selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile $Profile
+$expectedProjectionLines = Get-OnboardingProjectionLines `
+    -Registry $registry `
+    -ApplicationRecord $selected.Application `
+    -ProfileRecord $selected.Profile `
+    -RegistrySha256 (Get-OnboardingSha256 -Path $registryPath)
+Test-OnboardingProjection -Path $projectionPath -ExpectedLines $expectedProjectionLines
+$projectionKeys = @($expectedProjectionLines | ForEach-Object { $_.Substring(0, $_.IndexOf('=')) })
+$projection = Read-OnboardingProperties -Path $projectionPath -AllowedKeys $projectionKeys
 $tracked = @{
     'shopify.storefrontDomain' = 'shopify.storefrontDomain'
     'shopify.storefrontApiVersion' = 'shopify.storefrontApiVersion'

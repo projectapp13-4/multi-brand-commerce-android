@@ -629,6 +629,9 @@ function Import-OnboardingReceipt {
     Assert-OnboardingKey -Value ([string]$receipt.application) -Field '$.application'
     Assert-OnboardingKey -Value ([string]$receipt.profile) -Field '$.profile'
     Assert-OnboardingEnum -Value ([string]$receipt.runtimeEnvironment) -Allowed @('DEVELOPMENT', 'STAGING') -Field '$.runtimeEnvironment'
+    Assert-OnboardingEnum -Value ([string]$receipt.releaseBoundary) `
+        -Allowed @('nonproduction-only', 'never-production', 'test-fixture-only') `
+        -Field '$.releaseBoundary'
     $created = [datetimeoffset]::MinValue
     if (-not [datetimeoffset]::TryParseExact(
         [string]$receipt.createdAtUtc,
@@ -655,6 +658,28 @@ function Import-OnboardingReceipt {
     }
     Assert-OnboardingObjectFields -Object $receipt.verifiedTarget `
         -Allowed @('shopId', 'adminShopDomain', 'firebaseProjectId', 'firebaseProjectNumber') -Field '$.verifiedTarget'
+    $targetShopId = [string]$receipt.verifiedTarget.shopId
+    $targetAdminDomain = [string]$receipt.verifiedTarget.adminShopDomain
+    if (($targetShopId.Length -eq 0) -xor ($targetAdminDomain.Length -eq 0)) {
+        throw (New-OnboardingContractError -Code 'INVALID_SHOPIFY_BINDING' -Field '$.verifiedTarget')
+    }
+    if ($targetShopId.Length -gt 0) {
+        Assert-OnboardingHost -HostName $targetAdminDomain -Field '$.verifiedTarget.adminShopDomain'
+        if ($targetAdminDomain -cnotmatch '^[a-z0-9](?:[a-z0-9-]{0,60}[a-z0-9])?\.myshopify\.com$' -or
+            $targetShopId -cnotmatch '^[0-9]{1,20}$') {
+            throw (New-OnboardingContractError -Code 'INVALID_SHOPIFY_BINDING' -Field '$.verifiedTarget')
+        }
+    }
+    $targetFirebaseProject = [string]$receipt.verifiedTarget.firebaseProjectId
+    $targetFirebaseNumber = [string]$receipt.verifiedTarget.firebaseProjectNumber
+    if (($targetFirebaseProject.Length -eq 0) -xor ($targetFirebaseNumber.Length -eq 0)) {
+        throw (New-OnboardingContractError -Code 'INVALID_FIREBASE_BINDING' -Field '$.verifiedTarget')
+    }
+    if ($targetFirebaseProject.Length -gt 0 -and
+        ($targetFirebaseProject -cnotmatch '^[a-z][a-z0-9-]{4,28}[a-z0-9]$' -or
+            $targetFirebaseNumber -cnotmatch '^[0-9]{1,20}$')) {
+        throw (New-OnboardingContractError -Code 'INVALID_FIREBASE_BINDING' -Field '$.verifiedTarget')
+    }
     Assert-OnboardingObjectFields -Object $receipt.digests `
         -Allowed @('registrySha256', 'providerBindingSha256', 'homeSchemaSha256', 'operatorSha256') `
         -Required @('registrySha256', 'providerBindingSha256', 'homeSchemaSha256', 'operatorSha256') `
@@ -667,7 +692,11 @@ function Import-OnboardingReceipt {
     if ([string]$receipt.stateFingerprint -cnotmatch $script:DigestPattern) {
         throw (New-OnboardingContractError -Code 'INVALID_DIGEST' -Field '$.stateFingerprint')
     }
+    Assert-OnboardingEnum -Value ([string]$receipt.overallStatus) `
+        -Allowed @('PLANNED', 'SUCCEEDED', 'BLOCKED', 'FAILED', 'PARTIAL') `
+        -Field '$.overallStatus'
     $actions = @(Assert-OnboardingArray -Value $receipt.actions -Field '$.actions' -MaximumCount 16)
+    $actionOrdinals = [System.Collections.Generic.HashSet[int]]::new()
     foreach ($action in $actions) {
         $fields = @('ordinal', 'resourceKind', 'resourceKey', 'managementMode', 'beforeClassification', 'intendedAction', 'beforeFingerprint', 'providerResourceId', 'status', 'afterClassification', 'afterFingerprint')
         Assert-OnboardingObjectFields -Object $action -Allowed $fields -Required $fields -Field '$.actions'
@@ -676,6 +705,25 @@ function Import-OnboardingReceipt {
         Assert-OnboardingEnum -Value ([string]$action.beforeClassification) -Allowed @('ABSENT', 'CORRECT', 'COMPATIBLE', 'INCOMPATIBLE', 'DRIFTED', 'UNKNOWN') -Field '$.actions.beforeClassification'
         Assert-OnboardingEnum -Value ([string]$action.intendedAction) -Allowed @('NONE', 'CREATE', 'ATOMIC_REPLACE') -Field '$.actions.intendedAction'
         Assert-OnboardingEnum -Value ([string]$action.status) -Allowed @('PLANNED', 'NO_OP', 'SUCCEEDED', 'BLOCKED', 'FAILED', 'AMBIGUOUS') -Field '$.actions.status'
+        Assert-OnboardingEnum -Value ([string]$action.afterClassification) -Allowed @('ABSENT', 'CORRECT', 'COMPATIBLE', 'INCOMPATIBLE', 'DRIFTED', 'UNKNOWN') -Field '$.actions.afterClassification'
+        $ordinal = 0
+        if (-not [int]::TryParse([string]$action.ordinal, [ref]$ordinal) -or
+            $ordinal -lt 1 -or $ordinal -gt 16 -or -not $actionOrdinals.Add($ordinal)) {
+            throw (New-OnboardingContractError -Code 'INVALID_ACTION_ORDINAL' -Field '$.actions.ordinal')
+        }
+        foreach ($fingerprintName in @('beforeFingerprint', 'afterFingerprint')) {
+            if ([string]$action[$fingerprintName] -cnotmatch $script:DigestPattern) {
+                throw (New-OnboardingContractError -Code 'INVALID_DIGEST' -Field "$.actions.$fingerprintName")
+            }
+        }
+        $resourceKind = [string]$action.resourceKind
+        $resourceKey = [string]$action.resourceKey
+        if (($resourceKind -ceq 'SHOPIFY_HOME_DEFINITION' -and
+                $resourceKey -cnotin @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')) -or
+            ($resourceKind -ceq 'SHOPIFY_HOME_ACCEPTANCE_PROBE' -and
+                $resourceKey -cne 'gate8-operator-acceptance-v1')) {
+            throw (New-OnboardingContractError -Code 'INVALID_RESOURCE_KEY' -Field '$.actions.resourceKey')
+        }
         if ($null -ne $action.providerResourceId -and [string]$action.providerResourceId -cnotmatch '^gid://shopify/[A-Za-z][A-Za-z0-9]{0,64}/[0-9]+$') {
             throw (New-OnboardingContractError -Code 'INVALID_PROVIDER_RESOURCE_ID' -Field '$.actions.providerResourceId')
         }
@@ -691,12 +739,23 @@ function Import-OnboardingReceipt {
             -Required @('surface', 'resourceKey', 'classification', 'identityFingerprint') -Field '$.readback'
         Assert-OnboardingEnum -Value ([string]$readback.surface) -Allowed @('SHOPIFY_ADMIN', 'SHOPIFY_STOREFRONT', 'CUSTOMER_DISCOVERY', 'FIREBASE_MANAGEMENT', 'ANDROID_BUILD', 'ANDROID_RUNTIME') -Field '$.readback.surface'
         Assert-OnboardingEnum -Value ([string]$readback.classification) -Allowed @('PASS', 'FAIL', 'NOT_RUN', 'PARTIAL', 'EXTERNALLY_BLOCKED', 'NOT_APPLICABLE') -Field '$.readback.classification'
+        Assert-OnboardingText -Value ([string]$readback.resourceKey) -Field '$.readback.resourceKey'
+        if ([string]$readback.identityFingerprint -cnotmatch $script:DigestPattern) {
+            throw (New-OnboardingContractError -Code 'INVALID_DIGEST' -Field '$.readback.identityFingerprint')
+        }
     }
     foreach ($recovery in (Assert-OnboardingArray -Value $receipt.recovery -Field '$.recovery' -MaximumCount 16)) {
         Assert-OnboardingObjectFields -Object $recovery `
             -Allowed @('ordinal', 'resourceKind', 'resourceKey', 'classification', 'nextAction') `
             -Required @('ordinal', 'resourceKind', 'resourceKey', 'classification', 'nextAction') -Field '$.recovery'
         Assert-OnboardingEnum -Value ([string]$recovery.nextAction) -Allowed @('REINSPECT', 'RESTORE_LOCAL_BACKUP', 'MANUAL_REVIEW', 'NO_ACTION') -Field '$.recovery.nextAction'
+        Assert-OnboardingEnum -Value ([string]$recovery.resourceKind) -Allowed @('LOCAL_CONFIGURATION', 'SHOPIFY_HOME_DEFINITION', 'SHOPIFY_HOME_ACCEPTANCE_PROBE') -Field '$.recovery.resourceKind'
+        Assert-OnboardingEnum -Value ([string]$recovery.classification) -Allowed @('ABSENT', 'CORRECT', 'COMPATIBLE', 'INCOMPATIBLE', 'DRIFTED', 'UNKNOWN') -Field '$.recovery.classification'
+        $recoveryOrdinal = 0
+        if (-not [int]::TryParse([string]$recovery.ordinal, [ref]$recoveryOrdinal) -or $recoveryOrdinal -lt 1 -or $recoveryOrdinal -gt 16) {
+            throw (New-OnboardingContractError -Code 'INVALID_ACTION_ORDINAL' -Field '$.recovery.ordinal')
+        }
+        Assert-OnboardingText -Value ([string]$recovery.resourceKey) -Field '$.recovery.resourceKey'
     }
     return $receipt
 }
