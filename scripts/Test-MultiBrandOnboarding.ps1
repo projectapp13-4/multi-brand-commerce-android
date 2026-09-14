@@ -324,12 +324,39 @@ function Invoke-ConfigurationSuite {
         -Name 'superseded root example is removed'
 }
 
+function Invoke-EnrollmentSuite {
+    foreach ($lane in @('unit', 'assemble', 'api30', 'api23')) {
+        & (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1') -Lane $lane -ValidateOnly
+        Assert-True -Condition $true -Name "registry and workflow cover $lane lane"
+    }
+    $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gate8-enrollment-' + [guid]::NewGuid().ToString('N'))
+    [System.IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
+    try {
+        $badPath = Join-Path $temporaryRoot 'bad-registry.json'
+        $json = [System.IO.File]::ReadAllText($registryPath, [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText(
+            $badPath,
+            $json.Replace('":mobile-core:ciApi23DebugAndroidTest"', '":mobile-core:missingApi23"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $badPath -RepositoryRoot $repoRoot } `
+            -Pattern 'CI_LANE_UNION_MISMATCH|MISSING_REQUIRED_CI_TASK' `
+            -Name 'missing required API 23 coverage fails'
+    } finally {
+        Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+    }
+}
+
 switch ($Suite) {
     'Registry' { Invoke-RegistrySuite }
     'Configuration' { Invoke-ConfigurationSuite }
+    'Enrollment' { Invoke-EnrollmentSuite }
     'All' {
         Invoke-RegistrySuite
         Invoke-ConfigurationSuite
+        Invoke-EnrollmentSuite
     }
     default {
         throw "Suite $Suite has not been implemented yet."

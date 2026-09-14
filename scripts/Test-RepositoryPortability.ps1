@@ -35,16 +35,16 @@ function Read-Text {
 }
 
 function Get-ModuleInventory {
-    return @(
-        [pscustomobject]@{ LogicalPath = ':app'; Directory = 'app'; Role = 'application-gurbakir' }
-        [pscustomobject]@{ LogicalPath = ':synthetic'; Directory = 'apps/synthetic'; Role = 'application-synthetic' }
-        [pscustomobject]@{ LogicalPath = ':mobile-core'; Directory = 'mobile-core'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':foundation'; Directory = 'foundation'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':storefront'; Directory = 'storefront'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':account'; Directory = 'account'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':checkout'; Directory = 'checkout'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':firebase'; Directory = 'firebase'; Role = 'provider' }
-    )
+    $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    if (-not (Test-Path -LiteralPath $registryPath -PathType Leaf)) { throw 'Onboarding registry is missing.' }
+    $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable
+    return @($registry.modules | ForEach-Object {
+        [pscustomobject]@{
+            LogicalPath = [string]$_.gradleProject
+            Directory = [string]$_.directory
+            Role = [string]$_.role
+        }
+    })
 }
 
 function Get-IncludedProjectPaths {
@@ -116,7 +116,7 @@ function Test-ApprovedTopology {
         ':apps' -notin $includedProjects -and
         $syntheticMappingCorrect
     $evidence = if ($passed) {
-        "8 included subprojects; :synthetic -> apps/synthetic; no :apps project"
+        "$($expectedProjects.Count) explicitly enrolled subprojects; :synthetic -> apps/synthetic; no :apps project"
     } else {
         "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); synthetic mapping: $($mappings[':synthetic'])"
     }
@@ -1166,8 +1166,9 @@ try {
         '.gitignore',
         '.gitleaks.toml',
         '.gitleaksignore',
-        'config/local.defaults.properties',
-        'config/local.properties.example',
+        'config/onboarding/application-registry.v1.json',
+        'config/onboarding/generated/gurbakir/development.properties',
+        'config/onboarding/generated/gurbakir/staging.properties',
         'app/src/main/AndroidManifest.xml',
         'apps/synthetic/src/main/AndroidManifest.xml',
         'mobile-core/consumer-rules.pro',
@@ -1241,18 +1242,22 @@ try {
         $wrapperJarHash -eq '55243EF57851F12B070AD14F7F5BB8302DACEEEBC5BCE5ECE5FA6EDB23E1145C'
     Add-Check -Name 'Gradle wrapper is complete and pinned' -Passed $wrapperPinned -Evidence "Gradle 9.4.1; wrapper jar SHA256 $wrapperJarHash"
 
-    $defaults = Read-Text 'config/local.defaults.properties'
-    $defaultsFailClosed = $null -ne $defaults -and
-        $defaults -match '(?m)^shopify\.storefrontPublicToken=\s*$' -and
-        $defaults -match '(?m)^shopify\.catalogMenuHandle=\s*$' -and
-        (Test-RemovedProviderControlsAbsent $defaults)
-    Add-Check -Name 'tracked local defaults fail closed' -Passed $defaultsFailClosed -Evidence 'Storefront public token and Catalog Menu selector empty; no provider or telemetry control'
+    $projectionFiles = @(
+        'config/onboarding/generated/gurbakir/development.properties',
+        'config/onboarding/generated/gurbakir/staging.properties'
+    )
+    $projectionsContainNoClientValues = $projectionFiles | ForEach-Object { Read-Text $_ } | Where-Object {
+        $_ -match '(?m)^shopify\.storefrontPublicToken=' -or $_ -match '(?m)^shopify\.customerAccountClientId='
+    }
+    Add-Check -Name 'tracked projections contain no controlled client values' `
+        -Passed (@($projectionsContainNoClientValues).Count -eq 0) `
+        -Evidence 'profile projections contain selectors and identities but no Storefront token or Customer client ID'
 
     $providerControlRecords = @(
         foreach ($relativeRoot in @('foundation/src', 'app/src', 'apps/synthetic/src')) {
             Get-ProductionSourceRecords $repoRoot $relativeRoot
         }
-        foreach ($relativePath in @('app/build.gradle.kts', 'config/local.defaults.properties', 'config/local.properties.example')) {
+        foreach ($relativePath in @('app/build.gradle.kts', 'config/onboarding/application-registry.v1.json')) {
             $text = Read-Text $relativePath
             if ($null -ne $text) {
                 [pscustomobject]@{ path = $relativePath; text = $text }
@@ -1268,6 +1273,7 @@ try {
     $ignoreRulesPresent = $null -ne $gitignore -and
         $gitignore -match '(?m)^local\.properties\s*$' -and
         $gitignore -match '(?m)^config/local\.properties\s*$' -and
+        $gitignore -match '(?m)^config/local/\s*$' -and
         $gitignore -match '(?m)^\*\*/google-services\.json\s*$' -and
         $gitignore -match '(?m)^\*\.jks\s*$' -and
         $gitignore -match '(?m)^\*\.keystore\s*$' -and

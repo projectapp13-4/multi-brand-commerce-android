@@ -530,6 +530,25 @@ function Import-OnboardingRegistry {
         if (@($tasks | Select-Object -Unique).Count -ne $tasks.Count) {
             throw (New-OnboardingContractError -Code 'DUPLICATE_CI_TASK' -Field "$.ciLanes.$lane")
         }
+        $moduleTasks = @(
+            foreach ($module in $modules) {
+                foreach ($task in @($module.ciTasks[$lane])) { [string]$task }
+            }
+        )
+        if ((@($moduleTasks | Sort-Object) -join "`n") -cne
+            (@($tasks | ForEach-Object { [string]$_ } | Sort-Object) -join "`n")) {
+            throw (New-OnboardingContractError -Code 'CI_LANE_UNION_MISMATCH' -Field "$.ciLanes.$lane")
+        }
+    }
+    foreach ($required in @(
+        ':mobile-core:ciApi23DebugAndroidTest',
+        ':synthetic:ciApi23DebugAndroidTest',
+        ':app:testDevelopmentDebugUnitTest',
+        ':app:testStagingDebugUnitTest'
+    )) {
+        if ($required -notin @($registry.ciLanes.unit) -and $required -notin @($registry.ciLanes.api23)) {
+            throw (New-OnboardingContractError -Code 'MISSING_REQUIRED_CI_TASK' -Field $required)
+        }
     }
     return $registry
 }

@@ -133,10 +133,16 @@ function Invoke-PublicReadinessValidation {
     if ($includeMatch.Success) {
         $actualModules = @([regex]::Matches($includeMatch.Groups[1].Value, '"(:[A-Za-z0-9-]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
     }
-    $expectedModules = @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic')
+    $registryPath = Join-Path $rootPath 'config\onboarding\application-registry.v1.json'
+    $expectedModules = if (Test-Path -LiteralPath $registryPath) {
+        @((Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable).modules |
+            ForEach-Object { [string]$_.gradleProject } | Sort-Object -Unique)
+    } else {
+        @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic')
+    }
     $moduleDifference = @(Compare-Object -ReferenceObject $expectedModules -DifferenceObject $actualModules)
     $moduleGraphOk = $moduleDifference.Count -eq 0 -and $settings -match 'project\(":synthetic"\)\.projectDir\s*=\s*file\("apps/synthetic"\)'
-    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected eight modules and apps/synthetic mapping"))
+    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected explicitly enrolled modules and apps/synthetic mapping"))
 
     $text = Get-TextContent -Root $rootPath -RelativePaths $normalizedFiles
     $publicText = Get-TextContent -Root $rootPath -RelativePaths @(
