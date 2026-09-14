@@ -6,7 +6,7 @@
 
 **Immutable execution base:** `f0e7d007628ae9afd520e30d85cbd4204ed064f7`
 
-**Last code checkpoint before this handoff:** `297d67a14f1a2f0212cffa64ed3ef01d5ab59de9`
+**Last code checkpoint before final evidence reconciliation:** `aa13bc35367e6119dd0bdf9dad0629542ff06ec6`
 
 **Branch:** `codex/gate-7-bounded-home-content`
 
@@ -41,8 +41,13 @@ No Room, DataStore, protected-store, OAuth, Firebase, application-ID, signing, m
 | `7c76640` | Atomically cut configuration, repository, ViewModel, DI, UI and tests to the combined Home contract |
 | `1b01f4e` | Add structural, package and active API 23 conformance enforcement |
 | `297d67a` | Make the reusable mobile-core instrumentation lane compatible with API 23 |
+| `30469eb` | Add this pre-merge completion handoff and configured-acceptance record |
+| `8cf8369` | Preserve the synchronous preference commit result under Android Lint |
+| `f43eff3` | Harden timestamp, GraphQL-operation and consumed-selector validation after review |
+| `01ce2dd` | Fail closed on invalid persistence input, fix TTL ownership and bind synthetic composition checks |
+| `aa13bc3` | Report partial packaged rendering truthfully and reject incomplete LKG batches |
 
-The final implementation diff through `297d67a` changes 57 files with 4,232 insertions and 1,065 deletions. The handoff and its factual plan-status update are the only intended changes after that checkpoint before exact-candidate validation.
+The implementation and evidence diff through `aa13bc3` changes 58 files with 4,618 insertions and 1,066 deletions. This final factual handoff update is intentionally committed before the exact-candidate matrix.
 
 ## 3. Contract and implementation
 
@@ -130,9 +135,26 @@ No order, payment, customer, inventory, price, market, publication-channel or re
 - The first physical conformance compilation inferred a non-Unit expression-body return. The test body was made explicitly Unit and then passed 2/2.
 - During local credential-assisted execution, a controlled public Storefront client token appeared once in local tool output. It is absent from Git, test reports, screenshots, operator evidence and this handoff. Because public Storefront tokens are extractable by design but still controlled project configuration, consumer-safe rotation must be assessed and completed before Gate 7 closure; the value must not be copied into any issue, PR, CI log or future report.
 
+The first complete documentation-bearing candidate at `8cf8369` then produced this exact local evidence before review corrections:
+
+- `spotlessCheck detekt lint`: 327 tasks, successful in 4 minutes 9 seconds;
+- Apollo generation plus the complete shared/application JVM suite with `--rerun-tasks --no-build-cache`: 227 tasks, successful in 5 minutes 40 seconds;
+- complete reusable/application/synthetic debug, release and Android-test assembly with `--rerun-tasks --no-build-cache`: 754 tasks, successful in 24 minutes 38 seconds;
+- combined mobile-core/synthetic API 23 execution with `--rerun-tasks --no-build-cache`: 215 tasks, successful in 14 minutes 13 seconds, with 122 mobile-core tests and 14 synthetic tests; the two synthetic skips are the explicitly procedure/device-dependent process-boundary cases;
+- portability self-test/live checks, public-readiness self-test/live checks and synthetic package self-test/all-variant inspection all passed;
+- redacted working-tree and Git-history Gitleaks scans found no leaks.
+
+Local API 30 managed-device execution remains environment-blocked. An initial command typo named a nonexistent task and ran no tests. The corrected command then failed during `:account:ciApi30Setup` because this Android SDK does not expose the required `system-images;android-30;aosp_atd;x86` package. A fresh installation attempt exited successfully but did not make that package available, and a proof retry failed at the same setup boundary. This is not a test PASS; GitHub's exact-candidate API 30 job remains required.
+
+The connected Android 13 aggregate mobile-core run executed 124 tests and had one failure in the unchanged `AccountScreenTest.browserHandoffKeepsContextAndDisablesDuplicateSignIn` because `account-status` was not displayed. Its immediate isolated rerun on the same device passed 1/1, and the same test passed in the API 23 aggregate. The failure remains recorded as suite-order/device flake evidence. Separate connected app and synthetic runs completed with zero failures; app had one expected Firebase-proof skip and synthetic had two expected process-proof skips.
+
+CodeRabbit's first review attempt ended with a recoverable WebSocket closure and was not counted as a completed review. The next completed review identified five items. The planned post-merge lifecycle wording was retained as intentionally deferred; the four substantive findings were fixed with discriminating RED tests for operation-scoped GraphQL checks, consumed synthetic composition, malformed root timestamps, invalid persistence input and fixed TTL ownership. A follow-up exposed two additional truthful-result defects: partial packaged rendering reported `COMPLETE`, and an incomplete LKG resource batch could be accepted. Both new tests failed first and passed after correction. The final committed CodeRabbit review covered 57 files and returned zero findings.
+
+The focused Codex Security diff scan `6c415a36-d27f-4a86-a03c-a87777508fe5` reviewed all 37 executable/source-like workbench items through `aa13bc3`, recorded complete coverage across eight surfaces and completed with zero findings. It used the documented parent-thread fallback because delegation was unavailable under the active session policy. Daybreak access was not granted, which may limit protected-result display but did not gate the scan. The generated report remains an external local artifact and is not committed into the repository.
+
 ## 8. Honest pending evidence
 
-The following are not yet claimed for the documentation-bearing candidate:
+The following are not yet claimed for the final documentation-bearing candidate created by this handoff update:
 
 - final `spotlessCheck detekt lint`;
 - final complete JVM suite and Apollo generation;
@@ -141,7 +163,6 @@ The following are not yet claimed for the documentation-bearing candidate:
 - fresh final combined API 23 lane, including actual synthetic execution;
 - final portability, public-readiness and synthetic package checks on a clean worktree;
 - final redacted history/tree Gitleaks scans and dependency-integrity checks;
-- whole-candidate code review and focused security/privacy review;
 - protected pull request, resolved conversations or GitHub's three required exact-SHA checks;
 - owner-authorized merge, merged-main ancestry/tree verification or post-merge CI.
 
