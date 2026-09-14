@@ -151,6 +151,7 @@ class HomeContentCodec @Inject constructor() {
             ).also { require(it.isValid()) }
         }
 
+    @Suppress("ReturnCount") // Each exit preserves a distinct bounded rejection classification.
     private fun <T> decode(raw: String, maximumBytes: Int, block: (JsonObject) -> T): HomeCodecDecode<T> {
         if (raw.byteSize() > maximumBytes) return HomeCodecDecode.Rejected(HomeCodecRejection.OVERSIZED)
         val parsed = try {
