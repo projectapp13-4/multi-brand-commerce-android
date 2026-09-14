@@ -2,11 +2,11 @@
 
 Status: **Final pre-merge candidate evidence; configured nonproduction provider acceptance is externally blocked; Gate 8 is not technically closed.**
 
-Evidence date: 2026-09-14.
+Evidence date: 2026-09-15.
 
 Implementation base: `ea936053b6d221a2abdfccf2f207167797ca330e`.
 
-Reviewed implementation-source commit: `91b45a6a3499b0301575ba09c3dfa41a33b52dd0`.
+Reviewed implementation-source commit: `75d26c1a513cc724b51d597599d72a6233575d5b`.
 
 Approved durable plan digest: `ce66e5ad7c5d830b4fcfc895e32dbb41a98871eaedf4636b239359a87bf6175a`.
 
@@ -27,7 +27,7 @@ Gate 8 implements the approved offline provisioning and onboarding foundation:
 
 ## Completed local verification
 
-All results below were obtained from the Gate 8 worktree. Android managed-device results were obtained on ancestor `7f4bda23ddd692eac460369d6634c06fff676726`; the only later implementation change is the PowerShell-only manual-checkpoint validation/Windows private-file fix at the reviewed implementation-source commit above. Static analysis, JVM, assembly, tooling, portability, package, and secret checks were rerun after that correction and the final handoff commit.
+All results below were obtained from the Gate 8 worktree. Every Android managed-device target was rerun on documentation candidate `ae5c8c4f255d480380b25abbff8b4307453bf812`. The only later implementation changes are the PowerShell success-exit correction, explicit GitHub Android SDK package input, and their public-readiness fixture at the reviewed implementation-source commit above; no Android source, Gradle project/build configuration, test APK input, or managed-device task changed. Static analysis, JVM, assembly, tooling, portability, package, and secret checks were rerun after the correction and the final handoff commit.
 
 | Verification | Result | Evidence |
 |---|---|---|
@@ -49,15 +49,15 @@ All results below were obtained from the Gate 8 worktree. Android managed-device
 | API 23 Synthetic instrumentation | **PASS** | 14 tests reported, two expected paired process-restart proof skips, zero failures |
 | Repository portability self-tests | **PASS** | 68/68 |
 | Current repository portability validation | **PASS** | 46/46; final `-RequireCleanWorktree` run 47/47 |
-| Public-readiness self-tests | **PASS** | 16/16 |
-| Current public-readiness validation | **PASS** | 21/21 |
+| Public-readiness self-tests | **PASS** | 17/17, including the implicit legacy Android SDK package counterexample |
+| Current public-readiness validation | **PASS** | 22/22 |
 | Firebase zero-file boundary | **PASS** | All four files absent; local-default state accepted and configured Firebase evidence not claimed |
 | Synthetic package self-tests | **PASS** | 49 hostile/positive fixtures |
 | Synthetic debug/release package validation | **PASS** | 63 checks, including Firebase/INTERNET/credential/identity boundaries |
 | Gitleaks current tree | **PASS** | No leaks in approximately 5.12 MB scanned |
 | Gitleaks branch history | **PASS** | No leaks in 44 commits / approximately 6.64 MB scanned on the documentation-bearing candidate |
 
-The first combined API 30 invocation exhausted local emulator resources after the Account target had completed 7/7. The transient Gradle-managed emulator was stopped, and the remaining targets were rerun as isolated module invocations. Every required target then completed with zero test failures. This was an execution-environment resource failure, not a promoted PASS; the table records only the successful actual target executions.
+During the exact-candidate rerun, the first combined API 30 attempt reached the Storefront task with an emulator that had no Android package or activity service, so Gradle stopped before the remaining targets. Storefront then passed 7/7 in isolation. The first isolated Mobile Core attempt reached 116 reported results with zero assertion failures before the emulator went offline; the unchanged task was rerun with a smaller one-shot host Gradle heap and passed 126/126. Account, app, Synthetic, and both API 23 targets also completed on the exact candidate. These failed attempts remain classified as local managed-emulator lifecycle/resource failures and are not promoted to PASS; the table records the later successful actual executions.
 
 The package validator initially found no Synthetic release artifact because the preceding API 23 clean had removed it. The planned release APK was rebuilt and the unchanged validator then passed all 63 checks. No source correction was needed.
 
@@ -77,6 +77,8 @@ The candidate was reviewed against the durable Gate 8 plan and the preserved Gat
 - exact Shopify Customer Account endpoint-host validation before local configuration or discovery acceptance.
 
 The first immutable formal security scan of documentation candidate `20bd66f778e884cffb946b4e766645def1495bdc` found one medium-severity evidence-integrity defect: `RecordManualCheckpoint` could hash and record a semantically mismatched callback and unconstrained evidence reference. Focused RED tests reproduced both cases. Commit `91b45a6a3499b0301575ba09c3dfa41a33b52dd0` now invokes the existing independent binding/profile client validator, enforces the approved evidence-reference grammar, verifies the sanitized digest-only record, and corrects the Windows private-file ACL SID form exercised by that path. The updated security suite passes 42/42. A fresh exact-final-candidate diff scan is required after this handoff commit; the superseded finding is not concealed or promoted as final-candidate evidence.
+
+Pull-request run `34892805324` on `ae5c8c4f255d480380b25abbff8b4307453bf812` then exposed two CI-contract failures after the local matrix. The onboarding command printed PASS 85/85 but returned the final expected negative fixture's native exit code to the multi-command Linux PowerShell step. Both Android jobs stopped before Gradle because the pinned `android-actions/setup-android` action's implicit package list still included the removed legacy SDK package `tools`. Commit `75d26c1a513cc724b51d597599d72a6233575d5b` explicitly resets the successful suite exit state, configures all three pinned setup actions with `packages: platform-tools`, and adds a public-readiness counterexample that rejects the legacy implicit package. The exact workflow command block now completes through all four registered lane validations with exit code zero. The failed run remains evidence and is not relabeled; fresh exact pull-request-head required checks are still required.
 
 Focused review of authentication, privileged credentials, target binding, SSRF, redirects, receipt tampering, path/reparse escape, shell construction, response bounds, pagination, drift, merchant-content preservation, partial apply, redaction, and CI credential inheritance found no remaining release-blocking source issue. Final documentation-only candidate checks and protected pull-request review/CI remain required after this handoff commit.
 
