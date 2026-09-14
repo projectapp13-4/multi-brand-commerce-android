@@ -73,6 +73,17 @@ class AndroidHomeContentStoreTest {
     }
 
     @Test
+    fun wrongPrimitiveTypeForMarkerDoesNotCrashSnapshotEviction() = runBlocking {
+        val preferences =
+            context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        check(preferences.edit().putLong(HOME_ESTABLISHMENT_KEY, 7L).commit())
+        check(preferences.edit().putString(HOME_SNAPSHOT_KEY, "retained-unknown-snapshot").commit())
+
+        assertEquals(HomeStoreWrite.CONFIRMED, store.evictSnapshot(partition))
+        assertEquals("retained-unknown-snapshot", preferences.getString(HOME_SNAPSHOT_KEY, null))
+    }
+
+    @Test
     fun invalidReplacementIsUnconfirmedInsteadOfThrowing() = runBlocking {
         val invalidMarker = marker().copy(firstEstablishedAtMillis = -1L)
 

@@ -109,7 +109,19 @@ constructor(
         now: Long
     ): HomeLoadResult {
         val deadline = HomeEditorialClockPolicy.deadline(now, HOME_EDITORIAL_TTL_MILLIS)
-            ?: return HomeLoadResult.Failed(HomeLoadFailure(HomeLoadFailureCategory.CONFIGURATION, false))
+            ?: return when (
+                coordinator.resolveFailure(
+                    token,
+                    partition,
+                    snapshot.contentVersion,
+                    now
+                )
+            ) {
+                is HomeFailureAuthority.Current ->
+                    HomeLoadResult.Failed(HomeLoadFailure(HomeLoadFailureCategory.CONFIGURATION, false))
+
+                HomeFailureAuthority.Superseded -> HomeLoadResult.Superseded
+            }
         val stored = HomeStoredSnapshot(partition, now, deadline, snapshot)
         val existingMarker = (storedRead as? HomeStoreRead.Established)?.marker
         val marker = HomeEstablishmentRecord(

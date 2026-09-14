@@ -189,6 +189,28 @@ class HomeCombinedContentRepositoryTest {
         assertEquals(HomeLoadResult.Superseded, late.await())
     }
 
+    @Test
+    fun `late deadline overflow is superseded after newer remote acceptance`() = runTest {
+        val store = FakeStore(HomeStoreRead.NeverEstablished)
+        val coordinator = HomeContentAcceptanceCoordinator(store)
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val lateRepository = repository(
+            DeferredSuccessGateway(started, release, document()),
+            store,
+            coordinator,
+            FixedClock(Long.MAX_VALUE)
+        )
+        val newerRepository = repository(FakeGateway(StorefrontResult.Success(document())), store, coordinator)
+
+        val late = async { lateRepository.load(HomeLoadTrigger.INITIAL) }
+        started.await()
+        assertInstanceOf(HomeLoadResult.Accepted::class.java, newerRepository.load(HomeLoadTrigger.INITIAL))
+        release.complete(Unit)
+
+        assertEquals(HomeLoadResult.Superseded, late.await())
+    }
+
     private fun repository(gateway: FakeGateway, read: HomeStoreRead): DefaultHomeContentRepository {
         val store = FakeStore(read)
         return repository(gateway, store, HomeContentAcceptanceCoordinator(store))
@@ -197,14 +219,15 @@ class HomeCombinedContentRepositoryTest {
     private fun repository(
         gateway: StorefrontHomeGateway,
         store: HomeContentStore,
-        coordinator: HomeContentAcceptanceCoordinator
+        coordinator: HomeContentAcceptanceCoordinator,
+        clock: HomeEditorialClock = FixedClock(NOW)
     ): DefaultHomeContentRepository = DefaultHomeContentRepository(
         gateway = gateway,
         configuration = remoteConfiguration(),
         validator = HomeContentValidator(),
         store = store,
         coordinator = coordinator,
-        clock = FixedClock(NOW),
+        clock = clock,
         partition = PARTITION
     )
 
@@ -368,6 +391,27 @@ class HomeCombinedContentRepositoryTest {
             started.complete(Unit)
             release.await()
             return StorefrontResult.Failure(StorefrontFailure.Transport(true))
+        }
+
+        override suspend fun loadHomeResources(keys: List<HomeResourceKey>) =
+            StorefrontResult.Success(HomeResourceBatch(emptyList()))
+
+        override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(null)
+
+        override suspend fun loadHomeProduct(handle: String) = StorefrontResult.Success(null)
+    }
+
+    private class DeferredSuccessGateway(
+        private val started: CompletableDeferred<Unit>,
+        private val release: CompletableDeferred<Unit>,
+        private val document: HomeDocumentObservation
+    ) : StorefrontHomeGateway {
+        override suspend fun loadHomeDocument(
+            selector: HomeDocumentSelector
+        ): StorefrontResult<HomeDocumentObservation?> {
+            started.complete(Unit)
+            release.await()
+            return StorefrontResult.Success(document)
         }
 
         override suspend fun loadHomeResources(keys: List<HomeResourceKey>) =

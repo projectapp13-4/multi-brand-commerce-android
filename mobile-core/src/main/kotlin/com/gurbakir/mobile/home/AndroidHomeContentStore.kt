@@ -110,7 +110,7 @@ constructor(
 
     override suspend fun evictSnapshot(partition: HomeContentPartition): HomeStoreWrite = withContext(dispatcher) {
         mutex.withLock {
-            val marker = preferences.getString(HOME_ESTABLISHMENT_KEY, null)
+            val marker = (preferences.all[HOME_ESTABLISHMENT_KEY] as? String)
                 ?.let(codec::decodeMarker)
                 ?.let { it as? HomeCodecDecode.Accepted }
                 ?.value
