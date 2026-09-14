@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-13
+Status date: 2026-09-14
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -17,23 +17,30 @@ history, protected bootstrap, and historical-archive cutover evidence.
   ViewModel/`StateFlow` unidirectional data flow, Hilt, Apollo Kotlin, Room,
   DataStore, Android Keystore-backed protected state, Shopify Storefront and
   Customer Account APIs, Checkout Kit, and bounded Firebase infrastructure.
-- Multi-Brand Gates 0–6 are complete. Gate 6 is technically closed: its final
-  pull request was merged into `44202d31da8820a1f1766cb767bc0a1619d9c07e`,
-  and the exact merged-main push run `34710233503` completed `validate`, API 30
+- Multi-Brand Gates 0–7 are complete. Gate 7 is technically closed: protected
+  PR #6 merged the final candidate `e0a62e9047f2cc6d3241bdb3b4c963fdbdae27e0`
+  as merge commit `3b22707f27f71973383cf176503f8d967ece9b05`,
+  and exact merged-main push run `34816195929` completed `validate`, API 30
   `instrumentation`, and API 23 `minimum-sdk-instrumentation` successfully.
-  This was reverified immediately before the public-repository migration.
-- [`multi-brand/GATE-6-COMPLETION-HANDOFF.md`](multi-brand/GATE-6-COMPLETION-HANDOFF.md)
+- Gate 7 implements bounded Shopify-driven Home editorial content through an
+  application-selected metaobject root, finite native collection-grid and
+  featured-product rendering, typed Product/Collection actions, editorial-only
+  LKG persistence and deterministic fallback/expiry behavior. Android retains
+  executable/navigation/capability/security authority and live commerce truth.
+- [`multi-brand/GATE-7-COMPLETION-HANDOFF.md`](multi-brand/GATE-7-COMPLETION-HANDOFF.md)
   remains the historically accurate pre-merge implementation/evidence record;
   it is not rewritten to claim later lifecycle events.
 - The Multi-Brand migration remains unfinished. Gürbakır `:app` is the first
   real brand application; `:synthetic` is not a merchant application; no second
-  real brand application exists.
+  real brand application exists. Gate 8 provisioning/onboarding automation,
+  second-store proof and later cumulative conformance remain separately planned.
 - Phase 3 functional implementation and integrated acceptance are complete
   through **P3-15**. Account-deletion merchant acknowledgement,
   retention/SLA execution, and actual remote deletion remain externally
   unverified.
 - **P3-16 production/release readiness is not started.** Repository migration,
-  builds, tests, and public CI do not constitute release proof.
+  builds, tests, public CI and Multi-Brand Gate closure do not constitute
+  production-release proof.
 
 ## Authority order
 
@@ -97,7 +104,7 @@ archive and is not required for normal development.
 ## Historical Multi-Brand evidence
 
 The [`multi-brand`](multi-brand) directory retains accepted research and plans
-plus the individual Gate 1–6 completion handoffs. Handoffs preserve the
+plus the individual Gate 1–7 completion handoffs. Handoffs preserve the
 evidence and lifecycle wording of their checkpoint; current closure status is
 recorded only in the current indexes.
 
