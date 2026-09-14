@@ -160,10 +160,13 @@ constructor(
 
     private suspend fun loadPackagedFallback(): HomeLoadResult = coroutineScope {
         val fallback = configuration.packagedFallback
-        val collectionOutcomes = fallback.productRange.sources.take(fallback.productRange.itemLimit).map { source ->
+        val configuredCollections = fallback.productRange.sources.take(fallback.productRange.itemLimit)
+        val collectionDeferred = configuredCollections.map { source ->
             async { source to gateway.loadHomeCollection(source.handle) }
-        }.awaitAll()
-        val productOutcome = async { gateway.loadHomeProduct(fallback.featuredProduct.handle) }.await()
+        }
+        val productDeferred = async { gateway.loadHomeProduct(fallback.featuredProduct.handle) }
+        val collectionOutcomes = collectionDeferred.awaitAll()
+        val productOutcome = productDeferred.await()
         val sections = mutableListOf<HomeRenderedSection>()
         val collectionItems = collectionOutcomes.mapNotNull { (source, result) ->
             (result as? StorefrontResult.Success)?.value?.let { summary ->
@@ -178,7 +181,9 @@ constructor(
             )
         }
         val product = (productOutcome as? StorefrontResult.Success)?.value
+        var renderedProduct = false
         if (product != null && product.availableForSale && product.media != null) {
+            renderedProduct = true
             sections += HomeRenderedSection.FeaturedProduct(
                 fallback.featuredProduct.stableId,
                 HomeText.Packaged(fallback.featuredProduct.titleResourceId),
@@ -191,7 +196,11 @@ constructor(
                     HomeEditorialState.Packaged,
                     sections,
                     HomeContentSource.PACKAGED,
-                    HomeResourceStatus.COMPLETE,
+                    if (collectionItems.size + (if (renderedProduct) 1 else 0) == configuredCollections.size + 1) {
+                        HomeResourceStatus.COMPLETE
+                    } else {
+                        HomeResourceStatus.PARTIAL
+                    },
                     editorialExpiresAtMillis = null
                 ),
                 HomePersistenceStatus.NOT_APPLICABLE
@@ -321,7 +330,7 @@ constructor(
         val mapped = linkedMapOf<HomeResourceKey, StorefrontHomeResource>()
         resolutions.forEachIndexed { index, resolution ->
             if (resolution.requested != requested[index]) return null
-            val resource = resolution.resource ?: return@forEachIndexed
+            val resource = resolution.resource ?: return null
             if (resource.key != resolution.requested || mapped.put(resource.key, resource) != null) return null
             if (
                 (resource.key.kind == HomeResourceKind.COLLECTION && resource !is StorefrontHomeResource.Collection) ||

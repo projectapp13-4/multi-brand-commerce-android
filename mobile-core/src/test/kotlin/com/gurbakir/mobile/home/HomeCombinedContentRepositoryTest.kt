@@ -3,6 +3,7 @@
 package com.gurbakir.mobile.home
 
 import com.gurbakir.storefront.HomeCollectionReferencesObservation
+import com.gurbakir.storefront.HomeCollectionSummary
 import com.gurbakir.storefront.HomeCollectionsFieldObservation
 import com.gurbakir.storefront.HomeDocumentObservation
 import com.gurbakir.storefront.HomeDocumentSelector
@@ -57,6 +58,30 @@ class HomeCombinedContentRepositoryTest {
 
         assertEquals(HomeContentSource.PACKAGED, fallback.presentation.source)
         assertEquals(HomeLoadFailureCategory.CONNECTION, unavailable.failure.category)
+    }
+
+    @Test
+    fun `packaged fallback is partial when only configured collection cards render`() = runTest {
+        val failure = StorefrontResult.Failure(StorefrontFailure.Transport(retryable = true))
+        val gateway =
+            FakeGateway(
+                document = failure,
+                packagedCollection =
+                    HomeCollectionSummary(
+                        "gid://shopify/Collection/1",
+                        "current-handle",
+                        "Current title",
+                        media()
+                    )
+            )
+
+        val result = assertInstanceOf(
+            HomeLoadResult.Accepted::class.java,
+            repository(gateway, HomeStoreRead.NeverEstablished).load(HomeLoadTrigger.INITIAL)
+        )
+
+        assertEquals(HomeContentSource.PACKAGED, result.presentation.source)
+        assertEquals(HomeResourceStatus.PARTIAL, result.presentation.resourceStatus)
     }
 
     @Test
@@ -120,6 +145,28 @@ class HomeCombinedContentRepositoryTest {
 
         assertEquals(HomeContentSource.LKG, result.presentation.source)
         assertEquals(stored.expiresAtMillis, result.presentation.editorialExpiresAtMillis)
+    }
+
+    @Test
+    fun `lkg hydration rejects a null resource in the exact requested batch`() = runTest {
+        val key = HomeResourceKey(HomeResourceKind.COLLECTION, "gid://shopify/Collection/1")
+        val stored = storedGridSnapshot(key)
+        val gateway =
+            FakeGateway(
+                StorefrontResult.Failure(StorefrontFailure.Transport(true)),
+                HomeResourceBatch(listOf(HomeResourceResolution(key, null)))
+            )
+        val read =
+            HomeStoreRead.Established(
+                HomeEstablishmentRecord(PARTITION, NOW - 1_000L, 1),
+                stored,
+                HomeSnapshotRecovery.AVAILABLE
+            )
+
+        assertInstanceOf(
+            HomeLoadResult.Failed::class.java,
+            repository(gateway, read).load(HomeLoadTrigger.INITIAL)
+        )
     }
 
     private fun repository(gateway: FakeGateway, read: HomeStoreRead): DefaultHomeContentRepository {
@@ -268,7 +315,8 @@ class HomeCombinedContentRepositoryTest {
 
     private class FakeGateway(
         private val document: StorefrontResult<HomeDocumentObservation?>,
-        private val resources: HomeResourceBatch? = null
+        private val resources: HomeResourceBatch? = null,
+        private val packagedCollection: HomeCollectionSummary? = null
     ) : StorefrontHomeGateway {
         var documentCalls = 0
         override suspend fun loadHomeDocument(
@@ -280,7 +328,7 @@ class HomeCombinedContentRepositoryTest {
         override suspend fun loadHomeResources(keys: List<HomeResourceKey>) = StorefrontResult.Success(
             resources ?: HomeResourceBatch(keys.map { HomeResourceResolution(it, null) })
         )
-        override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(null)
+        override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(packagedCollection)
         override suspend fun loadHomeProduct(handle: String) = StorefrontResult.Success(null)
     }
 
