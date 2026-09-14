@@ -6,7 +6,7 @@
 
 **Immutable execution base:** `f0e7d007628ae9afd520e30d85cbd4204ed064f7`
 
-**Last code checkpoint before final evidence reconciliation:** `130606168daa9107b04afbd33496a6e5fe7e2684`
+**Last code checkpoint before final evidence reconciliation:** `875d8ade38e1d947389a521457602b3acb4d21b0`
 
 **Branch:** `codex/gate-7-bounded-home-content`
 
@@ -48,8 +48,10 @@ No Room, DataStore, protected-store, OAuth, Firebase, application-ID, signing, m
 | `aa13bc3` | Report partial packaged rendering truthfully and reject incomplete LKG batches |
 | `c8ed20c` | Reconcile the pre-merge evidence record after the first completed reviews |
 | `1306061` | Serialize failure authority after supersession and restore displaced expiry scheduling |
+| `2b0d69a` | Make the unbounded-query adversarial fixture exercise a real inserted selection |
+| `875d8ad` | Distinguish malformed JSON from invalid persisted values and tighten typed GIDs |
 
-The implementation and evidence diff through `1306061` changes 58 files with 4,758 insertions and 1,056 deletions. This final factual handoff update is intentionally committed before the exact-candidate matrix.
+The implementation and evidence diff through `875d8ad` changes 58 files with 4,799 insertions and 1,056 deletions. This final factual handoff update is intentionally committed before the exact-candidate matrix.
 
 ## 3. Contract and implementation
 
@@ -153,7 +155,7 @@ Local API 30 managed-device execution remains environment-blocked. An initial co
 
 The connected Android 13 aggregate mobile-core run executed 124 tests and had one failure in the unchanged `AccountScreenTest.browserHandoffKeepsContextAndDisablesDuplicateSignIn` because `account-status` was not displayed. Its immediate isolated rerun on the same device passed 1/1, and the same test passed in the API 23 aggregate. The failure remains recorded as suite-order/device flake evidence. Separate connected app and synthetic runs completed with zero failures; app had one expected Firebase-proof skip and synthetic had two expected process-proof skips.
 
-CodeRabbit's first review attempt ended with a recoverable WebSocket closure and was not counted as a completed review. The next completed review identified five items. The planned post-merge lifecycle wording was retained as intentionally deferred; the four substantive findings were fixed with discriminating RED tests for operation-scoped GraphQL checks, consumed synthetic composition, malformed root timestamps, invalid persistence input and fixed TTL ownership. A follow-up exposed two additional truthful-result defects: partial packaged rendering reported `COMPLETE`, and an incomplete LKG resource batch could be accepted. Both new tests failed first and passed after correction. A later review of the first handoff-bearing candidate found that a late failed request could decide fallback from stale ownership state and that a superseded refresh could leave the retained presentation without an expiry timer. Both new regression tests compiled and failed on the reported behavior, then passed after the serialized failure-decision and timer-reinstallation fixes in `1306061`. An exact review of the final documentation-bearing candidate remains pending.
+CodeRabbit's first review attempt ended with a recoverable WebSocket closure and was not counted as a completed review. The next completed review identified five items. The planned post-merge lifecycle wording was retained as intentionally deferred; the four substantive findings were fixed with discriminating RED tests for operation-scoped GraphQL checks, consumed synthetic composition, malformed root timestamps, invalid persistence input and fixed TTL ownership. A follow-up exposed two additional truthful-result defects: partial packaged rendering reported `COMPLETE`, and an incomplete LKG resource batch could be accepted. Both new tests failed first and passed after correction. A later review of the first handoff-bearing candidate found that a late failed request could decide fallback from stale ownership state and that a superseded refresh could leave the retained presentation without an expiry timer. Both new regression tests compiled and failed on the reported behavior, then passed after the serialized failure-decision and timer-reinstallation fixes in `1306061`. The next pass found a literal-newline mistake in an adversarial PowerShell fixture plus two strict-codec classification/typed-GID gaps. The fixture was corrected, both codec tests reproduced RED, and all focused tests passed after `875d8ad`. An exact review of the final documentation-bearing candidate remains pending.
 
 The focused Codex Security diff scan `6c415a36-d27f-4a86-a03c-a87777508fe5` reviewed all 37 executable/source-like workbench items through `aa13bc3`, recorded complete coverage across eight surfaces and completed with zero findings. It used the documented parent-thread fallback because delegation was unavailable under the active session policy. Daybreak access was not granted, which may limit protected-result display but did not gate the scan. The generated report remains an external local artifact and is not committed into the repository.
 
