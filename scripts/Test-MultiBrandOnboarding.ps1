@@ -413,6 +413,21 @@ function Invoke-RegistrySuite {
         Assert-True -Condition ($receipt.operationContractVersion -ceq 'gate8-v1') `
             -Name 'closed Plan receipt is accepted'
 
+        $receiptSchema = Get-Content `
+            -LiteralPath (Join-Path $repoRoot 'config\onboarding\operator-receipt.schema.v1.json') `
+            -Raw | ConvertFrom-Json
+        $timestampDefinition = $receiptSchema.'$defs'.utcSecondTimestamp
+        Assert-True `
+            -Condition (
+                $null -ne $timestampDefinition -and
+                [string]$receiptSchema.properties.createdAtUtc.'$ref' -ceq '#/$defs/utcSecondTimestamp' -and
+                [string]$receiptSchema.properties.expiresAtUtc.oneOf[0].'$ref' -ceq '#/$defs/utcSecondTimestamp' -and
+                [regex]::IsMatch('2026-09-14T12:00:00Z', [string]$timestampDefinition.pattern) -and
+                -not [regex]::IsMatch('2026-09-14T12:00:00.123Z', [string]$timestampDefinition.pattern) -and
+                -not [regex]::IsMatch('2026-09-14T12:00:00+00:00', [string]$timestampDefinition.pattern)
+            ) `
+            -Name 'receipt schema permits only whole-second UTC timestamps'
+
         $unsafeReceiptPath = Join-Path $temporaryRoot 'unsafe-receipt.json'
         [System.IO.File]::WriteAllText(
             $unsafeReceiptPath,
@@ -769,11 +784,31 @@ function Invoke-OperatorReadOnlySuite {
     Assert-True `
         -Condition ((Get-OnboardingAssetLinksState $selected $matchingAssetLinksTransport).Classification -ceq 'PASS') `
         -Name 'public association requires an enrolled Android package and valid fingerprint shape'
+    $lowercaseAssetLinksTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        [pscustomobject]@{ StatusCode = 200; Data = @(@{
+            relation = @('delegate_permission/common.handle_all_urls')
+            target = @{ namespace = 'android_app'; package_name = 'com.gurbakir.mobile.dev.debug'; sha256_cert_fingerprints = @('aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa:aa') }
+        }) }
+    }
+    Assert-True `
+        -Condition ((Get-OnboardingAssetLinksState $selected $lowercaseAssetLinksTransport).Classification -ceq 'PASS') `
+        -Name 'public association accepts lowercase hexadecimal certificate fingerprints'
     Assert-True -Condition ((Protect-OnboardingOutput 'failure fixture-secret' @('fixture-secret')) -ceq 'failure <redacted>') -Name 'loaded values are redacted before output'
 }
 
 function Invoke-OperatorApplySuite {
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    $receiptTimeWindow = & (Get-Module Onboarding.Operator) {
+        param([DateTimeOffset]$Now)
+        New-OnboardingReceiptTimeWindow -Now $Now
+    } ([DateTimeOffset]::Parse('2026-09-14T12:00:00.9999999Z', [Globalization.CultureInfo]::InvariantCulture))
+    Assert-True `
+        -Condition (
+            [string]$receiptTimeWindow.CreatedAtUtc -ceq '2026-09-14T12:00:00Z' -and
+            [string]$receiptTimeWindow.ExpiresAtUtc -ceq '2026-09-14T12:15:00Z'
+        ) `
+        -Name 'Plan timestamps share one whole-second clock sample and an exact fifteen-minute window'
     $temporaryRoot = Join-Path $repoRoot ('out\onboarding\gate8-apply-' + [guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
     $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'

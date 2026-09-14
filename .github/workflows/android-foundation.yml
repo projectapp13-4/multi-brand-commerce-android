@@ -87,14 +87,20 @@ jobs:
       - name: JVM foundation tests
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }
           & ./gradlew --no-daemon @tasks
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Development and staging package verification
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the assemble lane." }
           & ./gradlew --no-daemon @tasks
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -206,7 +212,10 @@ jobs:
       - name: Core and development instrumentation tests
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api30 lane." }
           & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -276,6 +285,9 @@ jobs:
       - name: Shared active-path and synthetic minimum-SDK instrumentation tests
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api23 lane." }
           & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

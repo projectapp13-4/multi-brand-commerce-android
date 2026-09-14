@@ -209,6 +209,18 @@ function Invoke-PublicReadinessValidation {
     $androidSdkBootstrapOk = $setupAndroidActions.Count -gt 0 -and $boundedSetupAndroidActions.Count -eq $setupAndroidActions.Count
     $results.Add((New-CheckResult "bounded-android-sdk-bootstrap" $androidSdkBootstrapOk "every setup-android action must explicitly install platform-tools instead of the removed legacy tools package"))
 
+    $guardedGradleLanes = @('unit', 'assemble', 'api30', 'api23') | Where-Object {
+        $lane = [regex]::Escape($_)
+        $workflow -match (
+            '(?m)^\s+\$ErrorActionPreference\s*=\s*''Stop''\s*$\r?\n' +
+            ('\s+\$tasks\s*=\s*@\(\./scripts/Get-RegisteredGradleTasks\.ps1\s+-Lane\s+{0}\)\s*$\r?\n' -f $lane) +
+            '\s+if\s*\(\$LASTEXITCODE\s+-ne\s+0\)\s*\{\s*exit\s+\$LASTEXITCODE\s*\}\s*$\r?\n' +
+            '\s+if\s*\(\$tasks\.Count\s+-eq\s+0\)\s*\{\s*throw\s+[^\r\n]+\}\s*$'
+        )
+    }
+    $gradleLaneResolutionOk = @($guardedGradleLanes).Count -eq 4
+    $results.Add((New-CheckResult "nonempty-gradle-lane-resolution" $gradleLaneResolutionOk "every registry-driven Gradle lane must fail on resolver errors and an empty task list"))
+
     $checkoutSafe = $workflow -match '(?m)^\s+persist-credentials:\s*false\s*$'
     $results.Add((New-CheckResult "checkout-credentials-disabled" $checkoutSafe "checkout must not persist GitHub credentials"))
 
@@ -366,6 +378,38 @@ jobs:
       - uses: android-actions/setup-android@2222222222222222222222222222222222222222
         with:
           packages: platform-tools
+      - name: Unit lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: Assemble lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the assemble lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: API 30 lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api30 lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: API 23 lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api23 lane." }
+          & ./gradlew --no-daemon @tasks
 '@
         "app/build.gradle.kts" = @'
 namespace = "com.gurbakir.mobile"
@@ -444,6 +488,7 @@ function Invoke-SelfTests {
         @{ Name = "unresolved rights fail"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'ASSET-LICENSES.md') -Value 'Publication gate: UNRESOLVED' }; ExpectedFailure = "asset-publication-rights" },
         @{ Name = "unpinned action fails"; Mutate = { param($root) (Get-Content (Join-Path $root '.github/workflows/android-foundation.yml') -Raw).Replace('@1111111111111111111111111111111111111111', '@main') | Set-Content -NoNewline (Join-Path $root '.github/workflows/android-foundation.yml') }; ExpectedFailure = "sha-pinned-actions" },
         @{ Name = "implicit legacy Android SDK package fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('packages: platform-tools', 'packages: tools platform-tools') | Set-Content -NoNewline $p }; ExpectedFailure = "bounded-android-sdk-bootstrap" },
+        @{ Name = "empty Gradle lane guard removal fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }', '') | Set-Content -NoNewline $p }; ExpectedFailure = "nonempty-gradle-lane-resolution" },
         @{ Name = "privileged pull request trigger fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; $value=(Get-Content -LiteralPath $p -Raw) + "`n  pull_request_target:`n"; [System.IO.File]::WriteAllText($p, $value, [System.Text.UTF8Encoding]::new($false)) }; ExpectedFailure = "external-fork-workflow-safety" },
         @{ Name = "application identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('com.gurbakir.mobile.dev', 'com.example.changed') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-application-identities" },
         @{ Name = "OAuth placeholder mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/build.gradle.kts') -Raw).Replace('manifestPlaceholders["appAuthRedirectScheme"]', 'manifestPlaceholders["renamedScheme"]') | Set-Content -NoNewline (Join-Path $root 'app/build.gradle.kts') }; ExpectedFailure = "gurbakir-oauth-app-links" },

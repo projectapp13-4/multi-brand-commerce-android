@@ -331,9 +331,26 @@ function Invoke-OnboardingReadback {
     $result=[ordered]@{};foreach($property in $inspection.PSObject.Properties){$result[$property.Name]=$property.Value};$result.storefrontMobileReadback='PASS'
     return [pscustomobject]$result
 }
+function New-OnboardingReceiptTimeWindow {
+    param([Parameter(Mandatory)][DateTimeOffset]$Now)
+    $utc = $Now.ToUniversalTime()
+    $wholeSecond = [DateTimeOffset]::new(
+        $utc.Year,
+        $utc.Month,
+        $utc.Day,
+        $utc.Hour,
+        $utc.Minute,
+        $utc.Second,
+        [TimeSpan]::Zero
+    )
+    [pscustomobject]@{
+        CreatedAtUtc = $wholeSecond.ToString('yyyy-MM-ddTHH:mm:ssZ')
+        ExpiresAtUtc = $wholeSecond.AddMinutes(15).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    }
+}
 function New-OnboardingPlan {
     param([string]$RepositoryRoot,[string]$Application,[string]$Profile,[string]$OutputPath,[switch]$IncludeAcceptanceProbe,[string]$PriorReceipt,[scriptblock]$Transport)
-    $created=[DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ');$expires=[DateTimeOffset]::UtcNow.AddMinutes(15).ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $timeWindow=New-OnboardingReceiptTimeWindow -Now ([DateTimeOffset]::UtcNow);$created=[string]$timeWindow.CreatedAtUtc;$expires=[string]$timeWindow.ExpiresAtUtc
     if([string]::IsNullOrWhiteSpace($OutputPath)){$OutputPath="out/onboarding/$created-$Application-$Profile-plan.json" -replace ':',''}
     $OutputPath=Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath'
     if(-not[string]::IsNullOrWhiteSpace($PriorReceipt)){$PriorReceipt=Resolve-OnboardingEvidencePath $RepositoryRoot $PriorReceipt 'PriorReceipt'}

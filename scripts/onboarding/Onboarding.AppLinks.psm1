@@ -19,7 +19,7 @@ function Get-OnboardingAssetLinksState {
                 continue
             }
             $fingerprints = @($statement.target.sha256_cert_fingerprints)
-            if ($fingerprints.Count -eq 0 -or @($fingerprints | Where-Object { [string]$_ -cnotmatch '^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$' }).Count -gt 0) {
+            if ($fingerprints.Count -eq 0 -or @($fingerprints | Where-Object { [string]$_ -notmatch '^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$' }).Count -gt 0) {
                 continue
             }
             $statement
