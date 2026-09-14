@@ -6,7 +6,7 @@
 
 **Immutable execution base:** `f0e7d007628ae9afd520e30d85cbd4204ed064f7`
 
-**Last code checkpoint before final evidence reconciliation:** `aa13bc35367e6119dd0bdf9dad0629542ff06ec6`
+**Last code checkpoint before final evidence reconciliation:** `130606168daa9107b04afbd33496a6e5fe7e2684`
 
 **Branch:** `codex/gate-7-bounded-home-content`
 
@@ -46,8 +46,10 @@ No Room, DataStore, protected-store, OAuth, Firebase, application-ID, signing, m
 | `f43eff3` | Harden timestamp, GraphQL-operation and consumed-selector validation after review |
 | `01ce2dd` | Fail closed on invalid persistence input, fix TTL ownership and bind synthetic composition checks |
 | `aa13bc3` | Report partial packaged rendering truthfully and reject incomplete LKG batches |
+| `c8ed20c` | Reconcile the pre-merge evidence record after the first completed reviews |
+| `1306061` | Serialize failure authority after supersession and restore displaced expiry scheduling |
 
-The implementation and evidence diff through `aa13bc3` changes 58 files with 4,618 insertions and 1,066 deletions. This final factual handoff update is intentionally committed before the exact-candidate matrix.
+The implementation and evidence diff through `1306061` changes 58 files with 4,758 insertions and 1,056 deletions. This final factual handoff update is intentionally committed before the exact-candidate matrix.
 
 ## 3. Contract and implementation
 
@@ -61,7 +63,10 @@ The Storefront mapper preserves the existing Collection eligibility contract: a 
 
 `HomeContentAcceptanceCoordinator` is singleton-scoped and serializes begin/accept/promotion. Its in-memory accepted state remains authoritative after an unconfirmed write, including intentional empty. The implementation deliberately makes no durability promise after an unconfirmed write followed by process death.
 
+Failure resolution uses the same coordinator token and mutex. A request that fails after a newer request begins cannot use a stale pre-request ownership read to publish packaged fallback, while a current failure re-reads session and durable authority inside the serialized decision boundary.
+
 The combined Home ViewModel owns one request and one expiry timer. Manual refresh is distinct from automatic retryability, disables overlap, retains unexpired content while refreshing, hides expired merchant cards and never renews editorial TTL through resource hydration or failure.
+If a repository result is superseded after the previous timer fires during an active request, the retained presentation's original deadline is reinstalled; an already-expired deadline immediately takes the normal expiry transition.
 
 ## 4. Phase A actual-client evidence
 
@@ -148,7 +153,7 @@ Local API 30 managed-device execution remains environment-blocked. An initial co
 
 The connected Android 13 aggregate mobile-core run executed 124 tests and had one failure in the unchanged `AccountScreenTest.browserHandoffKeepsContextAndDisablesDuplicateSignIn` because `account-status` was not displayed. Its immediate isolated rerun on the same device passed 1/1, and the same test passed in the API 23 aggregate. The failure remains recorded as suite-order/device flake evidence. Separate connected app and synthetic runs completed with zero failures; app had one expected Firebase-proof skip and synthetic had two expected process-proof skips.
 
-CodeRabbit's first review attempt ended with a recoverable WebSocket closure and was not counted as a completed review. The next completed review identified five items. The planned post-merge lifecycle wording was retained as intentionally deferred; the four substantive findings were fixed with discriminating RED tests for operation-scoped GraphQL checks, consumed synthetic composition, malformed root timestamps, invalid persistence input and fixed TTL ownership. A follow-up exposed two additional truthful-result defects: partial packaged rendering reported `COMPLETE`, and an incomplete LKG resource batch could be accepted. Both new tests failed first and passed after correction. The final committed CodeRabbit review covered 57 files and returned zero findings.
+CodeRabbit's first review attempt ended with a recoverable WebSocket closure and was not counted as a completed review. The next completed review identified five items. The planned post-merge lifecycle wording was retained as intentionally deferred; the four substantive findings were fixed with discriminating RED tests for operation-scoped GraphQL checks, consumed synthetic composition, malformed root timestamps, invalid persistence input and fixed TTL ownership. A follow-up exposed two additional truthful-result defects: partial packaged rendering reported `COMPLETE`, and an incomplete LKG resource batch could be accepted. Both new tests failed first and passed after correction. A later review of the first handoff-bearing candidate found that a late failed request could decide fallback from stale ownership state and that a superseded refresh could leave the retained presentation without an expiry timer. Both new regression tests compiled and failed on the reported behavior, then passed after the serialized failure-decision and timer-reinstallation fixes in `1306061`. An exact review of the final documentation-bearing candidate remains pending.
 
 The focused Codex Security diff scan `6c415a36-d27f-4a86-a03c-a87777508fe5` reviewed all 37 executable/source-like workbench items through `aa13bc3`, recorded complete coverage across eight surfaces and completed with zero findings. It used the documented parent-thread fallback because delegation was unavailable under the active session policy. Daybreak access was not granted, which may limit protected-result display but did not gate the scan. The generated report remains an external local artifact and is not committed into the repository.
 
