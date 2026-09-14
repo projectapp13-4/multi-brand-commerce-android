@@ -37,6 +37,35 @@ class HomeContentPersistenceTest {
     }
 
     @Test
+    fun `strict codec distinguishes invalid value shape from malformed JSON`() {
+        val valid = codec.encodeSnapshot(storedSnapshot(empty = true))
+        val missingKnownField = valid.replace("\"rootType\":\"mobile_home\",", "")
+
+        assertEquals(
+            HomeCodecDecode.Rejected(HomeCodecRejection.INVALID_VALUE),
+            codec.decodeSnapshot(missingKnownField)
+        )
+        assertEquals(
+            HomeCodecDecode.Rejected(HomeCodecRejection.MALFORMED),
+            codec.decodeSnapshot("{")
+        )
+    }
+
+    @Test
+    fun `strict codec rejects a typed gid with additional path segments`() {
+        val valid = codec.encodeSnapshot(storedSnapshot(empty = false))
+        val nestedGid = valid.replace(
+            "gid://shopify/Product/1",
+            "gid://shopify/Product/archive/1"
+        )
+
+        assertEquals(
+            HomeCodecDecode.Rejected(HomeCodecRejection.INVALID_VALUE),
+            codec.decodeSnapshot(nestedGid)
+        )
+    }
+
+    @Test
     fun `marker and snapshot are partition aware`() {
         val marker = HomeEstablishmentRecord(partition, 100L, 1)
         val different = marker.copy(partition = partition.copy(rootHandle = "other"))

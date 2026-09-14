@@ -153,14 +153,19 @@ class HomeContentCodec @Inject constructor() {
 
     private fun <T> decode(raw: String, maximumBytes: Int, block: (JsonObject) -> T): HomeCodecDecode<T> {
         if (raw.byteSize() > maximumBytes) return HomeCodecDecode.Rejected(HomeCodecRejection.OVERSIZED)
+        val parsed = try {
+            json.parseToJsonElement(raw)
+        } catch (_: Exception) {
+            return HomeCodecDecode.Rejected(HomeCodecRejection.MALFORMED)
+        }
+        val root = parsed as? JsonObject
+            ?: return HomeCodecDecode.Rejected(HomeCodecRejection.INVALID_VALUE)
         return try {
-            HomeCodecDecode.Accepted(block(json.parseToJsonElement(raw) as JsonObject))
+            HomeCodecDecode.Accepted(block(root))
         } catch (_: UnknownFieldException) {
             HomeCodecDecode.Rejected(HomeCodecRejection.UNKNOWN_FIELD)
-        } catch (_: IllegalArgumentException) {
-            HomeCodecDecode.Rejected(HomeCodecRejection.INVALID_VALUE)
         } catch (_: Exception) {
-            HomeCodecDecode.Rejected(HomeCodecRejection.MALFORMED)
+            HomeCodecDecode.Rejected(HomeCodecRejection.INVALID_VALUE)
         }
     }
 }
@@ -322,7 +327,9 @@ private fun RemoteHomeSection.FeaturedProduct.hasValidProduct(): Boolean = type 
     product.gid.isGid("Product")
 
 private fun JsonObject.requireExactKeys(vararg expected: String) {
-    if (keys != expected.toSet()) throw UnknownFieldException()
+    val expectedKeys = expected.toSet()
+    if (keys.any { it !in expectedKeys }) throw UnknownFieldException()
+    require(keys == expectedKeys)
 }
 
 private fun JsonObject.stringValue(key: String): String {
@@ -350,6 +357,6 @@ private fun JsonObject.arrayValue(key: String): JsonArray =
 private fun String.byteSize(): Int = toByteArray(StandardCharsets.UTF_8).size
 
 private fun String.isGid(resource: String): Boolean =
-    startsWith("gid://shopify/$resource/") && substringAfterLast('/').isNotBlank()
+    matches(Regex("gid://shopify/${Regex.escape(resource)}/[A-Za-z0-9_-]+"))
 
 private class UnknownFieldException : IllegalArgumentException()
