@@ -6,7 +6,7 @@ Evidence date: 2026-09-14.
 
 Implementation base: `ea936053b6d221a2abdfccf2f207167797ca330e`.
 
-Reviewed implementation-source commit: `7f4bda23ddd692eac460369d6634c06fff676726`.
+Reviewed implementation-source commit: `91b45a6a3499b0301575ba09c3dfa41a33b52dd0`.
 
 Approved durable plan digest: `ce66e5ad7c5d830b4fcfc895e32dbb41a98871eaedf4636b239359a87bf6175a`.
 
@@ -27,12 +27,12 @@ Gate 8 implements the approved offline provisioning and onboarding foundation:
 
 ## Completed local verification
 
-All results below were obtained from the Gate 8 worktree on the implementation source commit above unless a row explicitly describes the later documentation-only candidate check.
+All results below were obtained from the Gate 8 worktree. Android managed-device results were obtained on ancestor `7f4bda23ddd692eac460369d6634c06fff676726`; the only later implementation change is the PowerShell-only manual-checkpoint validation/Windows private-file fix at the reviewed implementation-source commit above. Static analysis, JVM, assembly, tooling, portability, package, and secret checks were rerun after that correction and the final handoff commit.
 
 | Verification | Result | Evidence |
 |---|---|---|
-| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 82/82 |
-| Focused operator security suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite Security`: 39/39 |
+| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 85/85 |
+| Focused operator security suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite Security`: 42/42 |
 | Offline registry/projection validation | **PASS** | Current registry/projections valid; missing ignored inputs classified `UNCONFIGURED` |
 | Task-lane resolution | **PASS** | `unit`, `assemble`, `api30`, and `api23` all validate against registered tasks |
 | Spotless | **PASS** | `spotlessCheck` completed successfully |
@@ -48,14 +48,14 @@ All results below were obtained from the Gate 8 worktree on the implementation s
 | API 23 Mobile Core instrumentation | **PASS** | 124/124, zero failures |
 | API 23 Synthetic instrumentation | **PASS** | 14 tests reported, two expected paired process-restart proof skips, zero failures |
 | Repository portability self-tests | **PASS** | 68/68 |
-| Current repository portability validation | **PASS** | 46/46 |
+| Current repository portability validation | **PASS** | 46/46; final `-RequireCleanWorktree` run 47/47 |
 | Public-readiness self-tests | **PASS** | 16/16 |
 | Current public-readiness validation | **PASS** | 21/21 |
 | Firebase zero-file boundary | **PASS** | All four files absent; local-default state accepted and configured Firebase evidence not claimed |
 | Synthetic package self-tests | **PASS** | 49 hostile/positive fixtures |
 | Synthetic debug/release package validation | **PASS** | 63 checks, including Firebase/INTERNET/credential/identity boundaries |
-| Gitleaks current tree | **PASS** | No leaks in approximately 5.11 MB scanned |
-| Gitleaks branch history | **PASS** | No leaks in 41 commits / approximately 6.63 MB scanned at the implementation source commit |
+| Gitleaks current tree | **PASS** | No leaks in approximately 5.12 MB scanned |
+| Gitleaks branch history | **PASS** | No leaks in 44 commits / approximately 6.64 MB scanned on the documentation-bearing candidate |
 
 The first combined API 30 invocation exhausted local emulator resources after the Account target had completed 7/7. The transient Gradle-managed emulator was stopped, and the remaining targets were rerun as isolated module invocations. Every required target then completed with zero test failures. This was an execution-environment resource failure, not a promoted PASS; the table records only the successful actual target executions.
 
@@ -63,7 +63,7 @@ The package validator initially found no Synthetic release artifact because the 
 
 ## Whole-candidate and security review
 
-The candidate was reviewed against the durable Gate 8 plan and the preserved Gate 0–7 architecture. The final review corrections are contained in `7f4bda23ddd692eac460369d6634c06fff676726` and cover:
+The candidate was reviewed against the durable Gate 8 plan and the preserved Gate 0–7 architecture. The main final review corrections are contained in `7f4bda23ddd692eac460369d6634c06fff676726` and cover:
 
 - same-verified-shop DRAFT-probe attribution across the two explicitly shared Gürbakır profiles;
 - nonproduction boundary revalidation during Apply;
@@ -75,6 +75,8 @@ The candidate was reviewed against the durable Gate 8 plan and the preserved Gat
 - safe exact-destination local migration writes;
 - bounded strict-UTF-8 fixture transport and receipt/operator digest hardening;
 - exact Shopify Customer Account endpoint-host validation before local configuration or discovery acceptance.
+
+The first immutable formal security scan of documentation candidate `20bd66f778e884cffb946b4e766645def1495bdc` found one medium-severity evidence-integrity defect: `RecordManualCheckpoint` could hash and record a semantically mismatched callback and unconstrained evidence reference. Focused RED tests reproduced both cases. Commit `91b45a6a3499b0301575ba09c3dfa41a33b52dd0` now invokes the existing independent binding/profile client validator, enforces the approved evidence-reference grammar, verifies the sanitized digest-only record, and corrects the Windows private-file ACL SID form exercised by that path. The updated security suite passes 42/42. A fresh exact-final-candidate diff scan is required after this handoff commit; the superseded finding is not concealed or promoted as final-candidate evidence.
 
 Focused review of authentication, privileged credentials, target binding, SSRF, redirects, receipt tampering, path/reparse escape, shell construction, response bounds, pagination, drift, merchant-content preservation, partial apply, redaction, and CI credential inheritance found no remaining release-blocking source issue. Final documentation-only candidate checks and protected pull-request review/CI remain required after this handoff commit.
 
