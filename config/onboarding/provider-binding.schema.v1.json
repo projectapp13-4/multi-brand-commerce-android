@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://projectapp13-4.invalid/schemas/provider-binding.schema.v1.json",
+  "title": "Gate 8 provider binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "application", "profile", "approvedEvidenceRef", "shopify"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "application": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
+    "profile": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
+    "approvedEvidenceRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$"
+    },
+    "shopify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adminShopDomain", "shopId"],
+      "properties": {
+        "adminShopDomain": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,60}[a-z0-9])?\\.myshopify\\.com$"
+        },
+        "shopId": { "type": "string", "pattern": "^[0-9]{1,20}$" }
+      }
+    },
+    "firebase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectId", "projectNumber", "androidAppIdsByVariant"],
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$"
+        },
+        "projectNumber": { "type": "string", "pattern": "^[0-9]{1,20}$" },
+        "androidAppIdsByVariant": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^1:[0-9]{1,20}:android:[0-9a-f]+$"
+          }
+        }
+      }
+    }
+  }
+}
