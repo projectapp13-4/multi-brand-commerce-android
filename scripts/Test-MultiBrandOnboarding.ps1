@@ -142,9 +142,20 @@ function Invoke-RegistrySuite {
             -Name 'case-colliding JSON field fails before projection'
 
         $fixturePath = Join-Path $temporaryRoot 'fixture.json'
+        $fixtureMarker = '"fixtureOnly": false,'
+        $fixtureIndex = $raw.IndexOf($fixtureMarker, [StringComparison]::Ordinal)
+        if ($fixtureIndex -lt 0) { throw 'The current registry has no real enrollment fixture marker.' }
+        $fixtureRaw = $raw.Remove($fixtureIndex, $fixtureMarker.Length).Insert($fixtureIndex, '"fixtureOnly": true,')
+        $fixtureDocument = $fixtureRaw | ConvertFrom-Json -AsHashtable -Depth 32
+        Assert-True `
+            -Condition (
+                [bool]$fixtureDocument.applications[0].fixtureOnly -and
+                -not [bool]$fixtureDocument.applications[1].fixtureOnly
+            ) `
+            -Name 'fixture mutation changes only the first enrolled application record'
         [System.IO.File]::WriteAllText(
             $fixturePath,
-            $raw.Replace('"fixtureOnly": false,', '"fixtureOnly": true,', 1),
+            $fixtureRaw,
             [System.Text.UTF8Encoding]::new($false)
         )
         Assert-Throws `
