@@ -599,6 +599,84 @@ function Invoke-EnrollmentSuite {
     $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gate8-enrollment-' + [guid]::NewGuid().ToString('N'))
     [System.IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
     try {
+        $workflowPath = Join-Path $repoRoot '.github\workflows\android-foundation.yml'
+        $workflowLines = [System.IO.File]::ReadAllLines($workflowPath, [System.Text.Encoding]::UTF8)
+        $fakeGradlePath = if ($IsWindows) {
+            Join-Path $temporaryRoot 'gradlew.bat'
+        } else {
+            Join-Path $temporaryRoot 'gradlew'
+        }
+        if ($IsWindows) {
+            [System.IO.File]::WriteAllText(
+                $fakeGradlePath,
+                "@echo off`r`necho %* > `"%GATE8_GRADLE_ARGUMENTS%`"`r`nexit /b 0`r`n",
+                [System.Text.ASCIIEncoding]::new()
+            )
+        } else {
+            [System.IO.File]::WriteAllText(
+                $fakeGradlePath,
+                "#!/usr/bin/env bash`nprintf '%s\\n' `"`$@`" > `"`$GATE8_GRADLE_ARGUMENTS`"`n",
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            & chmod +x $fakeGradlePath
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to make the workflow Gradle fixture executable.' }
+        }
+        $workflowSteps = [ordered]@{
+            'JVM foundation tests' = 'unit'
+            'Development and staging package verification' = 'assemble'
+            'Core and development instrumentation tests' = 'api30'
+            'Shared active-path and synthetic minimum-SDK instrumentation tests' = 'api23'
+        }
+        $previousArgumentsPath = [Environment]::GetEnvironmentVariable('GATE8_GRADLE_ARGUMENTS', 'Process')
+        try {
+            foreach ($entry in $workflowSteps.GetEnumerator()) {
+                $stepLine = "      - name: $($entry.Key)"
+                $stepIndex = [Array]::IndexOf($workflowLines, $stepLine)
+                if ($stepIndex -lt 0) { throw "Workflow step is missing: $($entry.Key)" }
+                $runIndex = $stepIndex + 1
+                while ($runIndex -lt $workflowLines.Count -and $workflowLines[$runIndex] -cne '        run: |') {
+                    $runIndex++
+                }
+                if ($runIndex -ge $workflowLines.Count) { throw "Workflow run block is missing: $($entry.Key)" }
+                $blockLines = [Collections.Generic.List[string]]::new()
+                for ($lineIndex = $runIndex + 1; $lineIndex -lt $workflowLines.Count; $lineIndex++) {
+                    $line = $workflowLines[$lineIndex]
+                    if ($line.Length -gt 0 -and -not $line.StartsWith('          ', [StringComparison]::Ordinal)) { break }
+                    $blockLines.Add($(if ($line.Length -eq 0) { '' } else { $line.Substring(10) }))
+                }
+                $argumentsPath = Join-Path $temporaryRoot "$($entry.Value)-arguments.txt"
+                if (Test-Path -LiteralPath $argumentsPath) { Remove-Item -LiteralPath $argumentsPath -Force }
+                [Environment]::SetEnvironmentVariable('GATE8_GRADLE_ARGUMENTS', $argumentsPath, 'Process')
+                $resolverPath = (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1').Replace("'", "''")
+                $fakePath = $fakeGradlePath.Replace("'", "''")
+                $runBlock = ($blockLines -join "`n").Replace(
+                    './scripts/Get-RegisteredGradleTasks.ps1',
+                    "& '$resolverPath'"
+                ).Replace('& ./gradlew', "& '$fakePath'")
+                $childOutput = & pwsh -NoProfile -Command $runBlock 2>&1 | Out-String
+                $childExitCode = $LASTEXITCODE
+                $resolvedTasks = @(& (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1') -Lane ([string]$entry.Value))
+                $invokedArguments = @(if (Test-Path -LiteralPath $argumentsPath -PathType Leaf) {
+                    if ($IsWindows) {
+                        @(([System.IO.File]::ReadAllText($argumentsPath) -split '\s+') | Where-Object { $_.Length -gt 0 })
+                    } else {
+                        @([System.IO.File]::ReadAllLines($argumentsPath) | Where-Object { $_.Length -gt 0 })
+                    }
+                } else {
+                    @()
+                })
+                Assert-True `
+                    -Condition (
+                        $childExitCode -eq 0 -and
+                        $invokedArguments.Count -gt 0 -and
+                        @($resolvedTasks | Where-Object { $_ -notin $invokedArguments }).Count -eq 0
+                    ) `
+                    -Name "workflow $($entry.Value) lane executes every resolved Gradle task in a fresh PowerShell process"
+            }
+        } finally {
+            [Environment]::SetEnvironmentVariable('GATE8_GRADLE_ARGUMENTS', $previousArgumentsPath, 'Process')
+        }
+
         $badPath = Join-Path $temporaryRoot 'bad-registry.json'
         $json = [System.IO.File]::ReadAllText($registryPath, [System.Text.Encoding]::UTF8)
         [System.IO.File]::WriteAllText(
