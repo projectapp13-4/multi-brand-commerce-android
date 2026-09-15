@@ -255,12 +255,45 @@ function Test-OnboardingSafeRelativePath {
             throw (New-OnboardingContractError -Code 'UNSAFE_PATH' -Field $Field)
         }
     }
-    $root = [System.IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-    $candidate = [System.IO.Path]::GetFullPath((Join-Path $root $RelativePath))
-    if (-not $candidate.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $comparison = if ($IsWindows) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+    try {
+        $rootItem = Get-Item -LiteralPath ([System.IO.Path]::GetFullPath($RepositoryRoot)) -Force -ErrorAction Stop
+        if (($rootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            $rootItem = $rootItem.ResolveLinkTarget($true)
+        }
+        if ($null -eq $rootItem -or -not $rootItem.PSIsContainer) {
+            throw 'root is not a directory'
+        }
+        $canonicalRoot = [System.IO.Path]::GetFullPath($rootItem.FullName).TrimEnd('\', '/')
+    } catch {
         throw (New-OnboardingContractError -Code 'UNSAFE_PATH' -Field $Field)
     }
-    return $candidate
+
+    $rootPrefix = $canonicalRoot + [System.IO.Path]::DirectorySeparatorChar
+    $current = $canonicalRoot
+    foreach ($segment in $RelativePath.Split('/')) {
+        $candidate = [System.IO.Path]::GetFullPath((Join-Path $current $segment))
+        $existing = Get-Item -LiteralPath $candidate -Force -ErrorAction SilentlyContinue
+        if ($null -ne $existing) {
+            if (($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                try {
+                    $existing = $existing.ResolveLinkTarget($true)
+                } catch {
+                    throw (New-OnboardingContractError -Code 'UNSAFE_PATH' -Field $Field)
+                }
+                if ($null -eq $existing) {
+                    throw (New-OnboardingContractError -Code 'UNSAFE_PATH' -Field $Field)
+                }
+            }
+            $candidate = [System.IO.Path]::GetFullPath($existing.FullName)
+        }
+        if (-not $candidate.Equals($canonicalRoot, $comparison) -and
+            -not $candidate.StartsWith($rootPrefix, $comparison)) {
+            throw (New-OnboardingContractError -Code 'UNSAFE_PATH' -Field $Field)
+        }
+        $current = $candidate
+    }
+    return $current
 }
 
 function Assert-OnboardingHost {
@@ -320,6 +353,30 @@ function Test-OnboardingShopifyCustomerUri {
         ($hostName -ceq 'shopify.com' -or $hostName.EndsWith('.shopify.com', [System.StringComparison]::Ordinal))
 }
 
+function Read-OnboardingBoundedStream {
+    param(
+        [Parameter(Mandatory)][System.IO.Stream]$Stream,
+        [Parameter(Mandatory)][int]$MaximumBytes,
+        [Parameter(Mandatory)][System.Threading.CancellationToken]$CancellationToken
+    )
+
+    $memory = [System.IO.MemoryStream]::new()
+    try {
+        $buffer = [byte[]]::new(8192)
+        while (($read = $Stream.ReadAsync($buffer, 0, $buffer.Length, $CancellationToken).GetAwaiter().GetResult()) -gt 0) {
+            if ($memory.Length + $read -gt $MaximumBytes) {
+                throw 'PROVIDER_RESPONSE_TOO_LARGE'
+            }
+            $memory.Write($buffer, 0, $read)
+        }
+        return $memory.ToArray()
+    } catch [System.OperationCanceledException] {
+        throw 'PROVIDER_RESPONSE_TIMEOUT'
+    } finally {
+        $memory.Dispose()
+    }
+}
+
 function Invoke-OnboardingJsonRequest {
     [CmdletBinding()]
     param(
@@ -352,30 +409,37 @@ function Invoke-OnboardingJsonRequest {
     $handler = [System.Net.Http.HttpClientHandler]::new()
     $handler.AllowAutoRedirect = $false
     $client = [System.Net.Http.HttpClient]::new($handler)
-    $client.Timeout = [timespan]::FromSeconds($TimeoutSeconds)
+    $client.Timeout = [System.Threading.Timeout]::InfiniteTimeSpan
+    $deadline = [System.Threading.CancellationTokenSource]::new()
+    $deadline.CancelAfter([timespan]::FromSeconds($TimeoutSeconds))
+    $request = $null
+    $response = $null
+    $stream = $null
     try {
         $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::new($Method), $Uri)
         foreach ($key in $Headers.Keys) { [void]$request.Headers.TryAddWithoutValidation([string]$key, [string]$Headers[$key]) }
         if ($Method -ceq 'POST') { $request.Content = [System.Net.Http.StringContent]::new($Body, [System.Text.Encoding]::UTF8, 'application/json') }
-        $response = $client.Send($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+        $response = $client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead, $deadline.Token).GetAwaiter().GetResult()
         if ([int]$response.StatusCode -ge 300 -and [int]$response.StatusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
-        $stream = $response.Content.ReadAsStream()
-        $memory = [System.IO.MemoryStream]::new()
-        $buffer = [byte[]]::new(8192)
-        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            if ($memory.Length + $read -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
-            $memory.Write($buffer, 0, $read)
-        }
+        $stream = $response.Content.ReadAsStreamAsync($deadline.Token).GetAwaiter().GetResult()
+        $bytes = Read-OnboardingBoundedStream -Stream $stream -MaximumBytes $MaximumBytes -CancellationToken $deadline.Token
         try {
-            $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($memory.ToArray())
+            $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
             $data = if ([string]::IsNullOrWhiteSpace($text)) { $null } else { $text | ConvertFrom-Json -AsHashtable -Depth 32 }
         } catch { throw 'PROVIDER_RESPONSE_INVALID_JSON' }
         return [pscustomobject]@{ StatusCode = [int]$response.StatusCode; Data = $data; Headers = $response.Headers }
+    } catch [System.OperationCanceledException] {
+        throw 'PROVIDER_RESPONSE_TIMEOUT'
     } catch {
         if ([string]$_.Exception.Message -match '^PROVIDER_') { throw }
         throw (New-OnboardingContractError -Code 'PROVIDER_TRANSPORT_FAILURE' -Field $Uri.Host)
     } finally {
-        $client.Dispose(); $handler.Dispose()
+        if ($null -ne $stream) { $stream.Dispose() }
+        if ($null -ne $response) { $response.Dispose() }
+        if ($null -ne $request) { $request.Dispose() }
+        $deadline.Dispose()
+        $client.Dispose()
+        $handler.Dispose()
     }
 }
 

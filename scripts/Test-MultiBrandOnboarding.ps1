@@ -117,6 +117,7 @@ function Invoke-RegistrySuite {
     $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gate8-registry-' + [guid]::NewGuid().ToString('N'))
     [void](New-Item -ItemType Directory -Path $temporaryRoot)
     $futureDirectory = $null
+    $escapeLink = $null
     try {
         $raw = [System.IO.File]::ReadAllText($registryPath, [System.Text.Encoding]::UTF8)
         $unknownPath = Join-Path $temporaryRoot 'unknown.json'
@@ -287,6 +288,21 @@ function Invoke-RegistrySuite {
             -Action { Import-OnboardingRegistry -Path $unsafePath -RepositoryRoot $repoRoot } `
             -Pattern 'UNSAFE_PATH' `
             -Name 'repository escape path fails'
+
+        $safePathRoot = Join-Path $temporaryRoot 'safe-path-root'
+        $outsidePathRoot = Join-Path $temporaryRoot 'outside-path-root'
+        [IO.Directory]::CreateDirectory($safePathRoot) | Out-Null
+        [IO.Directory]::CreateDirectory($outsidePathRoot) | Out-Null
+        $escapeLink = Join-Path $safePathRoot 'escape-link'
+        if ($IsWindows) {
+            [void](New-Item -ItemType Junction -Path $escapeLink -Target $outsidePathRoot)
+        } else {
+            [void](New-Item -ItemType SymbolicLink -Path $escapeLink -Target $outsidePathRoot)
+        }
+        Assert-Throws `
+            -Action { Test-OnboardingSafeRelativePath $safePathRoot 'escape-link/credential.properties' 'fixturePath' } `
+            -Pattern 'UNSAFE_PATH' `
+            -Name 'existing reparse or symbolic-link path component cannot escape the repository root'
 
         $collisionPath = Join-Path $temporaryRoot 'application-collision.json'
         [System.IO.File]::WriteAllText(
@@ -475,6 +491,9 @@ function Invoke-RegistrySuite {
             -Pattern 'INVALID_(DIGEST|RESOURCE_KEY)' `
             -Name 'receipt rejects untyped resource keys and invalid fingerprints'
     } finally {
+        if ($null -ne $escapeLink -and (Get-Item -LiteralPath $escapeLink -Force -ErrorAction SilentlyContinue)) {
+            Remove-Item -LiteralPath $escapeLink -Force
+        }
         if ($null -ne $futureDirectory -and (Test-Path -LiteralPath $futureDirectory)) {
             Remove-Item -LiteralPath $futureDirectory -Recurse -Force
         }
@@ -613,6 +632,50 @@ function Invoke-OperatorReadOnlySuite {
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.AppLinks.psm1') -Force
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Firebase.psm1') -Force
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Common.psm1') -Force
+    if ($null -eq ('Gate8BlockingReadStream' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
+public sealed class Gate8BlockingReadStream : Stream
+{
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override void Flush() { }
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+        return completion.Task;
+    }
+}
+'@
+    }
+    $blockingStream = [Gate8BlockingReadStream]::new()
+    $readDeadline = [Threading.CancellationTokenSource]::new([TimeSpan]::FromMilliseconds(100))
+    try {
+        Assert-Throws `
+            -Action {
+                & (Get-Module Onboarding.Common) {
+                    param([IO.Stream]$Stream, [Threading.CancellationToken]$CancellationToken)
+                    Read-OnboardingBoundedStream -Stream $Stream -MaximumBytes 1024 -CancellationToken $CancellationToken
+                } $blockingStream $readDeadline.Token
+            } `
+            -Pattern 'PROVIDER_RESPONSE_TIMEOUT' `
+            -Name 'provider response body reads honor the shared request deadline'
+    } finally {
+        $readDeadline.Dispose()
+        $blockingStream.Dispose()
+    }
     $safeRequest = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture-shop.myshopify.com/admin/api/2026-07/graphql.json') -Transport {
         param($method, $uri, $headers, $body, $maximumBytes)
         [pscustomobject]@{ StatusCode = 200; Data = @{} }
