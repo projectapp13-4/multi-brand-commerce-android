@@ -1,11 +1,11 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–7 complete; Gate 8 implementation in progress; Multi-Brand work remains unfinished**
+Status: **Gates 0–8 technically closed; Multi-Brand work remains unfinished**
 
 ## Purpose
 
 This directory preserves accepted architecture reasoning, approved execution
-plans, and Gate 1–7 implementation/evidence records for evolving the Gürbakır
+plans, and Gate 1–8 implementation/evidence records for evolving the Gürbakır
 application into a multi-brand Android monorepo. It is a navigation and status
 index, not a duplicate architecture specification.
 
@@ -17,7 +17,7 @@ accepted target -> ../architecture/*
 durable rationale -> ../decisions/*
 investigation/history -> research/*
 approved gate execution -> plans/* or recorded owner-approved scope
-historical gate outcome -> GATE-1 through GATE-7 completion handoffs
+historical gate outcome -> GATE-1 through GATE-8 completion handoffs
 current lifecycle status -> this index and ../README.md
 product/release boundary -> ../phase3/*
 ```
@@ -62,7 +62,7 @@ architecture.
 | 5 | [Handoff](GATE-5-COMPLETION-HANDOFF.md) | Technically closed |
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
-| 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md) | Implementation in progress |
+| 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
 
 ## Gate 6 closure evidence
 
@@ -116,6 +116,41 @@ The [Gate 7 completion handoff](GATE-7-COMPLETION-HANDOFF.md) intentionally
 remains its pre-merge implementation/evidence record and is not rewritten to
 claim merge or post-merge events.
 
+## Gate 8 closure evidence
+
+Gate 8 replaced the single-root, Gürbakır-specific nonproduction setup with
+explicit application/profile resolution, deterministic tracked projections,
+scoped ignored client configuration, independently approved provider bindings,
+explicit module/CI enrollment, and a bounded local PowerShell operator. It did
+not add a runtime brand switch, a second real merchant application, or a hosted
+control plane.
+
+Gate 8 implementation and live-provider compatibility corrections merged in
+four protected PRs:
+
+- implementation PR #8: `d71353bddb9a4610b1ff9908404b90ac4261911d`;
+- Shopify/public-HTTP correction PR #9:
+  `3ce1d78c908d954568a7b3229c1f098cd9a7bf73`;
+- Firebase quota-project correction PR #10:
+  `6583f877674a837e8b252720f2d0bbf5b3bcf4eb`; and
+- probe normalization/recovery PR #11:
+  `77455f5e8f2711a85194626892f1ad6fab081e86`.
+
+Exact merged-main run `35030134061` passed `validate`, API 30
+`instrumentation`, and API 23 `minimum-sdk-instrumentation`. Configured
+development and staging acceptance passed with trusted Shopify/Firebase
+bindings, actual Storefront Menu/Home readback, Customer Account consistency,
+strict configured builds, and configured emulator journeys. The selected Menu
+and `mobile_home/primary` content remained unchanged. Exactly one authorized
+`mobile_home/gate8-operator-acceptance-v1` resource exists; it remains DRAFT and
+unselected. Merged-source recovery and two development plus two staging Apply
+runs attributed that shared-shop probe and performed zero provider writes.
+
+The [Gate 8 completion handoff](GATE-8-COMPLETION-HANDOFF.md) remains its
+historically accurate pre-merge record. It is not rewritten to conceal the
+provider-contract defects found during configured acceptance or to claim later
+merge, correction, and closure events.
+
 ## Implemented migration state
 
 ```text
@@ -132,6 +167,8 @@ application-selected bounded Shopify Menu discovery for Categories
 application-selected bounded Shopify Home editorial content with finite native rendering
 editorial-only Home LKG persistence; current commerce truth remains live Storefront-owned
 synthetic Home remote source disabled and credential-free
+explicit application/profile enrollment and scoped nonproduction configuration
+bounded read-only/provider-write operator with receipt-bound recovery
 no second real merchant application
 no runtime merchant switch
 no normative brand flavor dimension
@@ -139,7 +176,7 @@ no normative brand flavor dimension
 
 ## Unfinished continuation boundary
 
-Closing Gate 7 does not finish Multi-Brand work. Future gates must be separately
+Closing Gate 8 does not finish Multi-Brand work. Future slices must be separately
 planned from current source and architecture. They must preserve:
 
 - Gürbakır `:app` as the first real application and validation brand;
@@ -150,10 +187,9 @@ planned from current source and architecture. They must preserve:
 - bounded merchant-content authority with native executable behavior retained by Android; and
 - honest separation between reusable contracts and concrete brand behavior.
 
-Gate 8 provisioning/onboarding implementation is in progress under its approved
-digest-bound plan. A second real merchant/store pilot, Gate 9 cumulative
-conformance, production onboarding/configuration/signing/publication and P3-16
-remain unstarted or separately governed unless later evidence and approval
-establish otherwise.
+The second real merchant/store pilot is the next separate Multi-Brand slice.
+Gate 9 cumulative conformance, production onboarding/configuration/signing/
+publication, and P3-16 remain unstarted or separately governed unless later
+evidence and approval establish otherwise.
 
 The repository-wide authority map remains [docs/README.md](../README.md).
