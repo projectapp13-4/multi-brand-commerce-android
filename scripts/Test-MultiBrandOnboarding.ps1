@@ -606,6 +606,13 @@ function Invoke-EnrollmentSuite {
         } else {
             Join-Path $temporaryRoot 'gradlew'
         }
+        $unixFakeGradleText =
+            "#!/usr/bin/env bash`nprintf '%s\n' `"`$@`" > `"`$GATE8_GRADLE_ARGUMENTS`"`n"
+        $expectedUnixFakeGradleText =
+            "#!/usr/bin/env bash`nprintf '%s\n' `"`$@`" > `"`$GATE8_GRADLE_ARGUMENTS`"`n"
+        Assert-True `
+            -Condition ($unixFakeGradleText -ceq $expectedUnixFakeGradleText) `
+            -Name 'Unix workflow Gradle fixture preserves one printf newline escape'
         if ($IsWindows) {
             [System.IO.File]::WriteAllText(
                 $fakeGradlePath,
@@ -615,7 +622,7 @@ function Invoke-EnrollmentSuite {
         } else {
             [System.IO.File]::WriteAllText(
                 $fakeGradlePath,
-                "#!/usr/bin/env bash`nprintf '%s\\n' `"`$@`" > `"`$GATE8_GRADLE_ARGUMENTS`"`n",
+                $unixFakeGradleText,
                 [System.Text.UTF8Encoding]::new($false)
             )
             & chmod +x $fakeGradlePath
