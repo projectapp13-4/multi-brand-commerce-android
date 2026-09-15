@@ -6,7 +6,7 @@ Evidence date: 2026-09-15.
 
 Implementation base: `ea936053b6d221a2abdfccf2f207167797ca330e`.
 
-Reviewed implementation-source commit: `7a28a994ff85d7e13a0067384d4067a22502b8f5`.
+Reviewed implementation-source commit: `82d32fcb6d149f697e8f31781c758235b6686d23`.
 
 Approved durable plan digest: `ce66e5ad7c5d830b4fcfc895e32dbb41a98871eaedf4636b239359a87bf6175a`.
 
@@ -31,11 +31,11 @@ All results below were obtained from the Gate 8 worktree. The complete Android-s
 
 | Verification | Result | Evidence |
 |---|---|---|
-| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 99/99 |
+| Full onboarding self-test suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite All`: 100/100 |
 | Focused operator security suite | **PASS** | `Test-MultiBrandOnboarding.ps1 -Suite Security`: 46/46 |
 | Offline registry/projection validation | **PASS** | Current registry/projections valid; missing ignored inputs classified `UNCONFIGURED` |
 | Task-lane resolution | **PASS** | `unit`, `assemble`, `api30`, and `api23` all validate against registered tasks |
-| Fresh-shell workflow lane execution | **PASS** | The real four workflow run blocks each invoked a harmless fake native Gradle executable with every resolved task; the prior `$LASTEXITCODE` guard fails this behavioral regression |
+| Fresh-shell workflow lane execution | **PASS** | The real four workflow run blocks each invoked a harmless fake native Gradle executable with every resolved task; the prior `$LASTEXITCODE` guard and the Unix literal-`\\n` fixture both fail discriminating assertions |
 | Spotless | **PASS** | `spotlessCheck` completed successfully |
 | Detekt | **PASS** | Root `detekt` completed successfully |
 | Full Android Lint | **PASS** | Root `lint` completed successfully |
@@ -64,7 +64,7 @@ The first combined forced API 30 run completed Account 7/7 and Storefront 7/7, t
 
 The corrective verification began by running the Gradle-owned `:mobile-core:clean`, `:app:clean`, and `:synthetic:clean` tasks and confirming that `apps/synthetic/build/outputs/apk` was absent. Offline registry validation passed and the assemble resolver emitted exactly 11 tasks: Mobile Core debug/release, all four Gürbakır nonproduction app variants, both Gürbakır Android-test APKs, and Synthetic debug/release/Android-test. Passing that exact array to Gradle completed successfully with 755 actionable tasks and created `synthetic-debug.apk`, `synthetic-release-unsigned.apk`, and `synthetic-debug-androidTest.apk`. The ensuing 49-fixture self-test and 63-check `-Variant All` validation passed from those newly produced outputs, so no pre-existing local APK supplied the evidence.
 
-The final offline tooling sequence then passed all 99 onboarding self-tests, all 46 focused security tests, all four registry-driven task-lane validations and executions, 68 portability fixtures, 19 public-readiness fixtures, 23 current public-readiness checks, the Firebase zero-file boundary, 49 Synthetic package fixtures, and all 63 Synthetic debug/release package checks. The registry-driven nine-task JVM lane passed, and root Spotless/Detekt passed. The commands were serialized where their temporary fixtures or Gradle state could interact; `-RequireCleanWorktree` remains a final post-handoff candidate check rather than overlapping a Gradle model query.
+The final offline tooling sequence then passed all 100 onboarding self-tests, all 46 focused security tests, all four registry-driven task-lane validations and executions, 68 portability fixtures, 19 public-readiness fixtures, 23 current public-readiness checks, the Firebase zero-file boundary, 49 Synthetic package fixtures, and all 63 Synthetic debug/release package checks. The registry-driven nine-task JVM lane passed, and root Spotless/Detekt passed. The commands were serialized where their temporary fixtures or Gradle state could interact; `-RequireCleanWorktree` remains a final post-handoff candidate check rather than overlapping a Gradle model query.
 
 ## Whole-candidate and security review
 
@@ -95,11 +95,15 @@ Formal parent-only Codex Security diff scan `426fa3ff-97ec-4c6f-a93e-94a489c6d8d
 
 Focused Codex Security diff scan `9bcd3ff7-8b27-447c-b977-4790bb55ab95` reviewed the three-file clean-runner correction against required-check bypass, task/option injection, stale-artifact acceptance, secret inheritance, and regression-test execution. It completed with zero reportable findings and complete recorded coverage. CodeRabbit independently reviewed the same three-file working-tree delta and raised zero issues. Neither review contacted providers or changed the configured-provider evidence boundary.
 
+Focused Codex Security diff scan `0f5feb06-cf75-41d3-8561-32d27c969788` reviewed the one-file Unix fixture correction through `82d32fcb6d149f697e8f31781c758235b6686d23` against command injection, task omission, platform-dependent parsing, and false-positive lane-execution evidence. It completed with zero reportable findings and complete recorded coverage. CodeRabbit independently reviewed the same one-file delta and raised zero issues. The correction changes test-fixture serialization only; it adds no credential, provider, Android runtime, or external-mutation behavior.
+
 Pull-request run `34892805324` on `ae5c8c4f255d480380b25abbff8b4307453bf812` then exposed two CI-contract failures after the local matrix. The onboarding command printed PASS 85/85 but returned the final expected negative fixture's native exit code to the multi-command Linux PowerShell step. Both Android jobs stopped before Gradle because the pinned `android-actions/setup-android` action's implicit package list still included the removed legacy SDK package `tools`. Commit `75d26c1a513cc724b51d597599d72a6233575d5b` explicitly resets the successful suite exit state, configures all three pinned setup actions with `packages: platform-tools`, and adds a public-readiness counterexample that rejects the legacy implicit package. The exact workflow command block now completes through all four registered lane validations with exit code zero. The failed run remains evidence and is not relabeled; fresh exact pull-request-head required checks are still required.
 
 Pull-request run `34921498882` (run #12) on `ee5216a3242e4b72aaa935548faaba6ac1972c03` then failed `validate` in `Synthetic package contract`: the 49 self-test fixtures passed, but `apps/synthetic/build/outputs/apk` did not exist. The preceding registry-driven assemble step was marked successful even though its log contained no Gradle output. The same status-channel defect affected all four registry-driven Gradle run blocks, so that run's API 30 and API 23 jobs are retained as GitHub `success` conclusions but are not treated as actual instrumentation execution evidence.
 
 The root cause was the guard immediately after the PowerShell resolver: a fresh `pwsh` has `$LASTEXITCODE = $null`, and `$LASTEXITCODE -ne 0` therefore evaluated true. `exit $null` ended the step with code zero before the nonempty guard or Gradle invocation. Local pre-existing artifacts had masked that skipped prerequisite. Commit `7a28a994ff85d7e13a0067384d4067a22502b8f5` checks PowerShell invocation status with `$?` after the resolver while retaining `$LASTEXITCODE` after native Gradle. Its behavioral regression executes each actual workflow block in a fresh child PowerShell and proves every resolved task reaches a harmless fake native Gradle process; restoring the former guard reproduces the failure. Public readiness independently rejects that former pattern. The clean-output reproduction and package evidence are recorded above. Fresh exact-head protected checks are required and run #12 is not relabeled as passing Gate 8 verification.
+
+Pull-request run `34933345344` (run #13) on `05d738525999ece28e233c3beb266bcfa3e5e15f` then failed `validate` in `Gate 8 onboarding contract and enrollment` before JDK or Gradle setup. The production workflow correction remained valid: API 23 reached and passed the actual registry-driven managed-device Gradle lane. The failing assertion was confined to the cross-platform regression harness. Its generated Unix fake Gradle script used Bash `printf '%s\\\\n'`; Bash therefore wrote literal `\\n` text between arguments instead of one task per line, so the harness could not recognize the tasks that the workflow passed correctly. The defect was first reproduced locally by an exact fixture-script assertion, then commit `82d32fcb6d149f697e8f31781c758235b6686d23` changed the fixture to `printf '%s\\n'`. The focused Enrollment suite passes 12/12 and the complete onboarding suite passes 100/100. Run #13 remains failed historical evidence and is not promoted to candidate success.
 
 Focused review of authentication, privileged credentials, target binding, SSRF, redirects, receipt tampering, path/reparse escape, shell construction, response bounds, pagination, drift, merchant-content preservation, partial apply, redaction, and CI credential inheritance found no remaining release-blocking source issue. Final documentation-only candidate checks and protected pull-request review/CI remain required after this handoff commit.
 
