@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 $script:Utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
+$script:OnboardingUserAgent = 'MultiBrandCommerceAndroid-Gate8/1.0 (+https://github.com/projectapp13-4/multi-brand-commerce-android)'
 
 function New-OnboardingContractError {
     param(
@@ -326,8 +327,8 @@ function Assert-OnboardingHost {
 }
 
 function Get-OnboardingCanonicalJson {
-    param([Parameter(Mandatory)]$Value)
-    return ($Value | ConvertTo-Json -Depth 32 -Compress)
+    param([Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()]$Value)
+    return (ConvertTo-Json -InputObject $Value -Depth 32 -Compress)
 }
 
 function Protect-OnboardingOutput {
@@ -377,6 +378,32 @@ function Read-OnboardingBoundedStream {
     }
 }
 
+function ConvertFrom-OnboardingJsonResponse {
+    param(
+        [Parameter(Mandatory)][int]$StatusCode,
+        [Parameter(Mandatory)][AllowEmptyCollection()][byte[]]$RawBytes,
+        $Headers,
+        [Parameter(Mandatory)][int]$MaximumBytes
+    )
+
+    if ($RawBytes.Length -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
+    if ($StatusCode -ge 300 -and $StatusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
+    if ($StatusCode -lt 200 -or $StatusCode -ge 300) {
+        return [pscustomobject]@{ StatusCode = $StatusCode; Data = $null; Headers = $Headers }
+    }
+    try {
+        $text = $script:Utf8Strict.GetString($RawBytes)
+        $data = if ([string]::IsNullOrWhiteSpace($text)) {
+            $null
+        } else {
+            $text | ConvertFrom-Json -AsHashtable -Depth 32 -NoEnumerate
+        }
+    } catch {
+        throw 'PROVIDER_RESPONSE_INVALID_JSON'
+    }
+    return [pscustomobject]@{ StatusCode = $StatusCode; Data = $data; Headers = $Headers }
+}
+
 function Invoke-OnboardingJsonRequest {
     [CmdletBinding()]
     param(
@@ -391,16 +418,33 @@ function Invoke-OnboardingJsonRequest {
     if ($Uri.Scheme -cne 'https' -or $Uri.UserInfo.Length -ne 0 -or $Uri.Fragment.Length -ne 0) {
         throw (New-OnboardingContractError -Code 'UNSAFE_PROVIDER_URI' -Field 'request')
     }
+    $effectiveHeaders = @{}
+    foreach ($key in $Headers.Keys) {
+        $effectiveHeaders[[string]$key] = [string]$Headers[$key]
+    }
+    $effectiveHeaders['User-Agent'] = $script:OnboardingUserAgent
     if ($null -ne $Transport) {
-        $fixtureResponse = & $Transport $Method $Uri $Headers $Body $MaximumBytes
+        try {
+            $fixtureResponse = & $Transport $Method $Uri $effectiveHeaders $Body $MaximumBytes
+        } catch [System.OperationCanceledException] {
+            throw 'PROVIDER_RESPONSE_TIMEOUT'
+        }
+        $statusCode = [int]$fixtureResponse.StatusCode
+        $fixtureHeaders = if ($fixtureResponse.PSObject.Properties.Name -contains 'Headers') {
+            $fixtureResponse.Headers
+        } else {
+            @{}
+        }
         if ($fixtureResponse.PSObject.Properties.Name -contains 'RawBytes') {
-            $bytes = [byte[]]$fixtureResponse.RawBytes
-            if ($bytes.Length -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
-            try {
-                $fixtureText = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
-                $fixtureData = if ([string]::IsNullOrWhiteSpace($fixtureText)) { $null } else { $fixtureText | ConvertFrom-Json -AsHashtable -Depth 32 }
-            } catch { throw 'PROVIDER_RESPONSE_INVALID_JSON' }
-            return [pscustomobject]@{ StatusCode = [int]$fixtureResponse.StatusCode; Data = $fixtureData; Headers = $fixtureResponse.Headers }
+            return ConvertFrom-OnboardingJsonResponse `
+                -StatusCode $statusCode `
+                -RawBytes ([byte[]]$fixtureResponse.RawBytes) `
+                -Headers $fixtureHeaders `
+                -MaximumBytes $MaximumBytes
+        }
+        if ($statusCode -ge 300 -and $statusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
+        if ($statusCode -lt 200 -or $statusCode -ge 300) {
+            return [pscustomobject]@{ StatusCode = $statusCode; Data = $null; Headers = $fixtureHeaders }
         }
         $fixtureBytes = if ($null -eq $fixtureResponse.Data) { 0 } else { [Text.Encoding]::UTF8.GetByteCount((Get-OnboardingCanonicalJson $fixtureResponse.Data)) }
         if ($fixtureBytes -gt $MaximumBytes) { throw 'PROVIDER_RESPONSE_TOO_LARGE' }
@@ -417,17 +461,23 @@ function Invoke-OnboardingJsonRequest {
     $stream = $null
     try {
         $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::new($Method), $Uri)
-        foreach ($key in $Headers.Keys) { [void]$request.Headers.TryAddWithoutValidation([string]$key, [string]$Headers[$key]) }
+        foreach ($key in $effectiveHeaders.Keys) {
+            [void]$request.Headers.TryAddWithoutValidation([string]$key, [string]$effectiveHeaders[$key])
+        }
         if ($Method -ceq 'POST') { $request.Content = [System.Net.Http.StringContent]::new($Body, [System.Text.Encoding]::UTF8, 'application/json') }
         $response = $client.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead, $deadline.Token).GetAwaiter().GetResult()
-        if ([int]$response.StatusCode -ge 300 -and [int]$response.StatusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
+        $statusCode = [int]$response.StatusCode
+        if ($statusCode -ge 300 -and $statusCode -lt 400) { throw 'PROVIDER_REDIRECT_BLOCKED' }
+        if ($statusCode -lt 200 -or $statusCode -ge 300) {
+            return [pscustomobject]@{ StatusCode = $statusCode; Data = $null; Headers = $response.Headers }
+        }
         $stream = $response.Content.ReadAsStreamAsync($deadline.Token).GetAwaiter().GetResult()
         $bytes = Read-OnboardingBoundedStream -Stream $stream -MaximumBytes $MaximumBytes -CancellationToken $deadline.Token
-        try {
-            $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
-            $data = if ([string]::IsNullOrWhiteSpace($text)) { $null } else { $text | ConvertFrom-Json -AsHashtable -Depth 32 }
-        } catch { throw 'PROVIDER_RESPONSE_INVALID_JSON' }
-        return [pscustomobject]@{ StatusCode = [int]$response.StatusCode; Data = $data; Headers = $response.Headers }
+        return ConvertFrom-OnboardingJsonResponse `
+            -StatusCode $statusCode `
+            -RawBytes $bytes `
+            -Headers $response.Headers `
+            -MaximumBytes $MaximumBytes
     } catch [System.OperationCanceledException] {
         throw 'PROVIDER_RESPONSE_TIMEOUT'
     } catch {

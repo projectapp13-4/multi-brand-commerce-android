@@ -62,6 +62,12 @@ function Assert-Throws {
     throw "Assertion failed: $Name did not reject the hostile fixture."
 }
 
+function Copy-TestValue {
+    param([Parameter(Mandatory)]$Value)
+
+    return ((Get-OnboardingCanonicalJson $Value) | ConvertFrom-Json -AsHashtable -Depth 32)
+}
+
 function Get-TestFileSnapshot {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -766,6 +772,77 @@ public sealed class Gate8BlockingReadStream : Stream
         [pscustomobject]@{ StatusCode = 200; Data = @{} }
     }
     Assert-True -Condition ($safeRequest.StatusCode -eq 200) -Name 'fixed HTTPS provider request accepts an empty user-info component'
+    $observedPublicHeaders = @{}
+    $validJsonRequest = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        foreach ($key in $headers.Keys) { $observedPublicHeaders[[string]$key] = [string]$headers[$key] }
+        [pscustomobject]@{
+            StatusCode = 200
+            RawBytes = [Text.UTF8Encoding]::new($false).GetBytes('{"valid":true}')
+            Headers = @{ 'Content-Type' = 'application/json' }
+        }
+    }.GetNewClosure()
+    Assert-True `
+        -Condition (
+            $validJsonRequest.StatusCode -eq 200 -and
+            $validJsonRequest.Data.valid -eq $true -and
+            [string]$observedPublicHeaders['User-Agent'] -ceq 'MultiBrandCommerceAndroid-Gate8/1.0 (+https://github.com/projectapp13-4/multi-brand-commerce-android)'
+        ) `
+        -Name 'public JSON requests use the stable descriptive project User-Agent required by live endpoints'
+    $emptyJsonArray = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+        [pscustomobject]@{
+            StatusCode = 200
+            RawBytes = [Text.UTF8Encoding]::new($false).GetBytes('[]')
+            Headers = @{ 'Content-Type' = 'application/json' }
+        }
+    }
+    Assert-True `
+        -Condition (
+            $emptyJsonArray.Data -is [object[]] -and
+            $emptyJsonArray.Data.Count -eq 0
+        ) `
+        -Name 'successful top-level empty JSON arrays remain arrays for public association classification'
+    Assert-True `
+        -Condition ((Get-OnboardingCanonicalJson -Value ([object[]]@())) -ceq '[]') `
+        -Name 'empty public JSON arrays have a deterministic non-null fingerprint input'
+    Assert-Throws `
+        -Action {
+            Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+                [pscustomobject]@{
+                    StatusCode = 200
+                    RawBytes = [Text.UTF8Encoding]::new($false).GetBytes('<html>not json</html>')
+                    Headers = @{ 'Content-Type' = 'text/html' }
+                }
+            }
+        } `
+        -Pattern 'PROVIDER_RESPONSE_INVALID_JSON' `
+        -Name 'successful malformed JSON remains a provider response error'
+    $forbiddenHtml = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+        [pscustomobject]@{
+            StatusCode = 403
+            RawBytes = [Text.UTF8Encoding]::new($false).GetBytes('<html>forbidden</html>')
+            Headers = @{ 'Content-Type' = 'text/html' }
+        }
+    }
+    Assert-True `
+        -Condition ($forbiddenHtml.StatusCode -eq 403 -and $null -eq $forbiddenHtml.Data) `
+        -Name 'non-success HTML remains an HTTP classification instead of invalid JSON'
+    Assert-Throws `
+        -Action {
+            Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+                [pscustomobject]@{ StatusCode = 302; RawBytes = @(); Headers = @{ Location = 'https://other.invalid' } }
+            }
+        } `
+        -Pattern 'PROVIDER_REDIRECT_BLOCKED' `
+        -Name 'redirect responses remain blocked before JSON classification'
+    Assert-Throws `
+        -Action {
+            Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://fixture.invalid/data') -Transport {
+                throw [OperationCanceledException]::new('fixture deadline')
+            }
+        } `
+        -Pattern 'PROVIDER_RESPONSE_TIMEOUT' `
+        -Name 'request deadline cancellation retains a sanitized timeout classification'
     Assert-Throws `
         -Action { Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]'https://user@fixture-shop.myshopify.com/admin/api/2026-07/graphql.json') -Transport { [pscustomobject]@{ StatusCode = 200; Data = @{} } } } `
         -Pattern 'UNSAFE_PROVIDER_URI' `
@@ -805,15 +882,15 @@ public sealed class Gate8BlockingReadStream : Stream
         -Pattern 'SHOPIFY_TARGET_IDENTITY_MISMATCH' `
         -Name 'Admin token shop identity must match the independently approved binding'
 
-    $incompatibleDefinitions = @(
+    $liveCompatibleDefinitions = @(
         @{
             id = 'gid://shopify/MetaobjectDefinition/1'
             type = 'mobile_home_collection_grid'
             name = 'Collection grid'
             displayNameKey = 'title'
             fieldDefinitions = @(
-                @{ key = 'title'; name = 'Title'; type = @{ name = 'multi_line_text_field' }; required = $true; validations = @(@{ name = 'min'; value = '1' }, @{ name = 'max'; value = '80' }) },
-                @{ key = 'collections'; name = 'Collections'; type = @{ name = 'list.collection_reference' }; required = $true; validations = @(@{ name = 'min'; value = '1' }, @{ name = 'max'; value = '6' }) }
+                @{ key = 'title'; name = 'Title'; type = @{ name = 'single_line_text_field' }; required = $true; validations = @(@{ name = 'max'; value = '80' }, @{ name = 'min'; value = '1' }) },
+                @{ key = 'collections'; name = 'Collections'; type = @{ name = 'list.collection_reference' }; required = $true; validations = @(@{ name = 'list.max'; value = '6' }, @{ name = 'list.min'; value = '1' }) }
             )
             capabilities = @{ publishable = @{ enabled = $true } }
             access = @{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
@@ -834,25 +911,199 @@ public sealed class Gate8BlockingReadStream : Stream
             id = 'gid://shopify/MetaobjectDefinition/3'
             type = 'mobile_home'
             name = 'Mobile home'
-            displayNameKey = 'schema_version'
+            displayNameKey = $null
             fieldDefinitions = @(
-                @{ key = 'schema_version'; name = 'Schema version'; type = @{ name = 'number_integer' }; required = $true; validations = @(@{ name = 'min'; value = '1' }, @{ name = 'max'; value = '1' }) },
+                @{ key = 'schema_version'; name = 'Schema version'; type = @{ name = 'number_integer' }; required = $true; validations = @(@{ name = 'max'; value = '1' }, @{ name = 'min'; value = '1' }) },
                 @{ key = 'declared_section_count'; name = 'Declared section count'; type = @{ name = 'number_integer' }; required = $true; validations = @(@{ name = 'min'; value = '0' }, @{ name = 'max'; value = '2' }) },
-                @{ key = 'sections'; name = 'Sections'; type = @{ name = 'list.mixed_reference' }; required = $false; validations = @(@{ name = 'max'; value = '2' }, @{ name = 'metaobject_definition_id'; value = 'gid://shopify/MetaobjectDefinition/1' }, @{ name = 'metaobject_definition_id'; value = 'gid://shopify/MetaobjectDefinition/2' }) }
+                @{
+                    key = 'sections'
+                    name = 'Sections'
+                    type = @{ name = 'list.mixed_reference' }
+                    required = $false
+                    validations = @(
+                        @{ name = 'list.max'; value = '2' },
+                        @{ name = 'metaobject_definition_ids'; value = '["gid://shopify/MetaobjectDefinition/2","gid://shopify/MetaobjectDefinition/1"]' }
+                    )
+                }
             )
             capabilities = @{ publishable = @{ enabled = $true } }
             access = @{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
         }
     )
-    $incompatibleTransport = {
-        param($method, $uri, $headers, $body, $maximumBytes)
-        [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectDefinitions = @{ nodes = $incompatibleDefinitions; pageInfo = @{ hasNextPage = $false; endCursor = $null } } } } }
+    $getHomeState = {
+        param($definitions)
+        $fixtureTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectDefinitions = @{
+                nodes = $definitions
+                pageInfo = @{ hasNextPage = $false; endCursor = $null }
+            } } } }
+        }.GetNewClosure()
+        Get-ShopifyHomeDefinitionState $binding 'fixture-admin-token' $fixtureTransport
     }.GetNewClosure()
-    $incompatibleHome = Get-ShopifyHomeDefinitionState $binding 'fixture-admin-token' $incompatibleTransport
-    Assert-True -Condition ($incompatibleHome.Classification -ceq 'INCOMPATIBLE') `
+    Assert-True `
+        -Condition ((& $getHomeState $liveCompatibleDefinitions).Classification -ceq 'COMPATIBLE') `
+        -Name 'live-normalized Home definitions map to the exact Gate 7 semantic contract'
+    $equivalentReferenceOrder = Copy-TestValue $liveCompatibleDefinitions
+    $equivalentReferenceOrder[2].fieldDefinitions[2].validations[1].value = '["gid://shopify/MetaobjectDefinition/1","gid://shopify/MetaobjectDefinition/2"]'
+    Assert-True `
+        -Condition (
+            (& $getHomeState $liveCompatibleDefinitions).Fingerprint -ceq
+            (& $getHomeState $equivalentReferenceOrder).Fingerprint
+        ) `
+        -Name 'mixed-reference ID ordering canonicalizes to one deterministic fingerprint'
+
+    $wrongCardinality = Copy-TestValue $liveCompatibleDefinitions
+    $wrongCardinality[0].fieldDefinitions[1].validations[0].value = '7'
+    Assert-True `
+        -Condition ((& $getHomeState $wrongCardinality).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'wrong list cardinality remains incompatible'
+
+    $wrongValidationCase = Copy-TestValue $liveCompatibleDefinitions
+    $wrongValidationCase[0].fieldDefinitions[1].validations[0].name = 'LIST.MAX'
+    Assert-True `
+        -Condition ((& $getHomeState $wrongValidationCase).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'provider validation names require the exact documented case'
+
+    $wrongReference = Copy-TestValue $liveCompatibleDefinitions
+    $wrongReference[2].fieldDefinitions[2].validations[1].value = '["gid://shopify/MetaobjectDefinition/1","gid://shopify/MetaobjectDefinition/9"]'
+    Assert-True `
+        -Condition ((& $getHomeState $wrongReference).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'wrong mixed-reference definition remains incompatible'
+
+    $missingReference = Copy-TestValue $liveCompatibleDefinitions
+    $missingReference[2].fieldDefinitions[2].validations[1].value = '["gid://shopify/MetaobjectDefinition/1"]'
+    Assert-True `
+        -Condition ((& $getHomeState $missingReference).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'missing mixed-reference definition remains incompatible'
+
+    $extraReference = Copy-TestValue $liveCompatibleDefinitions
+    $extraReference[2].fieldDefinitions[2].validations[1].value = '["gid://shopify/MetaobjectDefinition/1","gid://shopify/MetaobjectDefinition/2","gid://shopify/MetaobjectDefinition/9"]'
+    Assert-True `
+        -Condition ((& $getHomeState $extraReference).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'extra mixed-reference definition remains incompatible'
+
+    $singleReferenceShape = Copy-TestValue $liveCompatibleDefinitions
+    $singleReferenceShape[2].fieldDefinitions[2].validations[1] = @{
+        name = 'metaobject_definition_id'
+        value = 'gid://shopify/MetaobjectDefinition/1'
+    }
+    Assert-True `
+        -Condition ((& $getHomeState $singleReferenceShape).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'single-reference validation is rejected for the Gate 7 mixed-reference field'
+
+    $unknownValidation = Copy-TestValue $liveCompatibleDefinitions
+    $unknownValidation[0].fieldDefinitions[0].validations += @{ name = 'regex'; value = '.*' }
+    Assert-True `
+        -Condition ((& $getHomeState $unknownValidation).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'unexpected Home validation names remain incompatible'
+
+    $missingDefinition = @((Copy-TestValue $liveCompatibleDefinitions) | Where-Object { [string]$_.type -cne 'mobile_home_featured_product' })
+    Assert-True `
+        -Condition ((& $getHomeState $missingDefinition).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'reference to an absent child definition remains incompatible'
+
+    $wrongAccess = Copy-TestValue $liveCompatibleDefinitions
+    $wrongAccess[0].access.storefront = 'NONE'
+    Assert-True `
+        -Condition ((& $getHomeState $wrongAccess).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'incompatible Home Storefront access remains incompatible'
+
+    $wrongPublishability = Copy-TestValue $liveCompatibleDefinitions
+    $wrongPublishability[0].capabilities.publishable.enabled = $false
+    Assert-True `
+        -Condition ((& $getHomeState $wrongPublishability).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'incompatible Home publishability remains incompatible'
+
+    $wrongFieldType = Copy-TestValue $liveCompatibleDefinitions
+    $wrongFieldType[0].fieldDefinitions[0].type.name = 'multi_line_text_field'
+    Assert-True `
+        -Condition ((& $getHomeState $wrongFieldType).Classification -ceq 'INCOMPATIBLE') `
         -Name 'wrong existing Home field type blocks create-if-missing provisioning'
-    $menu = Get-ShopifyMenuState $binding 'fixture-admin-token' 'main-menu' $adminTransport
-    Assert-True -Condition ($menu.Classification -ceq 'ABSENT') -Name 'missing Menu remains validate-only absent state'
+
+    $wrongRequiredness = Copy-TestValue $liveCompatibleDefinitions
+    $wrongRequiredness[0].fieldDefinitions[0].required = $false
+    Assert-True `
+        -Condition ((& $getHomeState $wrongRequiredness).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'wrong existing Home requiredness remains incompatible'
+
+    $missingChildDisplayName = Copy-TestValue $liveCompatibleDefinitions
+    $missingChildDisplayName[0].displayNameKey = $null
+    Assert-True `
+        -Condition ((& $getHomeState $missingChildDisplayName).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'nullable display-name equivalence is not applied to title-based child definitions'
+    $menuBodies = [Collections.Generic.List[string]]::new()
+    $requestedMenu = @{
+        id = 'gid://shopify/Menu/2'
+        handle = 'main-menu'
+        title = 'Requested menu with unrelated title'
+        items = @()
+    }
+    $menuTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $menuBodies.Add([string]$body)
+        $request = $body | ConvertFrom-Json -AsHashtable
+        if ([string]$request.variables.after -ceq 'menu-page-2') {
+            return [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ menus = @{
+                nodes = @($requestedMenu)
+                pageInfo = @{ hasNextPage = $false; endCursor = $null }
+            } } } }
+        }
+        return [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ menus = @{
+            nodes = @(@{
+                id = 'gid://shopify/Menu/1'
+                handle = 'different-handle'
+                title = 'main-menu'
+                items = @()
+            })
+            pageInfo = @{ hasNextPage = $true; endCursor = 'menu-page-2' }
+        } } } }
+    }.GetNewClosure()
+    $menu = Get-ShopifyMenuState $binding 'fixture-admin-token' 'main-menu' $menuTransport
+    $expectedMenuFingerprintJson = Get-OnboardingCanonicalJson ([ordered]@{ handle = 'main-menu'; menu = $requestedMenu })
+    $expectedMenuFingerprint = [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($expectedMenuFingerprintJson))
+    ).ToLowerInvariant()
+    Assert-True `
+        -Condition (
+            $menu.Classification -ceq 'CORRECT' -and
+            $menu.Fingerprint -ceq $expectedMenuFingerprint -and
+            $menuBodies.Count -eq 2 -and
+            $menuBodies[0] -match 'Gate8Menus' -and
+            $menuBodies[0] -match 'menus\(first:\$first,after:\$after\)' -and
+            $menuBodies[0] -notmatch 'menu\(handle:' -and
+            $menuBodies[0] -match '"first":100' -and
+            $menuBodies[1] -match '"after":"menu-page-2"'
+        ) `
+        -Name 'Menu inspection enumerates bounded pages and selects only the exact requested handle'
+    $ambiguousMenuTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ menus = @{
+            nodes = @($requestedMenu, $requestedMenu)
+            pageInfo = @{ hasNextPage = $false; endCursor = $null }
+        } } } }
+    }.GetNewClosure()
+    Assert-Throws `
+        -Action { Get-ShopifyMenuState $binding 'fixture-admin-token' 'main-menu' $ambiguousMenuTransport } `
+        -Pattern 'SHOPIFY_MENU_IDENTITY_CONFLICT' `
+        -Name 'Menu inspection fails closed on ambiguous exact handle matches'
+    $incompleteMenuTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $request = $body | ConvertFrom-Json -AsHashtable
+        $page = if ($null -eq $request.variables.after) {
+            1
+        } else {
+            [int]([string]$request.variables.after -replace '^menu-page-', '')
+        }
+        [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ menus = @{
+            nodes = @()
+            pageInfo = @{ hasNextPage = $true; endCursor = 'menu-page-' + ($page + 1) }
+        } } } }
+    }
+    Assert-Throws `
+        -Action { Get-ShopifyMenuState $binding 'fixture-admin-token' 'main-menu' $incompleteMenuTransport } `
+        -Pattern 'SHOPIFY_PAGINATION_INCOMPLETE' `
+        -Name 'Menu inspection cannot infer absence after five incomplete pages'
     $discoveryTransport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         $data = if ($uri.AbsolutePath -eq '/.well-known/openid-configuration') {
@@ -972,7 +1223,11 @@ function Invoke-OperatorApplySuite {
     $stagingCredentialName = 'MB_GURBAKIR_STAGING_SHOPIFY_ADMIN_TOKEN'
     $previous = [Environment]::GetEnvironmentVariable($credentialName, 'Process')
     $previousStaging = [Environment]::GetEnvironmentVariable($stagingCredentialName, 'Process')
-    $script:createdDefinitions = [Collections.Generic.List[object]]::new(); $script:probe = $null; $script:writeCount = 0; $script:lockObserved = $false
+    $script:createdDefinitions = [Collections.Generic.List[object]]::new()
+    $script:definitionInputs = [Collections.Generic.List[object]]::new()
+    $script:probe = $null
+    $script:writeCount = 0
+    $script:lockObserved = $false
     $transport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         $request = $body | ConvertFrom-Json -AsHashtable
@@ -982,18 +1237,25 @@ function Invoke-OperatorApplySuite {
         if ($request.query -match 'Gate8HomeDefinitions') {
             return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitions=@{nodes=@($script:createdDefinitions);pageInfo=@{hasNextPage=$false;endCursor=$null}}}}}
         }
-        if ($request.query -match 'Gate8Menu') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{menu=$null}}} }
+        if ($request.query -match 'Gate8Menus') {
+            return [pscustomobject]@{StatusCode=200;Data=@{data=@{menus=@{
+                nodes=@()
+                pageInfo=@{hasNextPage=$false;endCursor=$null}
+            }}}}
+        }
         if ($request.query -match 'query Gate8Probe') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectByHandle=$script:probe}}} }
         if ($request.query -match 'Gate8DefinitionCreate') {
             $script:lockObserved = Test-Path -LiteralPath (Join-Path $repoRoot 'out\onboarding\locks\shop-1234567890.lock')
             $script:writeCount++;$definition=$request.variables.definition;$id="gid://shopify/MetaobjectDefinition/$($script:writeCount)"
+            $script:definitionInputs.Add($definition)
             $fields=@(
                 foreach($field in @($definition.fieldDefinitions)){
                     @{key=[string]$field.key;name=[string]$field.name;type=@{name=[string]$field.type};required=[bool]$field.required;validations=@($field.validations)}
                 }
             )
             if ($definition.access.Contains('admin')) { throw 'fixture detected forbidden explicit Admin access input' }
-            $node=@{id=$id;type=[string]$definition.type;name=[string]$definition.name;displayNameKey=[string]$definition.displayNameKey;fieldDefinitions=$fields;capabilities=@{publishable=@{enabled=$true}};access=@{admin='PUBLIC_READ_WRITE';storefront='PUBLIC_READ'}};$script:createdDefinitions.Add($node)
+            $displayNameKey = if ($definition.Contains('displayNameKey')) { [string]$definition.displayNameKey } else { $null }
+            $node=@{id=$id;type=[string]$definition.type;name=[string]$definition.name;displayNameKey=$displayNameKey;fieldDefinitions=$fields;capabilities=@{publishable=@{enabled=$true}};access=@{admin='PUBLIC_READ_WRITE';storefront='PUBLIC_READ'}};$script:createdDefinitions.Add($node)
             return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitionCreate=@{metaobjectDefinition=@{id=$id;type=[string]$definition.type};userErrors=@()}}}}
         }
         if ($request.query -match 'Gate8ProbeCreate') {$script:writeCount++;$script:probe=@{id='gid://shopify/Metaobject/99';type='mobile_home';handle='gate8-operator-acceptance-v1';fields=@(@{key='schema_version';value='1'},@{key='declared_section_count';value='0'});capabilities=@{publishable=@{status='DRAFT'}}};return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectCreate=@{metaobject=$script:probe;userErrors=@()}}}}}
@@ -1057,7 +1319,7 @@ function Invoke-OperatorApplySuite {
             displayNameKey = 'title'
             fieldDefinitions = @(
                 @{ key = 'title'; name = 'Title'; type = @{ name = 'single_line_text_field' }; required = $true; validations = @(@{ name = 'min'; value = '1' }, @{ name = 'max'; value = '80' }) },
-                @{ key = 'collections'; name = 'Collections'; type = @{ name = 'list.collection_reference' }; required = $true; validations = @(@{ name = 'min'; value = '1' }, @{ name = 'max'; value = '6' }) }
+                @{ key = 'collections'; name = 'Collections'; type = @{ name = 'list.collection_reference' }; required = $true; validations = @(@{ name = 'list.min'; value = '1' }, @{ name = 'list.max'; value = '6' }) }
             )
             capabilities = @{ publishable = @{ enabled = $true } }
             access = @{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
@@ -1135,6 +1397,22 @@ function Invoke-OperatorApplySuite {
 
         [void](Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $planPath 'gurbakir' 'development' -ConfirmApply -IncludeAcceptanceProbe -OutputPath $resultPath -Transport $transport)
         Assert-True -Condition ($script:writeCount -eq 4) -Name 'Apply creates only three definitions and one DRAFT probe'
+        $collectionGridInput = @($script:definitionInputs | Where-Object { [string]$_.type -ceq 'mobile_home_collection_grid' })[0]
+        $collectionValidations = @($collectionGridInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'collections' })[0].validations
+        $rootInput = @($script:definitionInputs | Where-Object { [string]$_.type -ceq 'mobile_home' })[0]
+        $rootValidations = @($rootInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'sections' })[0].validations
+        $rootDefinitionIdsValidation = @(
+            $rootValidations | Where-Object { [string]$_.name -ceq 'metaobject_definition_ids' }
+        )[0]
+        $rootDefinitionIds = @([string]$rootDefinitionIdsValidation.value | ConvertFrom-Json)
+        Assert-True `
+            -Condition (
+                (@($collectionValidations.name | Sort-Object -CaseSensitive) -join ',') -ceq 'list.max,list.min' -and
+                (@($rootValidations.name | Sort-Object -CaseSensitive) -join ',') -ceq 'list.max,metaobject_definition_ids' -and
+                (@($rootDefinitionIds | Sort-Object -CaseSensitive) -join ',') -ceq 'gid://shopify/MetaobjectDefinition/1,gid://shopify/MetaobjectDefinition/2' -and
+                -not $rootInput.Contains('displayNameKey')
+            ) `
+            -Name 'Apply maps Gate 7 semantic intent to Shopify definition-create representation'
         Assert-True -Condition $script:lockObserved -Name 'Apply holds a verified-shop local operation lock while mutating'
         Assert-True -Condition ((Import-OnboardingReceipt $resultPath).kind -ceq 'RESULT') -Name 'Apply writes a closed redacted result receipt'
         $secondPlanPath = Join-Path $temporaryRoot 'second-plan.json'
