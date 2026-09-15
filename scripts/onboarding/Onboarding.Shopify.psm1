@@ -432,14 +432,63 @@ function Get-ShopifyAcceptanceProbeState {
     $data = Invoke-ShopifyAdminOperation $Binding $Token $query @{} $Transport
     $probe = $data.metaobjectByHandle
     $classification = if ($null -eq $probe) { 'ABSENT' } else { 'UNKNOWN' }
+    $fingerprintValue = [ordered]@{ probe = $probe }
     if ($null -ne $probe) {
-        $fields = @{}; foreach ($field in @($probe.fields)) { $fields[[string]$field.key] = [string]$field.value }
-        if ([string]$probe.type -ceq 'mobile_home' -and [string]$probe.handle -ceq 'gate8-operator-acceptance-v1' -and
-            $fields.Count -eq 2 -and $fields.schema_version -ceq '1' -and $fields.declared_section_count -ceq '0' -and
-            [string]$probe.capabilities.publishable.status -ceq 'DRAFT') { $classification = 'COMPATIBLE' }
-        else { $classification = 'INCOMPATIBLE' }
+        $fields = @{}
+        $validFields = $true
+        foreach ($field in @($probe.fields)) {
+            $hasKey = if ($field -is [Collections.IDictionary]) {
+                $field.Contains('key')
+            } else {
+                $null -ne $field.PSObject.Properties['key']
+            }
+            $hasValue = if ($field -is [Collections.IDictionary]) {
+                $field.Contains('value')
+            } else {
+                $null -ne $field.PSObject.Properties['value']
+            }
+            if (-not $hasKey -or -not $hasValue) {
+                $validFields = $false
+                continue
+            }
+            $key = [string]$field.key
+            if ($key -cnotin @('schema_version', 'declared_section_count', 'sections') -or $fields.ContainsKey($key)) {
+                $validFields = $false
+                continue
+            }
+            $fields[$key] = $field.value
+        }
+        $hasRequiredFields = $fields.ContainsKey('schema_version') -and $fields.ContainsKey('declared_section_count')
+        $hasOnlySupportedCount = $fields.Count -eq 2 -or $fields.Count -eq 3
+        $sectionsAreEmpty = -not $fields.ContainsKey('sections') -or $null -eq $fields['sections']
+        if ($validFields -and $hasRequiredFields -and $hasOnlySupportedCount -and $sectionsAreEmpty -and
+            [string]$probe.id -cmatch '^gid://shopify/Metaobject/[0-9]+$' -and
+            [string]$probe.type -ceq 'mobile_home' -and [string]$probe.handle -ceq 'gate8-operator-acceptance-v1' -and
+            $null -ne $fields['schema_version'] -and [string]$fields['schema_version'] -ceq '1' -and
+            $null -ne $fields['declared_section_count'] -and [string]$fields['declared_section_count'] -ceq '0' -and
+            [string]$probe.capabilities.publishable.status -ceq 'DRAFT') {
+            $classification = 'COMPATIBLE'
+            # Shopify materializes this optional list field as a nullable value
+            # whose live value is null for a zero-section metaobject. Normalize
+            # that one observed representation to the same semantic probe
+            # contract as an omitted optional field.
+            $fingerprintValue = [ordered]@{
+                probe = [ordered]@{
+                    id = [string]$probe.id
+                    type = 'mobile_home'
+                    handle = 'gate8-operator-acceptance-v1'
+                    fields = [ordered]@{
+                        schema_version = '1'
+                        declared_section_count = '0'
+                    }
+                    publishableStatus = 'DRAFT'
+                }
+            }
+        } else {
+            $classification = 'INCOMPATIBLE'
+        }
     }
-    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ probe = $probe })
+    $canonical = Get-OnboardingCanonicalJson $fingerprintValue
     $hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
     [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; ResourceId = if ($null -eq $probe) { $null } else { [string]$probe.id } }
 }

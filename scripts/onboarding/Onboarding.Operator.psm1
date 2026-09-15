@@ -6,6 +6,12 @@ Import-Module (Join-Path $PSScriptRoot 'Onboarding.CustomerAccount.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Onboarding.Firebase.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Onboarding.AppLinks.psm1') -Force
 
+# This is the exact operator contract digest that produced the preserved
+# configured-acceptance Plan/intent/recovery chain before the probe readback
+# comparator was corrected. Recovery accepts this contract transition only;
+# it never treats an arbitrary or merely stale operator digest as trusted.
+$script:ProbeRecoveryPredecessorOperatorSha256 = 'b504b2102d6edec9556f347ef38b4bc41ff259a39dedd3691577d3b46b323f57'
+
 function Get-OnboardingCredentialName { param([string]$Application,[string]$Profile,[string]$Suffix) ('MB_{0}_{1}_{2}' -f $Application.Replace('-','_'),$Profile.Replace('-','_'),$Suffix).ToUpperInvariant() }
 function Get-OnboardingCredential { param([string]$Name) [Environment]::GetEnvironmentVariable($Name, 'Process') }
 function Get-ObjectSha { param($Value) $json = Get-OnboardingCanonicalJson $Value; [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($json))).ToLowerInvariant() }
@@ -235,15 +241,16 @@ function Write-OnboardingPrivateProperties {
         Set-OnboardingPrivateFilePermissions $Destination
     }finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
 }
-function Write-OnboardingReceipt { param([string]$Path,$Receipt)
+function Write-OnboardingReceipt { param([string]$Path,$Receipt,[switch]$NoOverwrite)
     if ([string]::IsNullOrWhiteSpace($Path)) { throw 'RECEIPT_PATH_REQUIRED' }
     $full=[IO.Path]::GetFullPath($Path); $parent=Split-Path -Parent $full; [IO.Directory]::CreateDirectory($parent)|Out-Null
+    if ($NoOverwrite -and (Test-Path -LiteralPath $full)) { throw 'RECEIPT_ALREADY_EXISTS' }
     $temporary=Join-Path $parent ('.gate8-receipt-'+[guid]::NewGuid().ToString('N')+'.tmp')
     try {
         $json=Get-OnboardingCanonicalJson $Receipt
         [IO.File]::WriteAllText($temporary,$json+"`n",[Text.UTF8Encoding]::new($false))
         [void](Import-OnboardingReceipt -Path $temporary)
-        [IO.File]::Move($temporary,$full,$true)
+        [IO.File]::Move($temporary,$full,-not [bool]$NoOverwrite)
     } finally {
         if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}
     }
@@ -482,5 +489,176 @@ function Write-OnboardingManualCheckpoint {
     $record=[ordered]@{schemaVersion=1;application=$Application;profile=$Profile;shopId=[string]$context.Binding.shopify.shopId;clientIdSha256=$hash;callback=$callback;recordedAtUtc=[DateTimeOffset]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ');approvedEvidenceRef=$EvidenceRef}
     $full=Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath';[IO.Directory]::CreateDirectory((Split-Path -Parent $full))|Out-Null;[IO.File]::WriteAllText($full,((Get-OnboardingCanonicalJson $record)+"`n"),[Text.UTF8Encoding]::new($false));Write-Output 'PASS: sanitized manual registration checkpoint recorded.'
 }
+function Invoke-OnboardingProbeRecovery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$Application,
+        [Parameter(Mandatory)][string]$Profile,
+        [Parameter(Mandatory)][string]$PlanReceipt,
+        [Parameter(Mandatory)][string]$RecoveryReceipt,
+        [Parameter(Mandatory)][string]$OutputPath,
+        [scriptblock]$Transport
+    )
+
+    $PlanReceipt = Resolve-OnboardingEvidencePath $RepositoryRoot $PlanReceipt 'PlanReceipt'
+    $RecoveryReceipt = Resolve-OnboardingEvidencePath $RepositoryRoot $RecoveryReceipt 'RecoveryReceipt'
+    $OutputPath = Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath'
+    if (Test-Path -LiteralPath $OutputPath) {
+        throw 'PROBE_RECOVERY_OUTPUT_EXISTS'
+    }
+    $plan = Import-OnboardingReceipt -Path $PlanReceipt
+    $recovery = Import-OnboardingReceipt -Path $RecoveryReceipt
+    $context = Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only') {
+        throw 'UNSAFE_RELEASE_BOUNDARY'
+    }
+
+    $sharedResourceGroup = [string]$context.Selected.Profile.storefront.sharedResourceGroup
+    if ([string]::IsNullOrWhiteSpace($sharedResourceGroup) -or
+        [string]$plan.kind -cne 'PLAN' -or
+        [string]$plan.overallStatus -cne 'PLANNED' -or
+        [string]$plan.application -cne $Application -or
+        [string]$plan.profile -cne $Profile -or
+        [string]$plan.runtimeEnvironment -cne [string]$context.Selected.Profile.runtimeEnvironment -or
+        [string]$plan.releaseBoundary -cne [string]$context.Selected.Application.releaseBoundary) {
+        throw 'PROBE_RECOVERY_TARGET_MISMATCH'
+    }
+
+    $expectedTarget = [ordered]@{
+        shopId = [string]$context.Binding.shopify.shopId
+        adminShopDomain = [string]$context.Binding.shopify.adminShopDomain
+        firebaseProjectId = if ($null -ne $context.Binding.firebase) { [string]$context.Binding.firebase.projectId } else { $null }
+        firebaseProjectNumber = if ($null -ne $context.Binding.firebase) { [string]$context.Binding.firebase.projectNumber } else { $null }
+    }
+    if ((Get-OnboardingCanonicalJson $plan.verifiedTarget) -cne (Get-OnboardingCanonicalJson $expectedTarget)) {
+        throw 'PROBE_RECOVERY_TARGET_MISMATCH'
+    }
+
+    $homeSchema = Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $currentDigests = [ordered]@{
+        registrySha256 = Get-OnboardingSha256 $context.RegistryPath
+        providerBindingSha256 = Get-OnboardingSha256 $context.BindingPath
+        homeSchemaSha256 = Get-OnboardingSha256 $homeSchema
+        operatorSha256 = Get-OnboardingOperatorDigest $RepositoryRoot
+    }
+    foreach ($key in @('registrySha256', 'providerBindingSha256', 'homeSchemaSha256')) {
+        if ([string]$plan.digests[$key] -cne [string]$currentDigests[$key]) {
+            throw 'PROBE_RECOVERY_CONTRACT_MISMATCH'
+        }
+    }
+    $sourceOperatorDigest = [string]$plan.digests.operatorSha256
+    if ($sourceOperatorDigest -cne $script:ProbeRecoveryPredecessorOperatorSha256 -and
+        $sourceOperatorDigest -cne [string]$currentDigests.operatorSha256) {
+        throw 'PROBE_RECOVERY_CONTRACT_MISMATCH'
+    }
+
+    $actions = @($plan.actions)
+    if ($actions.Count -ne 1) { throw 'PROBE_RECOVERY_ACTION_MISMATCH' }
+    $action = $actions[0]
+    if ([int]$action.ordinal -ne 1 -or
+        [string]$action.resourceKind -cne 'SHOPIFY_HOME_ACCEPTANCE_PROBE' -or
+        [string]$action.resourceKey -cne 'gate8-operator-acceptance-v1' -or
+        [string]$action.managementMode -cne 'PROBE_CREATE_IF_MISSING' -or
+        [string]$action.beforeClassification -cne 'ABSENT' -or
+        [string]$action.intendedAction -cne 'CREATE' -or
+        [string]$action.status -cne 'PLANNED' -or
+        $null -ne $action.providerResourceId -or
+        [string]$action.afterClassification -cne 'UNKNOWN' -or
+        [string]$action.afterFingerprint -cne ('0' * 64) -or
+        @($plan.diagnosticCodes).Count -ne 0 -or
+        @($plan.readback).Count -ne 0 -or
+        @($plan.recovery).Count -ne 0) {
+        throw 'PROBE_RECOVERY_ACTION_MISMATCH'
+    }
+    $absentProbeFingerprint = Get-ObjectSha ([ordered]@{ probe = $null })
+    if ([string]$action.beforeFingerprint -cne $absentProbeFingerprint) {
+        throw 'PROBE_RECOVERY_ACTION_MISMATCH'
+    }
+
+    $intentPath = "$PlanReceipt.intent-$([int]$action.ordinal).json"
+    $intent = Import-OnboardingReceipt -Path $intentPath
+    $expectedIntent = New-OnboardingRecoverySnapshot -Plan $plan -Actions $actions -Action $action
+    if ((Get-OnboardingCanonicalJson $intent) -cne (Get-OnboardingCanonicalJson $expectedIntent)) {
+        throw 'PROBE_RECOVERY_EVIDENCE_MISMATCH:INTENT'
+    }
+    $ambiguousActions = @((Get-OnboardingCanonicalJson $actions) | ConvertFrom-Json -AsHashtable -Depth 32)
+    $ambiguousActions[0].status = 'AMBIGUOUS'
+    $expectedRecovery = New-OnboardingRecoverySnapshot `
+        -Plan $plan `
+        -Actions $ambiguousActions `
+        -Action $ambiguousActions[0]
+    if ((Get-OnboardingCanonicalJson $recovery) -cne (Get-OnboardingCanonicalJson $expectedRecovery)) {
+        throw 'PROBE_RECOVERY_EVIDENCE_MISMATCH:RECOVERY'
+    }
+
+    $admin = Get-OnboardingCredential (Get-OnboardingCredentialName $Application $Profile 'SHOPIFY_ADMIN_TOKEN')
+    [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
+    $homeState = Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+    $menuState = Get-ShopifyMenuState `
+        $context.Binding `
+        $admin `
+        ([string]$context.Selected.Profile.storefront.catalog.menuHandle) `
+        $Transport
+    $probeState = Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
+    $selectedHomeHandle = [string]$context.Selected.Profile.storefront.home.rootHandle
+    if ([string]$homeState.Classification -cne 'COMPATIBLE' -or
+        @($homeState.MissingTypes).Count -ne 0 -or
+        [string]$menuState.Classification -cne 'CORRECT' -or
+        [string]$probeState.Classification -cne 'COMPATIBLE' -or
+        [string]$probeState.ResourceId -cnotmatch '^gid://shopify/Metaobject/[0-9]+$' -or
+        [string]::IsNullOrWhiteSpace($selectedHomeHandle) -or
+        $selectedHomeHandle -ceq 'gate8-operator-acceptance-v1') {
+        throw 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+    }
+    $expectedOriginalState = Get-ObjectSha ([ordered]@{
+        home = [string]$homeState.Fingerprint
+        probe = $absentProbeFingerprint
+    })
+    if ([string]$plan.stateFingerprint -cne $expectedOriginalState) {
+        throw 'PROBE_RECOVERY_EVIDENCE_MISMATCH'
+    }
+
+    $created = [DateTimeOffset]::UtcNow.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $recoveredAction = (Get-OnboardingCanonicalJson $action) | ConvertFrom-Json -AsHashtable -Depth 32
+    $recoveredAction.providerResourceId = [string]$probeState.ResourceId
+    $recoveredAction.status = 'SUCCEEDED'
+    $recoveredAction.afterClassification = 'CORRECT'
+    $recoveredAction.afterFingerprint = [string]$probeState.Fingerprint
+    $result = [ordered]@{
+        receiptSchemaVersion = 1
+        operationContractVersion = 'gate8-v1'
+        kind = 'RESULT'
+        application = $Application
+        profile = $Profile
+        runtimeEnvironment = [string]$context.Selected.Profile.runtimeEnvironment
+        releaseBoundary = [string]$context.Selected.Application.releaseBoundary
+        createdAtUtc = $created
+        expiresAtUtc = $null
+        verifiedTarget = $expectedTarget
+        digests = $currentDigests
+        stateFingerprint = Get-ObjectSha ([ordered]@{
+            home = [string]$homeState.Fingerprint
+            probe = [string]$probeState.Fingerprint
+        })
+        actions = @($recoveredAction)
+        overallStatus = 'SUCCEEDED'
+        diagnosticCodes = @()
+        readback = @(
+            [ordered]@{ surface = 'SHOPIFY_ADMIN'; resourceKey = 'home-definitions'; classification = 'PASS'; identityFingerprint = [string]$homeState.Fingerprint },
+            [ordered]@{ surface = 'SHOPIFY_ADMIN'; resourceKey = [string]$context.Selected.Profile.storefront.catalog.menuHandle; classification = 'PASS'; identityFingerprint = [string]$menuState.Fingerprint },
+            [ordered]@{ surface = 'SHOPIFY_ADMIN'; resourceKey = [string]$action.resourceKey; classification = 'PASS'; identityFingerprint = [string]$probeState.Fingerprint }
+        )
+        recovery = @([ordered]@{
+            ordinal = 1
+            resourceKind = 'SHOPIFY_HOME_ACCEPTANCE_PROBE'
+            resourceKey = [string]$action.resourceKey
+            classification = 'COMPATIBLE'
+            nextAction = 'NO_ACTION'
+        })
+    }
+    Write-OnboardingReceipt $OutputPath $result -NoOverwrite
+    return $result
+}
 function Get-OnboardingRecovery { param([string]$RepositoryRoot,[string]$PlanReceipt) $path=Resolve-OnboardingEvidencePath $RepositoryRoot $PlanReceipt 'PlanReceipt';$receipt=Import-OnboardingReceipt -Path $path;[pscustomobject]@{application=$receipt.application;profile=$receipt.profile;kind=$receipt.kind;overallStatus=$receipt.overallStatus;nextAction='REINSPECT'} }
-Export-ModuleMember -Function @('Invoke-OnboardingInspect','Invoke-OnboardingReadback','New-OnboardingPlan','Invoke-OnboardingApply','Write-OnboardingLocalConfiguration','Write-OnboardingManualCheckpoint','Get-OnboardingRecovery','Get-OnboardingOperatorContext','Get-OnboardingCredentialName','Get-OnboardingCredential','Write-OnboardingReceipt','Get-OnboardingValidatedClientConfigurationLines','Write-OnboardingPrivateProperties','Assert-OnboardingLocalWritePath','Set-OnboardingPrivateFilePermissions','Get-OnboardingOperatorDigest')
+Export-ModuleMember -Function @('Invoke-OnboardingInspect','Invoke-OnboardingReadback','New-OnboardingPlan','Invoke-OnboardingApply','Invoke-OnboardingProbeRecovery','Write-OnboardingLocalConfiguration','Write-OnboardingManualCheckpoint','Get-OnboardingRecovery','Get-OnboardingOperatorContext','Get-OnboardingCredentialName','Get-OnboardingCredential','Write-OnboardingReceipt','Get-OnboardingValidatedClientConfigurationLines','Write-OnboardingPrivateProperties','Assert-OnboardingLocalWritePath','Set-OnboardingPrivateFilePermissions','Get-OnboardingOperatorDigest')
