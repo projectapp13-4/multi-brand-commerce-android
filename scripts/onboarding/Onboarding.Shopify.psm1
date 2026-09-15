@@ -60,6 +60,194 @@ function Import-ShopifyHomeSchemaContract {
     return $schema
 }
 
+function ConvertFrom-ShopifyDefinitionIdsValidation {
+    param([Parameter(Mandatory)][string]$Value)
+
+    $document = $null
+    try {
+        $options = [System.Text.Json.JsonDocumentOptions]::new()
+        $options.AllowTrailingCommas = $false
+        $options.CommentHandling = [System.Text.Json.JsonCommentHandling]::Disallow
+        $options.MaxDepth = 4
+        $document = [System.Text.Json.JsonDocument]::Parse($Value, $options)
+        if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Array) {
+            throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+        }
+        $ids = [System.Collections.Generic.List[string]]::new()
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($element in $document.RootElement.EnumerateArray()) {
+            if ($element.ValueKind -ne [System.Text.Json.JsonValueKind]::String) {
+                throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+            }
+            $id = [string]$element.GetString()
+            if ($id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$' -or -not $seen.Add($id)) {
+                throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+            }
+            $ids.Add($id)
+        }
+        return [string[]]@($ids | Sort-Object -CaseSensitive)
+    } catch {
+        throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+    } finally {
+        if ($null -ne $document) { $document.Dispose() }
+    }
+}
+
+function Get-ShopifyExpectedHomeValidationTokens {
+    param(
+        [Parameter(Mandatory)]$FieldContract,
+        [Parameter(Mandatory)][hashtable]$DefinitionsByType
+    )
+
+    $tokens = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $FieldContract.validations.GetEnumerator()) {
+        if ([string]$entry.Key -ceq 'definitionTypes') {
+            $ids = [System.Collections.Generic.List[string]]::new()
+            foreach ($childType in @($entry.Value)) {
+                $children = @($DefinitionsByType[[string]$childType])
+                if ($children.Count -ne 1 -or
+                    [string]$children[0].id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$') {
+                    throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+                }
+                $ids.Add([string]$children[0].id)
+            }
+            $tokens.Add(('definitionTypes={0}' -f (@($ids | Sort-Object -CaseSensitive) -join ',')))
+        } else {
+            $tokens.Add(('{0}={1}' -f [string]$entry.Key, [string]$entry.Value))
+        }
+    }
+    return [string[]]@($tokens | Sort-Object -CaseSensitive)
+}
+
+function Get-ShopifyReadbackHomeValidationTokens {
+    param(
+        [Parameter(Mandatory)]$Field,
+        [Parameter(Mandatory)]$FieldContract
+    )
+
+    $fieldType = [string]$FieldContract.type
+    $isList = $fieldType.StartsWith('list.', [System.StringComparison]::Ordinal)
+    $tokens = [System.Collections.Generic.List[string]]::new()
+    foreach ($validation in @($Field.validations)) {
+        $name = [string]$validation.name
+        $value = [string]$validation.value
+        if ($name -cin @('min', 'max')) {
+            if ($isList) { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+            $tokens.Add(('{0}={1}' -f $name, $value))
+        } elseif ($name -cin @('list.min', 'list.max')) {
+            if (-not $isList) { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+            $tokens.Add(('{0}={1}' -f $name.Substring(5), $value))
+        } elseif ($name -ceq 'metaobject_definition_ids') {
+            if ($fieldType -cnotin @('mixed_reference', 'list.mixed_reference')) {
+                throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+            }
+            $ids = ConvertFrom-ShopifyDefinitionIdsValidation -Value $value
+            $tokens.Add(('definitionTypes={0}' -f ($ids -join ',')))
+        } elseif ($name -ceq 'metaobject_definition_id') {
+            if ($fieldType -cnotin @('metaobject_reference', 'list.metaobject_reference') -or
+                $value -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$') {
+                throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+            }
+            $tokens.Add(('definitionTypes={0}' -f $value))
+        } else {
+            throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+        }
+    }
+    return [string[]]@($tokens | Sort-Object -CaseSensitive)
+}
+
+function Test-ShopifyHomeUsesProviderNullDisplayName {
+    param([Parameter(Mandatory)]$Contract)
+
+    if ([string]$Contract.type -cne 'mobile_home' -or
+        [string]$Contract.displayNameKey -cne 'schema_version') {
+        return $false
+    }
+    $displayFields = @($Contract.fields | Where-Object {
+        [string]$_.key -ceq 'schema_version' -and [string]$_.type -ceq 'number_integer'
+    })
+    return $displayFields.Count -eq 1
+}
+
+function Test-ShopifyHomeDisplayNameCompatibility {
+    param(
+        [Parameter(Mandatory)]$Definition,
+        [Parameter(Mandatory)]$Contract
+    )
+
+    if ($null -ne $Definition.displayNameKey) {
+        return [string]$Definition.displayNameKey -ceq [string]$Contract.displayNameKey
+    }
+    return Test-ShopifyHomeUsesProviderNullDisplayName -Contract $Contract
+}
+
+function ConvertTo-ShopifyHomeDefinitionCreateInput {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][hashtable]$DefinitionIdsByType
+    )
+
+    $fields = @(
+        foreach ($fieldContract in @($Contract.fields)) {
+            $validations = [System.Collections.Generic.List[object]]::new()
+            foreach ($entry in $fieldContract.validations.GetEnumerator()) {
+                $semanticName = [string]$entry.Key
+                if ($semanticName -ceq 'definitionTypes') {
+                    $ids = [System.Collections.Generic.List[string]]::new()
+                    foreach ($childType in @($entry.Value)) {
+                        $id = [string]$DefinitionIdsByType[[string]$childType]
+                        if ($id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$') {
+                            throw 'SHOPIFY_DEFINITION_DEPENDENCY_MISSING'
+                        }
+                        $ids.Add($id)
+                    }
+                    $orderedIds = [string[]]@($ids | Sort-Object -CaseSensitive)
+                    if ([string]$fieldContract.type -cin @('mixed_reference', 'list.mixed_reference')) {
+                        $validations.Add(@{
+                            name = 'metaobject_definition_ids'
+                            value = ConvertTo-Json -InputObject $orderedIds -Compress
+                        })
+                    } elseif ([string]$fieldContract.type -cin @('metaobject_reference', 'list.metaobject_reference') -and
+                        $orderedIds.Count -eq 1) {
+                        $validations.Add(@{ name = 'metaobject_definition_id'; value = $orderedIds[0] })
+                    } else {
+                        throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+                    }
+                } else {
+                    $providerName = if (
+                        [string]$fieldContract.type -clike 'list.*' -and
+                        $semanticName -cin @('min', 'max')
+                    ) {
+                        'list.' + $semanticName
+                    } else {
+                        $semanticName
+                    }
+                    $validations.Add(@{ name = $providerName; value = [string]$entry.Value })
+                }
+            }
+            @{
+                name = ([string]$fieldContract.key -replace '_', ' ')
+                key = [string]$fieldContract.key
+                type = [string]$fieldContract.type
+                required = [bool]$fieldContract.required
+                validations = @($validations | Sort-Object { [string]$_.name })
+            }
+        }
+    )
+    $definition = @{
+        name = ([string]$Contract.type -replace '_', ' ')
+        type = [string]$Contract.type
+        access = @{ storefront = 'PUBLIC_READ' }
+        capabilities = @{ publishable = @{ enabled = $true } }
+        fieldDefinitions = $fields
+    }
+    if (-not (Test-ShopifyHomeUsesProviderNullDisplayName -Contract $Contract)) {
+        $definition.displayNameKey = [string]$Contract.displayNameKey
+    }
+    return $definition
+}
+
 function Test-ShopifyHomeDefinitionCompatibility {
     param(
         [Parameter(Mandatory)]$Definition,
@@ -68,50 +256,37 @@ function Test-ShopifyHomeDefinitionCompatibility {
         [Parameter(Mandatory)]$Schema
     )
 
-    if ([string]$Definition.id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$' -or
-        [string]$Definition.type -cne [string]$Contract.type -or
-        [string]$Definition.displayNameKey -cne [string]$Contract.displayNameKey -or
-        [string]$Definition.access.admin -cne [string]$Schema.access.admin -or
-        [string]$Definition.access.storefront -cne [string]$Schema.access.storefront -or
-        $Definition.capabilities.publishable.enabled -ne $true) {
+    try {
+        if ([string]$Definition.id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$' -or
+            [string]$Definition.type -cne [string]$Contract.type -or
+            -not (Test-ShopifyHomeDisplayNameCompatibility -Definition $Definition -Contract $Contract) -or
+            [string]$Definition.access.admin -cne [string]$Schema.access.admin -or
+            [string]$Definition.access.storefront -cne [string]$Schema.access.storefront -or
+            $Definition.capabilities.publishable.enabled -ne $true) {
+            return $false
+        }
+
+        $actualFields = @($Definition.fieldDefinitions)
+        $expectedFields = @($Contract.fields)
+        if ($actualFields.Count -ne $expectedFields.Count) { return $false }
+        foreach ($fieldContract in $expectedFields) {
+            $matchingFields = @($actualFields | Where-Object { [string]$_.key -ceq [string]$fieldContract.key })
+            if ($matchingFields.Count -ne 1) { return $false }
+            $actualField = $matchingFields[0]
+            if ([string]$actualField.type.name -cne [string]$fieldContract.type -or
+                [bool]$actualField.required -ne [bool]$fieldContract.required) {
+                return $false
+            }
+            $expectedValidations = Get-ShopifyExpectedHomeValidationTokens -FieldContract $fieldContract -DefinitionsByType $DefinitionsByType
+            $actualValidations = Get-ShopifyReadbackHomeValidationTokens -Field $actualField -FieldContract $fieldContract
+            if (($expectedValidations -join "`n") -cne ($actualValidations -join "`n")) {
+                return $false
+            }
+        }
+        return $true
+    } catch {
         return $false
     }
-
-    $actualFields = @($Definition.fieldDefinitions)
-    $expectedFields = @($Contract.fields)
-    if ($actualFields.Count -ne $expectedFields.Count) { return $false }
-    foreach ($fieldContract in $expectedFields) {
-        $matchingFields = @($actualFields | Where-Object { [string]$_.key -ceq [string]$fieldContract.key })
-        if ($matchingFields.Count -ne 1) { return $false }
-        $actualField = $matchingFields[0]
-        if ([string]$actualField.type.name -cne [string]$fieldContract.type -or
-            [bool]$actualField.required -ne [bool]$fieldContract.required) {
-            return $false
-        }
-
-        $expectedValidations = [System.Collections.Generic.List[string]]::new()
-        foreach ($entry in $fieldContract.validations.GetEnumerator()) {
-            if ([string]$entry.Key -ceq 'definitionTypes') {
-                foreach ($childType in @($entry.Value)) {
-                    $children = @($DefinitionsByType[[string]$childType])
-                    if ($children.Count -ne 1) { return $false }
-                    $expectedValidations.Add(('metaobject_definition_id={0}' -f [string]$children[0].id))
-                }
-            } else {
-                $expectedValidations.Add(('{0}={1}' -f [string]$entry.Key, [string]$entry.Value))
-            }
-        }
-        $actualValidations = @(
-            foreach ($validation in @($actualField.validations)) {
-                '{0}={1}' -f [string]$validation.name, [string]$validation.value
-            }
-        )
-        if ((@($expectedValidations | Sort-Object -CaseSensitive) -join "`n") -cne
-            (@($actualValidations | Sort-Object -CaseSensitive) -join "`n")) {
-            return $false
-        }
-    }
-    return $true
 }
 
 function Get-ShopifyHomeDefinitionFingerprint {
@@ -131,7 +306,16 @@ function Get-ShopifyHomeDefinitionFingerprint {
                             required = [bool]$field.required
                             validations = @(
                                 foreach ($validation in @($field.validations | Sort-Object name, value)) {
-                                    [ordered]@{ name = [string]$validation.name; value = [string]$validation.value }
+                                    $value = [string]$validation.value
+                                    if ([string]$validation.name -ceq 'metaobject_definition_ids') {
+                                        try {
+                                            $ids = ConvertFrom-ShopifyDefinitionIdsValidation -Value $value
+                                            $value = ConvertTo-Json -InputObject $ids -Compress
+                                        } catch {
+                                            # Incompatible provider state still needs a stable fingerprint.
+                                        }
+                                    }
+                                    [ordered]@{ name = [string]$validation.name; value = $value }
                                 }
                             )
                         }
@@ -200,10 +384,24 @@ function Get-ShopifyHomeDefinitionState {
 function Get-ShopifyMenuState {
     [CmdletBinding()]
     param($Binding, [string]$Token, [string]$Handle, [scriptblock]$Transport)
-    $query = 'query Gate8Menu($handle:String!){menu(handle:$handle){id handle title items{id title type url resourceId items{id title type url resourceId items{id title type url resourceId}}}}}'
-    $data = Invoke-ShopifyAdminOperation $Binding $Token $query @{ handle = $Handle } $Transport
-    $classification = if ($null -eq $data.menu) { 'ABSENT' } else { 'CORRECT' }
-    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ handle = $Handle; menu = $data.menu })
+    $query = 'query Gate8Menus($first:Int!,$after:String){menus(first:$first,after:$after){nodes{id handle title items{id title type url resourceId items{id title type url resourceId items{id title type url resourceId}}}} pageInfo{hasNextPage endCursor}}}'
+    $nodes = [System.Collections.Generic.List[object]]::new()
+    $after = $null
+    for ($page = 1; $page -le 5; $page++) {
+        $data = Invoke-ShopifyAdminOperation $Binding $Token $query @{ first = 100; after = $after } $Transport
+        foreach ($node in @($data.menus.nodes)) { $nodes.Add($node) }
+        if (-not [bool]$data.menus.pageInfo.hasNextPage) { break }
+        $next = [string]$data.menus.pageInfo.endCursor
+        if ([string]::IsNullOrWhiteSpace($next) -or $next -ceq $after -or $page -eq 5) {
+            throw 'SHOPIFY_PAGINATION_INCOMPLETE'
+        }
+        $after = $next
+    }
+    $matches = @($nodes | Where-Object { [string]$_.handle -ceq $Handle })
+    if ($matches.Count -gt 1) { throw 'SHOPIFY_MENU_IDENTITY_CONFLICT' }
+    $menu = if ($matches.Count -eq 1) { $matches[0] } else { $null }
+    $classification = if ($null -eq $menu) { 'ABSENT' } else { 'CORRECT' }
+    $canonical = Get-OnboardingCanonicalJson ([ordered]@{ handle = $Handle; menu = $menu })
     $hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
     [pscustomobject]@{ Classification = $classification; Fingerprint = $hash }
 }
@@ -246,4 +444,4 @@ function Get-ShopifyAcceptanceProbeState {
     [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; ResourceId = if ($null -eq $probe) { $null } else { [string]$probe.id } }
 }
 
-Export-ModuleMember -Function @('Import-ShopifyHomeSchemaContract', 'Get-ShopifyVerifiedTargetState', 'Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')
+Export-ModuleMember -Function @('Import-ShopifyHomeSchemaContract', 'ConvertTo-ShopifyHomeDefinitionCreateInput', 'Get-ShopifyVerifiedTargetState', 'Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')

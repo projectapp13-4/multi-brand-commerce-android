@@ -415,26 +415,10 @@ function Invoke-OnboardingApply {
                 }
                 $schema=Import-ShopifyHomeSchemaContract
                 $contract=@($schema.definitions|Where-Object{[string]$_.type -ceq [string]$action.resourceKey})[0]
-                $fields = @(
-                    foreach ($fieldContract in @($contract.fields)) {
-                        $validations = @(
-                            foreach ($entry in $fieldContract.validations.GetEnumerator()) {
-                                if ([string]$entry.Key -cne 'definitionTypes') {
-                                    @{ name = [string]$entry.Key; value = [string]$entry.Value }
-                                }
-                            }
-                        )
-                        if ($fieldContract.validations.Contains('definitionTypes')) {
-                            foreach ($childType in @($fieldContract.validations.definitionTypes)) {
-                                $validations += @{ name = 'metaobject_definition_id'; value = [string]$createdIds[[string]$childType] }
-                            }
-                        }
-                        @{ name = ([string]$fieldContract.key -replace '_', ' '); key = [string]$fieldContract.key; type = [string]$fieldContract.type; required = [bool]$fieldContract.required; validations = $validations }
-                    }
-                )
                 # Shopify owns the Admin access value for merchant-owned definitions. Gate 8
-                # requests Storefront readability and validates the resulting Admin readback.
-                $definition=@{name=([string]$contract.type -replace '_',' ');type=[string]$contract.type;displayNameKey=[string]$contract.displayNameKey;access=@{storefront='PUBLIC_READ'};capabilities=@{publishable=@{enabled=$true}};fieldDefinitions=$fields}
+                # maps its semantic contract to Shopify's mutation representation, requests
+                # Storefront readability, and validates the normalized Admin readback.
+                $definition = ConvertTo-ShopifyHomeDefinitionCreateInput -Contract $contract -DefinitionIdsByType $createdIds
                 Write-OnboardingReceipt "$PlanReceipt.intent-$($action.ordinal).json" (New-OnboardingRecoverySnapshot $plan $actions $action)
                 try {
                     $created=New-ShopifyHomeDefinition $context.Binding $admin $definition $Transport
