@@ -65,7 +65,7 @@ function Assert-Throws {
 function Copy-TestValue {
     param([Parameter(Mandatory)]$Value)
 
-    return ((Get-OnboardingCanonicalJson $Value) | ConvertFrom-Json -AsHashtable -Depth 32)
+    return (($Value | ConvertTo-Json -Depth 32 -Compress) | ConvertFrom-Json -AsHashtable -Depth 32)
 }
 
 function Get-TestFileSnapshot {
@@ -89,6 +89,41 @@ function Restore-TestFileSnapshot {
         [System.IO.Directory]::CreateDirectory((Split-Path -Parent $Path)) | Out-Null
         [System.IO.File]::WriteAllBytes($Path, [byte[]]$Snapshot.Bytes)
     }
+}
+
+function Write-TestProbeRecoveryEvidence {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][string]$Directory,
+        [Parameter(Mandatory)][string]$Name,
+        [scriptblock]$MutatePlan,
+        [scriptblock]$MutateIntent,
+        [scriptblock]$MutateRecovery
+    )
+
+    $planCopy = Copy-TestValue $Plan
+    if ($null -ne $MutatePlan) { & $MutatePlan $planCopy }
+    $actions = @($planCopy.actions)
+    $action = $actions[0]
+    $intent = & (Get-Module Onboarding.Operator) {
+        param($Receipt, [object[]]$ReceiptActions, $ReceiptAction)
+        New-OnboardingRecoverySnapshot -Plan $Receipt -Actions $ReceiptActions -Action $ReceiptAction
+    } $planCopy $actions $action
+    if ($null -ne $MutateIntent) { & $MutateIntent $intent }
+    $ambiguousActions = Copy-TestValue $actions
+    @($ambiguousActions)[0].status = 'AMBIGUOUS'
+    $recovery = & (Get-Module Onboarding.Operator) {
+        param($Receipt, [object[]]$ReceiptActions, $ReceiptAction)
+        New-OnboardingRecoverySnapshot -Plan $Receipt -Actions $ReceiptActions -Action $ReceiptAction
+    } $planCopy @($ambiguousActions) @($ambiguousActions)[0]
+    if ($null -ne $MutateRecovery) { & $MutateRecovery $recovery }
+
+    $planPath = Join-Path $Directory "$Name-plan.json"
+    $recoveryPath = Join-Path $Directory "$Name-recovery.json"
+    Write-OnboardingReceipt $planPath $planCopy
+    Write-OnboardingReceipt "$planPath.intent-$([int]$action.ordinal).json" $intent
+    Write-OnboardingReceipt $recoveryPath $recovery
+    [pscustomobject]@{ PlanPath = $planPath; RecoveryPath = $recoveryPath }
 }
 
 function Invoke-RegistrySuite {
@@ -1032,6 +1067,77 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition ((& $getHomeState $missingChildDisplayName).Classification -ceq 'INCOMPATIBLE') `
         -Name 'nullable display-name equivalence is not applied to title-based child definitions'
+
+    $compatibleProbe = @{
+        id = 'gid://shopify/Metaobject/99'
+        type = 'mobile_home'
+        handle = 'gate8-operator-acceptance-v1'
+        fields = @(
+            @{ key = 'schema_version'; value = '1' },
+            @{ key = 'declared_section_count'; value = '0' }
+        )
+        capabilities = @{ publishable = @{ status = 'DRAFT' } }
+    }
+    $getProbeState = {
+        param($probe)
+        $fixtureTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectByHandle = $probe } } }
+        }.GetNewClosure()
+        Get-ShopifyAcceptanceProbeState $binding 'fixture-admin-token' $fixtureTransport
+    }.GetNewClosure()
+    Assert-True `
+        -Condition ((& $getProbeState $compatibleProbe).Classification -ceq 'COMPATIBLE') `
+        -Name 'DRAFT acceptance probe with only its two required fields remains compatible'
+
+    $providerEmptySectionsProbe = Copy-TestValue $compatibleProbe
+    $providerEmptySectionsProbe.fields += @{ key = 'sections'; value = $null }
+    Assert-True `
+        -Condition ((& $getProbeState $providerEmptySectionsProbe).Classification -ceq 'COMPATIBLE') `
+        -Name 'DRAFT acceptance probe accepts the observed provider-null optional sections field'
+
+    foreach ($invalidSections in @(
+        @{ Name = 'non-empty'; Value = '["gid://shopify/Metaobject/12"]' },
+        @{ Name = 'JSON empty array'; Value = '[]' },
+        @{ Name = 'empty string'; Value = '' },
+        @{ Name = 'whitespace'; Value = ' ' }
+    )) {
+        $invalidProbe = Copy-TestValue $compatibleProbe
+        $invalidProbe.fields += @{ key = 'sections'; value = $invalidSections.Value }
+        Assert-True `
+            -Condition ((& $getProbeState $invalidProbe).Classification -ceq 'INCOMPATIBLE') `
+            -Name "DRAFT acceptance probe rejects $($invalidSections.Name) optional sections representation"
+    }
+
+    $extraFieldProbe = Copy-TestValue $compatibleProbe
+    $extraFieldProbe.fields += @{ key = 'unexpected'; value = '' }
+    Assert-True `
+        -Condition ((& $getProbeState $extraFieldProbe).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'DRAFT acceptance probe rejects arbitrary extra fields'
+
+    $duplicateFieldProbe = Copy-TestValue $compatibleProbe
+    $duplicateFieldProbe.fields += @{ key = 'schema_version'; value = '1' }
+    Assert-True `
+        -Condition ((& $getProbeState $duplicateFieldProbe).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'DRAFT acceptance probe rejects duplicate field keys'
+    Assert-True `
+        -Condition ((& $getProbeState @($compatibleProbe, $compatibleProbe)).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'DRAFT acceptance probe rejects conflicting duplicate current resources'
+
+    foreach ($incompatibleMutation in @(
+        @{ Name = 'ACTIVE state'; Apply = { param($probe) $probe.capabilities.publishable.status = 'ACTIVE' } },
+        @{ Name = 'wrong schema version'; Apply = { param($probe) $probe.fields[0].value = '2' } },
+        @{ Name = 'nonzero declared count'; Apply = { param($probe) $probe.fields[1].value = '1' } },
+        @{ Name = 'wrong handle'; Apply = { param($probe) $probe.handle = 'primary' } },
+        @{ Name = 'wrong type'; Apply = { param($probe) $probe.type = 'other_type' } },
+        @{ Name = 'missing required field'; Apply = { param($probe) $probe.fields = @($probe.fields | Select-Object -Skip 1) } }
+    )) {
+        $invalidProbe = Copy-TestValue $compatibleProbe
+        & $incompatibleMutation.Apply $invalidProbe
+        Assert-True `
+            -Condition ((& $getProbeState $invalidProbe).Classification -ceq 'INCOMPATIBLE') `
+            -Name "DRAFT acceptance probe rejects $($incompatibleMutation.Name)"
+    }
     $menuBodies = [Collections.Generic.List[string]]::new()
     $requestedMenu = @{
         id = 'gid://shopify/Menu/2'
@@ -1302,6 +1408,7 @@ public sealed class Gate8BlockingReadStream : Stream
 
 function Invoke-OperatorApplySuite {
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Common.psm1') -Force
     $receiptTimeWindow = & (Get-Module Onboarding.Operator) {
         param([DateTimeOffset]$Now)
         New-OnboardingReceiptTimeWindow -Now $Now
@@ -1330,6 +1437,12 @@ function Invoke-OperatorApplySuite {
     $script:createdDefinitions = [Collections.Generic.List[object]]::new()
     $script:definitionInputs = [Collections.Generic.List[object]]::new()
     $script:probe = $null
+    $script:menuNodes = @(@{
+        id='gid://shopify/Menu/77'
+        handle='main-menu'
+        title='Fixture menu'
+        items=@()
+    })
     $script:writeCount = 0
     $script:lockObserved = $false
     $transport = {
@@ -1343,7 +1456,7 @@ function Invoke-OperatorApplySuite {
         }
         if ($request.query -match 'Gate8Menus') {
             return [pscustomobject]@{StatusCode=200;Data=@{data=@{menus=@{
-                nodes=@()
+                nodes=@($script:menuNodes)
                 pageInfo=@{hasNextPage=$false;endCursor=$null}
             }}}}
         }
@@ -1532,6 +1645,245 @@ function Invoke-OperatorApplySuite {
             -Name 'receipt-bound matching DRAFT probe plans an attributed no-op'
         [void](Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $secondPlanPath 'gurbakir' 'development' -ConfirmApply -IncludeAcceptanceProbe -PriorReceipt $resultPath -OutputPath $secondResultPath -Transport $transport)
         Assert-True -Condition ($script:writeCount -eq 4) -Name 'second attributed Apply performs zero writes'
+
+        $successfulProbe = Copy-TestValue $script:probe
+        $script:probe = $null
+        $historicalPlanSourcePath = Join-Path $temporaryRoot 'historical-source-plan.json'
+        $historicalPlan = New-OnboardingPlan `
+            $repoRoot 'gurbakir' 'development' $historicalPlanSourcePath `
+            -IncludeAcceptanceProbe -Transport $transport
+        $historicalPlan.digests.operatorSha256 = 'b504b2102d6edec9556f347ef38b4bc41ff259a39dedd3691577d3b46b323f57'
+        $historicalEvidence = Write-TestProbeRecoveryEvidence `
+            -Plan $historicalPlan `
+            -Directory $temporaryRoot `
+            -Name 'historical-partial-probe-create'
+        $script:probe = Copy-TestValue $successfulProbe
+        $script:probe.fields += @{ key = 'sections'; value = $null }
+        $writesBeforeRecovery = $script:writeCount
+        $recoveredResultPath = Join-Path $temporaryRoot 'recovered-probe-result.json'
+        $recoveredResult = Invoke-OnboardingProbeRecovery `
+            -RepositoryRoot $repoRoot `
+            -Application 'gurbakir' `
+            -Profile 'development' `
+            -PlanReceipt $historicalEvidence.PlanPath `
+            -RecoveryReceipt $historicalEvidence.RecoveryPath `
+            -OutputPath $recoveredResultPath `
+            -Transport $transport
+        $recoveredAction = @($recoveredResult.actions)[0]
+        $currentOperatorDigest = Get-OnboardingOperatorDigest $repoRoot
+        Assert-True `
+            -Condition (
+                [string]$recoveredResult.kind -ceq 'RESULT' -and
+                [string]$recoveredResult.overallStatus -ceq 'SUCCEEDED' -and
+                [string]$recoveredResult.digests.operatorSha256 -ceq $currentOperatorDigest -and
+                [string]$recoveredResult.digests.operatorSha256 -cne [string]$historicalPlan.digests.operatorSha256 -and
+                [string]$recoveredAction.resourceKind -ceq 'SHOPIFY_HOME_ACCEPTANCE_PROBE' -and
+                [string]$recoveredAction.status -ceq 'SUCCEEDED' -and
+                [string]$recoveredAction.providerResourceId -ceq 'gid://shopify/Metaobject/99'
+            ) `
+            -Name 'exact historical partial probe creation recovers to current attributable evidence'
+        Assert-True `
+            -Condition ($script:writeCount -eq $writesBeforeRecovery) `
+            -Name 'probe recovery attribution performs zero Shopify writes'
+        Assert-Throws `
+            -Action {
+                Invoke-OnboardingProbeRecovery `
+                    -RepositoryRoot $repoRoot `
+                    -Application 'gurbakir' `
+                    -Profile 'development' `
+                    -PlanReceipt $historicalEvidence.PlanPath `
+                    -RecoveryReceipt $historicalEvidence.RecoveryPath `
+                    -OutputPath $recoveredResultPath `
+                    -Transport $transport
+            } `
+            -Pattern 'PROBE_RECOVERY_OUTPUT_EXISTS' `
+            -Name 'probe recovery preserves existing evidence instead of overwriting it'
+        $immutableEvidencePath = Join-Path $temporaryRoot 'immutable-recovery-evidence.json'
+        [IO.File]::WriteAllText($immutableEvidencePath, 'preserve-me', [Text.UTF8Encoding]::new($false))
+        Assert-Throws `
+            -Action { Write-OnboardingReceipt $immutableEvidencePath $recoveredResult -NoOverwrite } `
+            -Pattern 'RECEIPT_ALREADY_EXISTS' `
+            -Name 'no-overwrite receipt write rejects an existing destination'
+        Assert-True `
+            -Condition ([IO.File]::ReadAllText($immutableEvidencePath) -ceq 'preserve-me') `
+            -Name 'no-overwrite receipt write preserves existing bytes'
+
+        $recoveredPlanPath = Join-Path $temporaryRoot 'recovered-plan.json'
+        $recoveredApplyPath = Join-Path $temporaryRoot 'recovered-apply.json'
+        $recoveredPlan = New-OnboardingPlan `
+            $repoRoot 'gurbakir' 'development' $recoveredPlanPath `
+            -IncludeAcceptanceProbe -PriorReceipt $recoveredResultPath -Transport $transport
+        Assert-True `
+            -Condition (
+                @($recoveredPlan.actions).Count -eq 1 -and
+                [string]@($recoveredPlan.actions)[0].intendedAction -ceq 'NONE'
+            ) `
+            -Name 'recovered evidence permits a fresh Plan with an attributed probe no-op'
+        [void](Invoke-OnboardingApply `
+            $repoRoot 'gurbakir' 'development' $recoveredPlanPath 'gurbakir' 'development' `
+            -ConfirmApply -IncludeAcceptanceProbe -PriorReceipt $recoveredResultPath `
+            -OutputPath $recoveredApplyPath -Transport $transport)
+        Assert-True `
+            -Condition ($script:writeCount -eq $writesBeforeRecovery) `
+            -Name 'Apply using recovered probe attribution performs zero Shopify writes'
+
+        foreach ($hostileEvidence in @(
+            @{
+                Name = 'wrong-shop-id'
+                Pattern = 'PROBE_RECOVERY_TARGET_MISMATCH'
+                MutatePlan = { param($receipt) $receipt.verifiedTarget.shopId = '9999999999' }
+            },
+            @{
+                Name = 'wrong-shop-domain'
+                Pattern = 'PROBE_RECOVERY_TARGET_MISMATCH'
+                MutatePlan = { param($receipt) $receipt.verifiedTarget.adminShopDomain = 'other-shop.myshopify.com' }
+            },
+            @{
+                Name = 'wrong-application-profile-group'
+                Pattern = 'PROBE_RECOVERY_TARGET_MISMATCH'
+                MutatePlan = {
+                    param($receipt)
+                    $receipt.application = 'synthetic'
+                    $receipt.profile = 'conformance'
+                    $receipt.releaseBoundary = 'never-production'
+                }
+            },
+            @{
+                Name = 'wrong-profile-even-with-shared-resource-group'
+                Pattern = 'PROBE_RECOVERY_TARGET_MISMATCH'
+                MutatePlan = {
+                    param($receipt)
+                    $receipt.profile = 'staging'
+                    $receipt.runtimeEnvironment = 'STAGING'
+                }
+            },
+            @{
+                Name = 'prior-plan-not-absent'
+                Pattern = 'PROBE_RECOVERY_ACTION_MISMATCH'
+                MutatePlan = { param($receipt) @($receipt.actions)[0].beforeClassification = 'COMPATIBLE' }
+            },
+            @{
+                Name = 'wrong-resource-kind-key'
+                Pattern = 'PROBE_RECOVERY_ACTION_MISMATCH'
+                MutatePlan = {
+                    param($receipt)
+                    $action = @($receipt.actions)[0]
+                    $action.resourceKind = 'SHOPIFY_HOME_DEFINITION'
+                    $action.resourceKey = 'mobile_home'
+                    $action.managementMode = 'CREATE_IF_MISSING'
+                }
+            },
+            @{
+                Name = 'wrong-intended-action'
+                Pattern = 'PROBE_RECOVERY_ACTION_MISMATCH'
+                MutatePlan = {
+                    param($receipt)
+                    $action = @($receipt.actions)[0]
+                    $action.intendedAction = 'NONE'
+                    $action.status = 'NO_OP'
+                }
+            },
+            @{
+                Name = 'unknown-operator-digest'
+                Pattern = 'PROBE_RECOVERY_CONTRACT_MISMATCH'
+                MutatePlan = { param($receipt) $receipt.digests.operatorSha256 = ('0' * 64) }
+            },
+            @{
+                Name = 'tampered-provider-binding-digest'
+                Pattern = 'PROBE_RECOVERY_CONTRACT_MISMATCH'
+                MutatePlan = { param($receipt) $receipt.digests.providerBindingSha256 = ('0' * 64) }
+            },
+            @{
+                Name = 'unrelated-recovery-record'
+                Pattern = 'PROBE_RECOVERY_EVIDENCE_MISMATCH'
+                MutateRecovery = {
+                    param($receipt)
+                    $receipt.recovery[0].resourceKind = 'SHOPIFY_HOME_DEFINITION'
+                    $receipt.recovery[0].resourceKey = 'mobile_home'
+                }
+            },
+            @{
+                Name = 'tampered-recovery-action'
+                Pattern = 'PROBE_RECOVERY_EVIDENCE_MISMATCH'
+                MutateRecovery = { param($receipt) @($receipt.actions)[0].beforeFingerprint = ('0' * 64) }
+            }
+        )) {
+            $mutatePlan = if ($hostileEvidence.ContainsKey('MutatePlan')) { $hostileEvidence.MutatePlan } else { $null }
+            $mutateRecovery = if ($hostileEvidence.ContainsKey('MutateRecovery')) { $hostileEvidence.MutateRecovery } else { $null }
+            $evidence = Write-TestProbeRecoveryEvidence `
+                -Plan $historicalPlan `
+                -Directory $temporaryRoot `
+                -Name $hostileEvidence.Name `
+                -MutatePlan $mutatePlan `
+                -MutateRecovery $mutateRecovery
+            Assert-Throws `
+                -Action {
+                    Invoke-OnboardingProbeRecovery `
+                        -RepositoryRoot $repoRoot `
+                        -Application 'gurbakir' `
+                        -Profile 'development' `
+                        -PlanReceipt $evidence.PlanPath `
+                        -RecoveryReceipt $evidence.RecoveryPath `
+                        -OutputPath (Join-Path $temporaryRoot "$($hostileEvidence.Name)-result.json") `
+                        -Transport $transport
+                } `
+                -Pattern $hostileEvidence.Pattern `
+                -Name "probe recovery rejects $($hostileEvidence.Name.Replace('-', ' ')) evidence"
+        }
+
+        $compatibleProbeAfterRecovery = Copy-TestValue $script:probe
+        foreach ($hostileLiveState in @(
+            @{
+                Name = 'non-empty current probe'
+                Pattern = 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+                Arrange = { $script:probe.fields[2].value = '["gid://shopify/Metaobject/12"]' }
+            },
+            @{
+                Name = 'ACTIVE current probe'
+                Pattern = 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+                Arrange = { $script:probe.capabilities.publishable.status = 'ACTIVE' }
+            },
+            @{
+                Name = 'duplicate current probe'
+                Pattern = 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+                Arrange = { $script:probe = @((Copy-TestValue $compatibleProbeAfterRecovery), (Copy-TestValue $compatibleProbeAfterRecovery)) }
+            },
+            @{
+                Name = 'incompatible current Home definitions'
+                Pattern = 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+                Arrange = { $script:createdDefinitions.RemoveAt(1) }
+            },
+            @{
+                Name = 'missing selected Menu'
+                Pattern = 'PROBE_RECOVERY_CURRENT_STATE_MISMATCH'
+                Arrange = { $script:menuNodes = @() }
+            }
+        )) {
+            $definitionSnapshot = @($script:createdDefinitions | ForEach-Object { Copy-TestValue $_ })
+            $menuSnapshot = Copy-TestValue $script:menuNodes
+            $script:probe = Copy-TestValue $compatibleProbeAfterRecovery
+            & $hostileLiveState.Arrange
+            try {
+                Assert-Throws `
+                    -Action {
+                        Invoke-OnboardingProbeRecovery `
+                            -RepositoryRoot $repoRoot `
+                            -Application 'gurbakir' `
+                            -Profile 'development' `
+                            -PlanReceipt $historicalEvidence.PlanPath `
+                            -RecoveryReceipt $historicalEvidence.RecoveryPath `
+                            -OutputPath (Join-Path $temporaryRoot 'hostile-live-result.json') `
+                            -Transport $transport
+                    } `
+                    -Pattern $hostileLiveState.Pattern `
+                    -Name "probe recovery rejects $($hostileLiveState.Name)"
+            } finally {
+                $script:createdDefinitions.Clear()
+                foreach ($definition in $definitionSnapshot) { $script:createdDefinitions.Add($definition) }
+                $script:menuNodes = $menuSnapshot
+                $script:probe = Copy-TestValue $compatibleProbeAfterRecovery
+            }
+        }
 
         $stagingBindingJson = $bindingJson.Replace('"profile":"development"','"profile":"staging"').Replace('"developmentDebug"','"stagingDebug"').Replace('"developmentRelease"','"stagingRelease"')
         [IO.File]::WriteAllText($stagingBindingPath, $stagingBindingJson, [Text.UTF8Encoding]::new($false))

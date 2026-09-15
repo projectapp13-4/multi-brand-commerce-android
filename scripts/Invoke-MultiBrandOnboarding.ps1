@@ -80,7 +80,17 @@ try {
         'Plan' { [void](New-OnboardingPlan -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -PriorReceipt $PriorReceipt); Write-Output 'PASS: redacted immutable onboarding Plan receipt created.'; exit 0 }
         'Apply' { [void](Invoke-OnboardingApply -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -PlanReceipt $PlanReceipt -ConfirmApplication $ConfirmApplication -ConfirmProfile $ConfirmProfile -ConfirmApply:$ConfirmApply -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -PriorReceipt $PriorReceipt -OutputPath $OutputPath); Write-Output 'PASS: bounded onboarding Apply completed and readback receipt was written.'; exit 0 }
         'Readback' { Invoke-OnboardingReadback -RepositoryRoot $repoRoot -Application $Application -Profile $Profile | ConvertTo-Json -Depth 8; exit 0 }
-        'Recover' { Get-OnboardingRecovery -RepositoryRoot $repoRoot -PlanReceipt $PlanReceipt | ConvertTo-Json; exit 0 }
+        'Recover' {
+            [void](Invoke-OnboardingProbeRecovery `
+                -RepositoryRoot $repoRoot `
+                -Application $Application `
+                -Profile $Profile `
+                -PlanReceipt $PlanReceipt `
+                -RecoveryReceipt $PriorReceipt `
+                -OutputPath $OutputPath)
+            Write-Output 'PASS: probe attribution recovered through read-only provider verification.'
+            exit 0
+        }
         'GenerateLocalConfiguration' { Write-OnboardingLocalConfiguration -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -ConfirmApply:$ConfirmApply; exit 0 }
         'RecordManualCheckpoint' { Write-OnboardingManualCheckpoint -RepositoryRoot $repoRoot -Application $Application -Profile $Profile -OutputPath $OutputPath -EvidenceRef $ApprovedEvidenceRef; exit 0 }
         default { throw (New-OnboardingContractError -Code 'COMMAND_NOT_IMPLEMENTED' -Field $Command) }
