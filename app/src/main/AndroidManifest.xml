@@ -37,8 +37,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="gurbakir.com"
-                    android:pathPrefix="/collections/" />
+                    android:host="${collectionAppLinkHost}"
+                    android:pathPrefix="${collectionAppLinkPathPrefix}" />
             </intent-filter>
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
@@ -46,8 +46,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="gurbakir.com"
-                    android:pathPrefix="/apps/mobile/products/" />
+                    android:host="${productAppLinkHost}"
+                    android:pathPrefix="${productAppLinkPathPrefix}" />
             </intent-filter>
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
@@ -55,8 +55,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="gurbakir.com"
-                    android:pathPrefix="/apps/mobile/orders/" />
+                    android:host="${orderAppLinkHost}"
+                    android:pathPrefix="${orderAppLinkPathPrefix}" />
             </intent-filter>
         </activity>
     </application>

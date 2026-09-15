@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://projectapp13-4.invalid/schemas/operator-receipt.schema.v1.json",
+  "title": "Gate 8 operator receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receiptSchemaVersion",
+    "operationContractVersion",
+    "kind",
+    "application",
+    "profile",
+    "runtimeEnvironment",
+    "releaseBoundary",
+    "createdAtUtc",
+    "expiresAtUtc",
+    "verifiedTarget",
+    "digests",
+    "stateFingerprint",
+    "actions",
+    "overallStatus",
+    "diagnosticCodes",
+    "readback",
+    "recovery"
+  ],
+  "properties": {
+    "receiptSchemaVersion": { "const": 1 },
+    "operationContractVersion": { "const": "gate8-v1" },
+    "kind": { "enum": ["PLAN", "RESULT", "RECOVERY"] },
+    "application": { "type": "string" },
+    "profile": { "type": "string" },
+    "runtimeEnvironment": { "enum": ["DEVELOPMENT", "STAGING"] },
+    "releaseBoundary": { "enum": ["nonproduction-only", "never-production", "test-fixture-only"] },
+    "createdAtUtc": { "$ref": "#/$defs/utcSecondTimestamp" },
+    "expiresAtUtc": {
+      "oneOf": [
+        { "$ref": "#/$defs/utcSecondTimestamp" },
+        { "type": "null" }
+      ]
+    },
+    "verifiedTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shopId", "adminShopDomain", "firebaseProjectId", "firebaseProjectNumber"],
+      "properties": {
+        "shopId": { "type": ["string", "null"], "pattern": "^[0-9]{1,20}$" },
+        "adminShopDomain": { "type": ["string", "null"], "pattern": "^[a-z0-9](?:[a-z0-9-]{0,60}[a-z0-9])?\\.myshopify\\.com$" },
+        "firebaseProjectId": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" },
+        "firebaseProjectNumber": { "type": ["string", "null"], "pattern": "^[0-9]{1,20}$" }
+      }
+    },
+    "digests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registrySha256", "providerBindingSha256", "homeSchemaSha256", "operatorSha256"],
+      "properties": {
+        "registrySha256": { "$ref": "#/$defs/digest" },
+        "providerBindingSha256": { "$ref": "#/$defs/digest" },
+        "homeSchemaSha256": { "$ref": "#/$defs/digest" },
+        "operatorSha256": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "stateFingerprint": { "$ref": "#/$defs/digest" },
+    "actions": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "overallStatus": { "enum": ["PLANNED", "SUCCEEDED", "BLOCKED", "FAILED", "PARTIAL"] },
+    "diagnosticCodes": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "enum": [
+          "UNCONFIGURED",
+          "MANUAL_REQUIRED",
+          "BLOCKED_INCOMPATIBLE",
+          "BLOCKED_OPERATOR_SCHEMA_POLICY",
+          "BLOCKED_DRIFT",
+          "EXTERNAL_FAILURE",
+          "PARTIAL_READBACK",
+          "MOBILE_READBACK_FAILURE",
+          "MERCHANT_DRIFT",
+          "UNSAFE_TARGET",
+          "MISSING_CREDENTIAL",
+          "PROVIDER_ERROR",
+          "RATE_LIMITED",
+          "PUBLIC_ASSOCIATION_UNAVAILABLE",
+          "NOT_APPLICABLE",
+          "VALIDATION_FAILURE",
+          "READBACK_MISMATCH",
+          "PARTIAL_APPLY"
+        ]
+      }
+    },
+    "readback": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/readback" }
+    },
+    "recovery": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/recovery" }
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "utcSecondTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
+    },
+    "resourceClassification": {
+      "enum": ["ABSENT", "CORRECT", "COMPATIBLE", "INCOMPATIBLE", "DRIFTED", "UNKNOWN"]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordinal",
+        "resourceKind",
+        "resourceKey",
+        "managementMode",
+        "beforeClassification",
+        "intendedAction",
+        "beforeFingerprint",
+        "providerResourceId",
+        "status",
+        "afterClassification",
+        "afterFingerprint"
+      ],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "resourceKind": {
+          "enum": ["LOCAL_CONFIGURATION", "SHOPIFY_HOME_DEFINITION", "SHOPIFY_HOME_ACCEPTANCE_PROBE"]
+        },
+        "resourceKey": { "type": "string" },
+        "managementMode": {
+          "enum": ["LOCAL_APPLY", "CREATE_IF_MISSING", "PROBE_CREATE_IF_MISSING"]
+        },
+        "beforeClassification": { "$ref": "#/$defs/resourceClassification" },
+        "intendedAction": { "enum": ["NONE", "CREATE", "ATOMIC_REPLACE"] },
+        "beforeFingerprint": { "$ref": "#/$defs/digest" },
+        "providerResourceId": {
+          "type": ["string", "null"],
+          "pattern": "^gid://shopify/[A-Za-z][A-Za-z0-9]*/[0-9]+$"
+        },
+        "status": { "enum": ["PLANNED", "NO_OP", "SUCCEEDED", "BLOCKED", "FAILED", "AMBIGUOUS"] },
+        "afterClassification": { "$ref": "#/$defs/resourceClassification" },
+        "afterFingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "readback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "resourceKey", "classification", "identityFingerprint"],
+      "properties": {
+        "surface": {
+          "enum": ["SHOPIFY_ADMIN", "SHOPIFY_STOREFRONT", "CUSTOMER_DISCOVERY", "FIREBASE_MANAGEMENT", "ANDROID_BUILD", "ANDROID_RUNTIME"]
+        },
+        "resourceKey": { "type": "string" },
+        "classification": {
+          "enum": ["PASS", "FAIL", "NOT_RUN", "PARTIAL", "EXTERNALLY_BLOCKED", "NOT_APPLICABLE"]
+        },
+        "identityFingerprint": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "resourceKind", "resourceKey", "classification", "nextAction"],
+      "properties": {
+        "ordinal": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "resourceKind": {
+          "enum": ["LOCAL_CONFIGURATION", "SHOPIFY_HOME_DEFINITION", "SHOPIFY_HOME_ACCEPTANCE_PROBE"]
+        },
+        "resourceKey": { "type": "string" },
+        "classification": { "$ref": "#/$defs/resourceClassification" },
+        "nextAction": { "enum": ["REINSPECT", "RESTORE_LOCAL_BACKUP", "MANUAL_REVIEW", "NO_ACTION"] }
+      }
+    }
+  }
+}

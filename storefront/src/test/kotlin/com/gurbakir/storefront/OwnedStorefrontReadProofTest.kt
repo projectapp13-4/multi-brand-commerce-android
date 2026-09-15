@@ -1,9 +1,6 @@
 package com.gurbakir.storefront
 
-import com.gurbakir.foundation.config.ControlledPublicToken
 import com.gurbakir.foundation.config.StorefrontConfiguration
-import java.io.File
-import java.util.Properties
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -15,7 +12,7 @@ class OwnedStorefrontReadProofTest {
     @Test
     fun `generated Apollo client reads only the owner verified shop and catalog`() {
         assumeTrue(System.getProperty("gurbakir.runOwnedStorefrontProof") == "true")
-        val configuration = loadConfiguration()
+        val configuration = loadOwnedOnboardingConfiguration().storefront
 
         assertEquals("gurbakir.com", configuration.domain)
         assertEquals("2026-07", configuration.apiVersion)
@@ -46,22 +43,6 @@ class OwnedStorefrontReadProofTest {
         } finally {
             client.close()
         }
-    }
-
-    private fun loadConfiguration(): StorefrontConfiguration {
-        val repoRoot = requireNotNull(System.getProperty("gurbakir.repoRoot"))
-        val properties =
-            Properties().apply {
-                File(repoRoot, "config/local.properties").inputStream().use(::load)
-            }
-        return StorefrontConfiguration(
-            domain = properties.getProperty("shopify.storefrontDomain", "").trim(),
-            apiVersion = properties.getProperty("shopify.storefrontApiVersion", "").trim(),
-            publicToken =
-                ControlledPublicToken.from(
-                    properties.getProperty("shopify.storefrontPublicToken", "")
-                )
-        )
     }
 
     private fun verifyCollectionCatalog(gateway: StorefrontCatalogGateway) {

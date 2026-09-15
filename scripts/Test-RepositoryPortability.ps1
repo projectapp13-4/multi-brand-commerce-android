@@ -35,16 +35,17 @@ function Read-Text {
 }
 
 function Get-ModuleInventory {
-    return @(
-        [pscustomobject]@{ LogicalPath = ':app'; Directory = 'app'; Role = 'application-gurbakir' }
-        [pscustomobject]@{ LogicalPath = ':synthetic'; Directory = 'apps/synthetic'; Role = 'application-synthetic' }
-        [pscustomobject]@{ LogicalPath = ':mobile-core'; Directory = 'mobile-core'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':foundation'; Directory = 'foundation'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':storefront'; Directory = 'storefront'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':account'; Directory = 'account'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':checkout'; Directory = 'checkout'; Role = 'shared' }
-        [pscustomobject]@{ LogicalPath = ':firebase'; Directory = 'firebase'; Role = 'provider' }
-    )
+    $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    if (-not (Test-Path -LiteralPath $registryPath -PathType Leaf)) { throw 'Onboarding registry is missing.' }
+    $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable
+    return @($registry.modules | ForEach-Object {
+        [pscustomobject]@{
+            LogicalPath = [string]$_.gradleProject
+            Directory = [string]$_.directory
+            Role = [string]$_.role
+            AllowedDirectProjects = @($_.allowedDirectProjects | ForEach-Object { [string]$_ })
+        }
+    })
 }
 
 function Get-IncludedProjectPaths {
@@ -116,7 +117,7 @@ function Test-ApprovedTopology {
         ':apps' -notin $includedProjects -and
         $syntheticMappingCorrect
     $evidence = if ($passed) {
-        "8 included subprojects; :synthetic -> apps/synthetic; no :apps project"
+        "$($expectedProjects.Count) explicitly enrolled subprojects; :synthetic -> apps/synthetic; no :apps project"
     } else {
         "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); synthetic mapping: $($mappings[':synthetic'])"
     }
@@ -1166,8 +1167,9 @@ try {
         '.gitignore',
         '.gitleaks.toml',
         '.gitleaksignore',
-        'config/local.defaults.properties',
-        'config/local.properties.example',
+        'config/onboarding/application-registry.v1.json',
+        'config/onboarding/generated/gurbakir/development.properties',
+        'config/onboarding/generated/gurbakir/staging.properties',
         'app/src/main/AndroidManifest.xml',
         'apps/synthetic/src/main/AndroidManifest.xml',
         'mobile-core/consumer-rules.pro',
@@ -1241,18 +1243,22 @@ try {
         $wrapperJarHash -eq '55243EF57851F12B070AD14F7F5BB8302DACEEEBC5BCE5ECE5FA6EDB23E1145C'
     Add-Check -Name 'Gradle wrapper is complete and pinned' -Passed $wrapperPinned -Evidence "Gradle 9.4.1; wrapper jar SHA256 $wrapperJarHash"
 
-    $defaults = Read-Text 'config/local.defaults.properties'
-    $defaultsFailClosed = $null -ne $defaults -and
-        $defaults -match '(?m)^shopify\.storefrontPublicToken=\s*$' -and
-        $defaults -match '(?m)^shopify\.catalogMenuHandle=\s*$' -and
-        (Test-RemovedProviderControlsAbsent $defaults)
-    Add-Check -Name 'tracked local defaults fail closed' -Passed $defaultsFailClosed -Evidence 'Storefront public token and Catalog Menu selector empty; no provider or telemetry control'
+    $projectionFiles = @(
+        'config/onboarding/generated/gurbakir/development.properties',
+        'config/onboarding/generated/gurbakir/staging.properties'
+    )
+    $projectionsContainNoClientValues = $projectionFiles | ForEach-Object { Read-Text $_ } | Where-Object {
+        $_ -match '(?m)^shopify\.storefrontPublicToken=' -or $_ -match '(?m)^shopify\.customerAccountClientId='
+    }
+    Add-Check -Name 'tracked projections contain no controlled client values' `
+        -Passed (@($projectionsContainNoClientValues).Count -eq 0) `
+        -Evidence 'profile projections contain selectors and identities but no Storefront token or Customer client ID'
 
     $providerControlRecords = @(
         foreach ($relativeRoot in @('foundation/src', 'app/src', 'apps/synthetic/src')) {
             Get-ProductionSourceRecords $repoRoot $relativeRoot
         }
-        foreach ($relativePath in @('app/build.gradle.kts', 'config/local.defaults.properties', 'config/local.properties.example')) {
+        foreach ($relativePath in @('app/build.gradle.kts', 'config/onboarding/application-registry.v1.json')) {
             $text = Read-Text $relativePath
             if ($null -ne $text) {
                 [pscustomobject]@{ path = $relativePath; text = $text }
@@ -1268,6 +1274,7 @@ try {
     $ignoreRulesPresent = $null -ne $gitignore -and
         $gitignore -match '(?m)^local\.properties\s*$' -and
         $gitignore -match '(?m)^config/local\.properties\s*$' -and
+        $gitignore -match '(?m)^config/local/\s*$' -and
         $gitignore -match '(?m)^\*\*/google-services\.json\s*$' -and
         $gitignore -match '(?m)^\*\.jks\s*$' -and
         $gitignore -match '(?m)^\*\.keystore\s*$' -and
@@ -1375,13 +1382,14 @@ try {
     Add-Check -Name 'project dependencies use auditable literal or type-safe syntax' -Passed ($unsupportedProjectDependencyModules.Count -eq 0) -Evidence $(if ($unsupportedProjectDependencyModules.Count -eq 0) { 'no computed project(...) arguments' } else { $unsupportedProjectDependencyModules -join ', ' })
 
     $sharedAndProviderModules = @($modules | Where-Object { $_.Role -in @('shared', 'provider') })
+    $applicationModules = @($modules | Where-Object { $_.Role -in @('real-brand-application', 'synthetic-conformance-application') })
     $sharedApplicationDependencies = [System.Collections.Generic.List[string]]::new()
     foreach ($module in $sharedAndProviderModules) {
         $moduleBuild = Read-Text "$($module.Directory)/build.gradle.kts"
         if ($null -eq $moduleBuild) {
             continue
         }
-        foreach ($applicationPath in @(':app', ':synthetic')) {
+        foreach ($applicationPath in @($applicationModules | ForEach-Object { $_.LogicalPath })) {
             if (Test-GradleProjectDependency -BuildScript $moduleBuild -TargetProject $applicationPath) {
                 $sharedApplicationDependencies.Add("$($module.LogicalPath) -> $applicationPath")
             }
@@ -1394,18 +1402,22 @@ try {
     }
     Add-Check -Name 'shared and provider modules do not depend on application modules' -Passed ($sharedApplicationDependencies.Count -eq 0) -Evidence $sharedApplicationDependencyEvidence
 
-    $syntheticBuild = Read-Text 'apps/synthetic/build.gradle.kts'
     $crossApplicationDependencies = [System.Collections.Generic.List[string]]::new()
-    if ($null -ne $appBuild -and (Test-GradleProjectDependency $appBuild ':synthetic')) {
-        $crossApplicationDependencies.Add(':app -> :synthetic')
-    }
-    if ($null -ne $syntheticBuild -and (Test-GradleProjectDependency $syntheticBuild ':app')) {
-        $crossApplicationDependencies.Add(':synthetic -> :app')
+    foreach ($applicationModule in $applicationModules) {
+        $applicationBuild = Read-Text "$($applicationModule.Directory)/build.gradle.kts"
+        foreach ($targetApplication in $applicationModules) {
+            if ($applicationModule.LogicalPath -ne $targetApplication.LogicalPath -and
+                $null -ne $applicationBuild -and
+                (Test-GradleProjectDependency $applicationBuild $targetApplication.LogicalPath)) {
+                $crossApplicationDependencies.Add("$($applicationModule.LogicalPath) -> $($targetApplication.LogicalPath)")
+            }
+        }
     }
     Add-Check -Name 'application modules do not depend on each other' -Passed ($crossApplicationDependencies.Count -eq 0) -Evidence $(if ($crossApplicationDependencies.Count -eq 0) { 'none' } else { $crossApplicationDependencies -join ', ' })
 
-    $syntheticFirebaseDependency = $null -ne $syntheticBuild -and
-        (Test-GradleProjectDependency $syntheticBuild ':firebase')
+    $syntheticModule = @($applicationModules | Where-Object { $_.Role -eq 'synthetic-conformance-application' } | Select-Object -First 1)
+    $syntheticBuild = if ($syntheticModule.Count -eq 1) { Read-Text "$($syntheticModule[0].Directory)/build.gradle.kts" } else { $null }
+    $syntheticFirebaseDependency = $null -ne $syntheticBuild -and (Test-GradleProjectDependency $syntheticBuild ':firebase')
     Add-Check -Name 'synthetic application does not depend on Firebase' -Passed (-not $syntheticFirebaseDependency) -Evidence $(if ($syntheticFirebaseDependency) { 'Firebase project dependency found' } else { 'none' })
 
     $mobileCoreBuild = Read-Text 'mobile-core/build.gradle.kts'

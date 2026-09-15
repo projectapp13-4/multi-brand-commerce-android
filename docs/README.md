@@ -32,8 +32,10 @@ history, protected bootstrap, and historical-archive cutover evidence.
   it is not rewritten to claim later lifecycle events.
 - The Multi-Brand migration remains unfinished. Gürbakır `:app` is the first
   real brand application; `:synthetic` is not a merchant application; no second
-  real brand application exists. Gate 8 provisioning/onboarding automation,
-  second-store proof and later cumulative conformance remain separately planned.
+  real brand application exists. Gate 8 provisioning/onboarding implementation
+  is in progress under the approved, digest-bound
+  [`multi-brand/plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md`](multi-brand/plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md).
+  This does not start second-store proof, Gate 9, P3-16, or production onboarding.
 - Phase 3 functional implementation and integrated acceptance are complete
   through **P3-15**. Account-deletion merchant acknowledgement,
   retention/SLA execution, and actual remote deletion remain externally

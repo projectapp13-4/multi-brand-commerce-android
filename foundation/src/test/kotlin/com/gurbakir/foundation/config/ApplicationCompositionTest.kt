@@ -87,5 +87,5 @@ class ApplicationCompositionTest {
         }
     )
 
-    private fun invalidAccount() = CustomerAccountConfiguration("", "", "", "", "", "", "", emptySet())
+    private fun invalidAccount() = CustomerAccountConfiguration("", "", "", "", "", "", "", "", emptySet())
 }

@@ -84,6 +84,7 @@ class FoundationViewModelTest {
                 logoutEndpoint = "",
                 graphqlEndpoint = "",
                 redirectUri = "",
+                userAgent = "Test-Android",
                 scopes = emptySet()
             )
         )

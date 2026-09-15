@@ -1,5 +1,6 @@
 package com.gurbakir.mobile.legal
 
+import com.gurbakir.mobile.BuildConfig
 import java.net.URI
 
 private const val HTTPS_PORT = 443
@@ -24,7 +25,7 @@ class OwnedPagePolicy(pages: List<LegalPageMetadata>) {
     private fun isPlainOwnedCanonicalUrl(rawUrl: String): Boolean = runCatching {
         val uri = URI(rawUrl)
         uri.scheme == "https" &&
-            uri.host == "gurbakir.com" &&
+            uri.host == URI(BuildConfig.LEGAL_SUPPORT_ORIGIN).host &&
             uri.userInfo == null &&
             uri.port in setOf(UNSPECIFIED_PORT, HTTPS_PORT) &&
             uri.rawQuery == null &&

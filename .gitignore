@@ -7,6 +7,8 @@
 local.properties
 android/local.properties
 config/local.properties
+config/local/
+config/local/**/*.bak
 **/google-services.json
 .env
 .env.*

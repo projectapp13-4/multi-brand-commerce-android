@@ -84,7 +84,9 @@ Requirements are JDK 17 and Android SDK Platform 36 with Build Tools 36.0.0.
 The pinned wrapper supplies Gradle 9.4.1; do not substitute a global Gradle.
 
 ```powershell
-Copy-Item .\config\local.properties.example .\config\local.properties
+New-Item -ItemType Directory -Force .\config\local\gurbakir | Out-Null
+Copy-Item .\config\onboarding\examples\gurbakir-development.properties.example .\config\local\gurbakir\development.properties
+pwsh -NoProfile -File scripts/Invoke-MultiBrandOnboarding.ps1 -Command Validate
 .\gradlew.bat spotlessCheck detekt lint
 .\gradlew.bat :foundation:testDebugUnitTest :account:testDebugUnitTest `
   :checkout:testDebugUnitTest :storefront:testDebugUnitTest `
@@ -101,7 +103,7 @@ Copy-Item .\config\local.properties.example .\config\local.properties
 .\scripts\Test-Gate2SyntheticPackage.ps1 -SelfTest
 ```
 
-`config/local.properties`, Firebase configuration, signing material, generated
+`config/local/`, Firebase configuration, signing material, onboarding receipts, generated
 reports, and build output are ignored. Never put Admin/backend secrets,
 customer tokens, signing material, service-account credentials, or private keys
 in the Android client or repository.

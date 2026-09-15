@@ -44,6 +44,7 @@ class CustomerAccountTokenRequestContractTest {
         assertFalse(fields.containsKey("nonce"))
         assertFalse(fields.containsKey("client_secret"))
         assertEquals(null, request.header("Authorization"))
+        assertEquals(configuration.userAgent, request.header("User-Agent"))
     }
 
     private fun configuration() = CustomerAccountConfiguration(
@@ -54,6 +55,7 @@ class CustomerAccountTokenRequestContractTest {
         logoutEndpoint = "https://shop.example/authentication/logout",
         graphqlEndpoint = "https://shop.example/customer/api/2026-07/graphql",
         redirectUri = "shop.123456.gurbakir://oauth/callback",
+        userAgent = "Fixture-Android",
         scopes = REQUIRED_CUSTOMER_ACCOUNT_SCOPES
     )
 

@@ -23,7 +23,8 @@ fun GurbakirApp(navController: NavHostController = rememberNavController()) {
         deepLinks = GurbakirDeepLinkConfiguration,
         applicationComposition = BuildConfigurationSource.current.applicationComposition,
         customerAccountBindings = CustomerAccountFeatureBindings(
-            orderDeepLinkBasePath = "https://gurbakir.com/apps/mobile/orders",
+            orderDeepLinkBasePath =
+                BuildConfig.ORDER_APP_LINK_ORIGIN + BuildConfig.ORDER_APP_LINK_PATH_PREFIX.dropLast(1),
             trackingUrlPolicy = GurbakirTrackingUrlPolicy,
             openDeletionPage = deletionPages::open
         ),

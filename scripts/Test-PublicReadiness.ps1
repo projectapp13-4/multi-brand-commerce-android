@@ -133,10 +133,16 @@ function Invoke-PublicReadinessValidation {
     if ($includeMatch.Success) {
         $actualModules = @([regex]::Matches($includeMatch.Groups[1].Value, '"(:[A-Za-z0-9-]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
     }
-    $expectedModules = @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic')
+    $registryPath = Join-Path $rootPath 'config\onboarding\application-registry.v1.json'
+    $expectedModules = if (Test-Path -LiteralPath $registryPath) {
+        @((Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable).modules |
+            ForEach-Object { [string]$_.gradleProject } | Sort-Object -Unique)
+    } else {
+        @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic')
+    }
     $moduleDifference = @(Compare-Object -ReferenceObject $expectedModules -DifferenceObject $actualModules)
     $moduleGraphOk = $moduleDifference.Count -eq 0 -and $settings -match 'project\(":synthetic"\)\.projectDir\s*=\s*file\("apps/synthetic"\)'
-    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected eight modules and apps/synthetic mapping"))
+    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected explicitly enrolled modules and apps/synthetic mapping"))
 
     $text = Get-TextContent -Root $rootPath -RelativePaths $normalizedFiles
     $publicText = Get-TextContent -Root $rootPath -RelativePaths @(
@@ -195,6 +201,26 @@ function Invoke-PublicReadinessValidation {
     $actionsDetail = if ($actionsPinned) { "all external Actions use immutable 40-character SHAs" } else { "unpinned: $($unpinnedActions -join ', ')" }
     $results.Add((New-CheckResult "sha-pinned-actions" $actionsPinned $actionsDetail))
 
+    $setupAndroidActions = [regex]::Matches($workflow, '(?m)^\s+-?\s*uses:\s*android-actions/setup-android@')
+    $boundedSetupAndroidActions = [regex]::Matches(
+        $workflow,
+        '(?m)^\s+-?\s*uses:\s*android-actions/setup-android@[^\r\n#]+(?:\s+#[^\r\n]*)?\r?\n\s+with:\s*\r?\n\s+packages:\s*platform-tools\s*$'
+    )
+    $androidSdkBootstrapOk = $setupAndroidActions.Count -gt 0 -and $boundedSetupAndroidActions.Count -eq $setupAndroidActions.Count
+    $results.Add((New-CheckResult "bounded-android-sdk-bootstrap" $androidSdkBootstrapOk "every setup-android action must explicitly install platform-tools instead of the removed legacy tools package"))
+
+    $guardedGradleLanes = @('unit', 'assemble', 'api30', 'api23') | Where-Object {
+        $lane = [regex]::Escape($_)
+        $workflow -match (
+            '(?m)^\s+\$ErrorActionPreference\s*=\s*''Stop''\s*$\r?\n' +
+            ('\s+\$tasks\s*=\s*@\(\./scripts/Get-RegisteredGradleTasks\.ps1\s+-Lane\s+{0}\)\s*$\r?\n' -f $lane) +
+            '\s+if\s*\(-not\s+\$\?\)\s*\{\s*throw\s+[^\r\n]+\}\s*$\r?\n' +
+            '\s+if\s*\(\$tasks\.Count\s+-eq\s+0\)\s*\{\s*throw\s+[^\r\n]+\}\s*$'
+        )
+    }
+    $gradleLaneResolutionOk = @($guardedGradleLanes).Count -eq 4
+    $results.Add((New-CheckResult "nonempty-gradle-lane-resolution" $gradleLaneResolutionOk "every registry-driven Gradle lane must use PowerShell resolver status and fail on resolver errors or an empty task list"))
+
     $checkoutSafe = $workflow -match '(?m)^\s+persist-credentials:\s*false\s*$'
     $results.Add((New-CheckResult "checkout-credentials-disabled" $checkoutSafe "checkout must not persist GitHub credentials"))
 
@@ -204,14 +230,30 @@ function Invoke-PublicReadinessValidation {
 
     $appBuildPath = Join-Path $rootPath "app\build.gradle.kts"
     $appBuild = if (Test-Path -LiteralPath $appBuildPath) { Get-Content -LiteralPath $appBuildPath -Raw } else { "" }
-    $appIdentityOk = @(
+    $developmentProjectionPath = Join-Path $rootPath 'config\onboarding\generated\gurbakir\development.properties'
+    $stagingProjectionPath = Join-Path $rootPath 'config\onboarding\generated\gurbakir\staging.properties'
+    $developmentProjection = if (Test-Path -LiteralPath $developmentProjectionPath) { Get-Content -LiteralPath $developmentProjectionPath -Raw } else { "" }
+    $stagingProjection = if (Test-Path -LiteralPath $stagingProjectionPath) { Get-Content -LiteralPath $stagingProjectionPath -Raw } else { "" }
+    $onboardingIdentityText = Get-TextContent -Root $rootPath -RelativePaths @(
+        'config\onboarding\application-registry.v1.json',
+        'config\onboarding\generated\gurbakir\development.properties',
+        'config\onboarding\generated\gurbakir\staging.properties'
+    )
+    $requiredAppBuildIdentity = @(
         'namespace = "com.gurbakir.mobile"',
         'applicationId = "com.gurbakir.mobile.unconfigured"',
-        'applicationId = "com.gurbakir.mobile.dev"',
-        'applicationId = "com.gurbakir.mobile.staging"',
         'applicationIdSuffix = ".debug"'
-    ) | ForEach-Object { $appBuild.Contains($_) } | Where-Object { -not $_ }
-    $results.Add((New-CheckResult "gurbakir-application-identities" (@($appIdentityOk).Count -eq 0) "Gurbakir namespace and non-production application IDs must remain exact"))
+    )
+    $requiredProjectedAppIdentity = @(
+        'android.applicationId.debug=com.gurbakir.mobile.dev.debug',
+        'android.applicationId.release=com.gurbakir.mobile.dev',
+        'android.applicationId.debug=com.gurbakir.mobile.staging.debug',
+        'android.applicationId.release=com.gurbakir.mobile.staging'
+    )
+    $missingAppIdentity = @($requiredAppBuildIdentity | Where-Object { -not $appBuild.Contains($_) })
+    $missingAppIdentity += @($requiredProjectedAppIdentity | Where-Object { -not $onboardingIdentityText.Contains($_) })
+    $appIdentityDetail = if ($missingAppIdentity.Count -eq 0) { "Gurbakir namespace and non-production application IDs remain exact" } else { "missing: $($missingAppIdentity -join ', ')" }
+    $results.Add((New-CheckResult "gurbakir-application-identities" (@($missingAppIdentity).Count -eq 0) $appIdentityDetail))
 
     $sourceText = Get-TextContent -Root $rootPath -RelativePaths @(
         $normalizedFiles | Where-Object { $_ -match '^(app|account|mobile-core)\\' }
@@ -227,24 +269,46 @@ function Invoke-PublicReadinessValidation {
         'gurbakir_secure_customer_session_staging',
         'gurbakir.customer.session.staging.v1'
     )
-    $missingPersistence = @($persistenceLiterals | Where-Object { -not $sourceText.Contains($_) })
+    $identitySourceText = $sourceText + $onboardingIdentityText
+    $missingPersistence = @($persistenceLiterals | Where-Object { -not $identitySourceText.Contains($_) })
     $persistenceDetail = if ($missingPersistence.Count -eq 0) { "protected persistence identities remain present" } else { "missing: $($missingPersistence -join ', ')" }
     $results.Add((New-CheckResult "gurbakir-persistence-identities" ($missingPersistence.Count -eq 0) $persistenceDetail))
 
     $manifestPath = Join-Path $rootPath "app\src\main\AndroidManifest.xml"
     $manifest = if (Test-Path -LiteralPath $manifestPath) { Get-Content -LiteralPath $manifestPath -Raw } else { "" }
-    $linkPaths = @('/collections/', '/apps/mobile/products/', '/apps/mobile/orders/')
-    $oauthWiringOk = $appBuild.Contains('manifestPlaceholders["appAuthRedirectScheme"] = customerAccountRedirectScheme') -and
+    $linkPaths = @(
+        'web.collectionAppLinkPathPrefix=/collections/',
+        'web.productAppLinkPathPrefix=/apps/mobile/products/',
+        'web.orderAppLinkPathPrefix=/apps/mobile/orders/'
+    )
+    $oauthWiringOk = $appBuild.Contains('manifestPlaceholders["appAuthRedirectScheme"] = profile.redirectScheme()') -and
         $appBuild.Contains('?: "shop.unconfigured.gurbakir"')
-    $linksOk = $manifest -match 'android:host="gurbakir\.com"' -and
-        @($linkPaths | Where-Object { -not $manifest.Contains($_) }).Count -eq 0 -and
+    $missingManifestRoles = @(
+        '${collectionAppLinkHost}', '${collectionAppLinkPathPrefix}',
+        '${productAppLinkHost}', '${productAppLinkPathPrefix}',
+        '${orderAppLinkHost}', '${orderAppLinkPathPrefix}'
+    ) | ForEach-Object { $manifest.Contains($_) } | Where-Object { -not $_ }
+    $projectionLinksOk = $true
+    foreach ($projection in @($developmentProjection, $stagingProjection)) {
+        if (-not $projection.Contains('web.collectionAppLinkOrigin=https://gurbakir.com') -or
+            -not $projection.Contains('web.productAppLinkOrigin=https://gurbakir.com') -or
+            -not $projection.Contains('web.orderAppLinkOrigin=https://gurbakir.com') -or
+            @($linkPaths | Where-Object { -not $projection.Contains($_) }).Count -ne 0) {
+            $projectionLinksOk = $false
+        }
+    }
+    $linksOk = $projectionLinksOk -and
+        @($missingManifestRoles).Count -eq 0 -and
         $oauthWiringOk
     $results.Add((New-CheckResult "gurbakir-oauth-app-links" $linksOk "OAuth placeholder wiring, fail-closed scheme, and three Gurbakir App Link paths must remain exact"))
 
     $firebaseOk = $appBuild.Contains('FIREBASE_CONFIGURED') -and $sourceText.Contains('BuildConfig.FIREBASE_CONFIGURED')
     $results.Add((New-CheckResult "gurbakir-firebase-selection" $firebaseOk "Gurbakir app-owned Firebase readiness and selection must remain present"))
 
-    $userAgentOk = $sourceText.Contains('Gurbakir-Android')
+    $userAgentOk = $developmentProjection.Contains('app.customerAccountUserAgent=Gurbakir-Android') -and
+        $stagingProjection.Contains('app.customerAccountUserAgent=Gurbakir-Android') -and
+        $appBuild.Contains('profile.projectionValue("app.customerAccountUserAgent")') -and
+        $sourceText.Contains('BuildConfig.CUSTOMER_ACCOUNT_USER_AGENT')
     $results.Add((New-CheckResult "gurbakir-client-user-agent" $userAgentOk "compatibility-sensitive Gurbakir-Android user agent must remain exact"))
 
     $referenceDocs = @(
@@ -311,35 +375,95 @@ jobs:
       - uses: actions/checkout@1111111111111111111111111111111111111111
         with:
           persist-credentials: false
+      - uses: android-actions/setup-android@2222222222222222222222222222222222222222
+        with:
+          packages: platform-tools
+      - name: Unit lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit)
+          if (-not $?) { throw "Failed to resolve the unit Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: Assemble lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
+          if (-not $?) { throw "Failed to resolve the assemble Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the assemble lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: API 30 lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30)
+          if (-not $?) { throw "Failed to resolve the api30 Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api30 lane." }
+          & ./gradlew --no-daemon @tasks
+      - name: API 23 lane
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23)
+          if (-not $?) { throw "Failed to resolve the api23 Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api23 lane." }
+          & ./gradlew --no-daemon @tasks
 '@
         "app/build.gradle.kts" = @'
 namespace = "com.gurbakir.mobile"
 applicationId = "com.gurbakir.mobile.unconfigured"
-applicationId = "com.gurbakir.mobile.dev"
-applicationId = "com.gurbakir.mobile.staging"
 applicationIdSuffix = ".debug"
+applicationId = releaseApplicationId
 buildConfigField("boolean", "FIREBASE_CONFIGURED", "false")
-val customerAccountRedirectScheme = configuredScheme ?: "shop.unconfigured.gurbakir"
-manifestPlaceholders["appAuthRedirectScheme"] = customerAccountRedirectScheme
+field("CUSTOMER_ACCOUNT_USER_AGENT", profile.projectionValue("app.customerAccountUserAgent"))
+fun redirectScheme() = configuredScheme ?: "shop.unconfigured.gurbakir"
+manifestPlaceholders["appAuthRedirectScheme"] = profile.redirectScheme()
 '@
         "app/src/main/AndroidManifest.xml" = @'
 <manifest><application><activity>
 <data android:scheme="${appAuthRedirectScheme}" />
-<data android:host="gurbakir.com" android:pathPrefix="/collections/" />
-<data android:host="gurbakir.com" android:pathPrefix="/apps/mobile/products/" />
-<data android:host="gurbakir.com" android:pathPrefix="/apps/mobile/orders/" />
+<data android:host="${collectionAppLinkHost}" android:pathPrefix="${collectionAppLinkPathPrefix}" />
+<data android:host="${productAppLinkHost}" android:pathPrefix="${productAppLinkPathPrefix}" />
+<data android:host="${orderAppLinkHost}" android:pathPrefix="${orderAppLinkPathPrefix}" />
 </activity></application></manifest>
 '@
         "app/src/main/kotlin/Identity.kt" = @'
-val values = listOf(
-  "gurbakir-local.db",
-  "gurbakir_secure_cart_development", "gurbakir.cart.development.v1",
-  "gurbakir_secure_cart_staging", "gurbakir.cart.staging.v1",
-  "gurbakir_secure_customer_session_development", "gurbakir.customer.session.development.v1",
-  "gurbakir_secure_customer_session_staging", "gurbakir.customer.session.staging.v1",
-  "Gurbakir-Android"
-)
 val configured = BuildConfig.FIREBASE_CONFIGURED
+val userAgent = BuildConfig.CUSTOMER_ACCOUNT_USER_AGENT
+'@
+        "config/onboarding/generated/gurbakir/development.properties" = @'
+android.applicationId.debug=com.gurbakir.mobile.dev.debug
+android.applicationId.release=com.gurbakir.mobile.dev
+app.databaseName=gurbakir-local.db
+app.cartPreferences=gurbakir_secure_cart_development
+app.cartKeyAlias=gurbakir.cart.development.v1
+app.customerPreferences=gurbakir_secure_customer_session_development
+app.customerKeyAlias=gurbakir.customer.session.development.v1
+app.customerAccountUserAgent=Gurbakir-Android
+web.collectionAppLinkOrigin=https://gurbakir.com
+web.collectionAppLinkPathPrefix=/collections/
+web.productAppLinkOrigin=https://gurbakir.com
+web.productAppLinkPathPrefix=/apps/mobile/products/
+web.orderAppLinkOrigin=https://gurbakir.com
+web.orderAppLinkPathPrefix=/apps/mobile/orders/
+'@
+        "config/onboarding/generated/gurbakir/staging.properties" = @'
+android.applicationId.debug=com.gurbakir.mobile.staging.debug
+android.applicationId.release=com.gurbakir.mobile.staging
+app.databaseName=gurbakir-local.db
+app.cartPreferences=gurbakir_secure_cart_staging
+app.cartKeyAlias=gurbakir.cart.staging.v1
+app.customerPreferences=gurbakir_secure_customer_session_staging
+app.customerKeyAlias=gurbakir.customer.session.staging.v1
+app.customerAccountUserAgent=Gurbakir-Android
+web.collectionAppLinkOrigin=https://gurbakir.com
+web.collectionAppLinkPathPrefix=/collections/
+web.productAppLinkOrigin=https://gurbakir.com
+web.productAppLinkPathPrefix=/apps/mobile/products/
+web.orderAppLinkOrigin=https://gurbakir.com
+web.orderAppLinkPathPrefix=/apps/mobile/orders/
 '@
     }
 
@@ -363,11 +487,16 @@ function Invoke-SelfTests {
         @{ Name = "forensic text reference fails"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'README.md') -Value 'docs/reference-apk/analysis/05_decompiled' }; ExpectedFailure = "no-forensic-text-references" },
         @{ Name = "unresolved rights fail"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'ASSET-LICENSES.md') -Value 'Publication gate: UNRESOLVED' }; ExpectedFailure = "asset-publication-rights" },
         @{ Name = "unpinned action fails"; Mutate = { param($root) (Get-Content (Join-Path $root '.github/workflows/android-foundation.yml') -Raw).Replace('@1111111111111111111111111111111111111111', '@main') | Set-Content -NoNewline (Join-Path $root '.github/workflows/android-foundation.yml') }; ExpectedFailure = "sha-pinned-actions" },
+        @{ Name = "implicit legacy Android SDK package fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('packages: platform-tools', 'packages: tools platform-tools') | Set-Content -NoNewline $p }; ExpectedFailure = "bounded-android-sdk-bootstrap" },
+        @{ Name = "empty Gradle lane guard removal fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }', '') | Set-Content -NoNewline $p }; ExpectedFailure = "nonempty-gradle-lane-resolution" },
+        @{ Name = "native exit-code guard after PowerShell resolver fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; (Get-Content -LiteralPath $p -Raw).Replace('if (-not $?) { throw "Failed to resolve the unit Gradle lane." }', 'if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }') | Set-Content -NoNewline $p }; ExpectedFailure = "nonempty-gradle-lane-resolution" },
         @{ Name = "privileged pull request trigger fails"; Mutate = { param($root) $p=Join-Path $root '.github/workflows/android-foundation.yml'; $value=(Get-Content -LiteralPath $p -Raw) + "`n  pull_request_target:`n"; [System.IO.File]::WriteAllText($p, $value, [System.Text.UTF8Encoding]::new($false)) }; ExpectedFailure = "external-fork-workflow-safety" },
-        @{ Name = "application identity mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/build.gradle.kts') -Raw).Replace('com.gurbakir.mobile.dev', 'com.example.changed') | Set-Content -NoNewline (Join-Path $root 'app/build.gradle.kts') }; ExpectedFailure = "gurbakir-application-identities" },
+        @{ Name = "application identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('com.gurbakir.mobile.dev', 'com.example.changed') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-application-identities" },
         @{ Name = "OAuth placeholder mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/build.gradle.kts') -Raw).Replace('manifestPlaceholders["appAuthRedirectScheme"]', 'manifestPlaceholders["renamedScheme"]') | Set-Content -NoNewline (Join-Path $root 'app/build.gradle.kts') }; ExpectedFailure = "gurbakir-oauth-app-links" },
+        @{ Name = "App Link projection mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('/apps/mobile/products/', '/products/') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-oauth-app-links" },
         @{ Name = "reference authority boundary mutation fails"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'docs/reference-model/COMMERCE-BEHAVIOR.md') -Value 'Historical notes.' }; ExpectedFailure = "reference-model-authority-boundary" },
-        @{ Name = "persistence identity mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/src/main/kotlin/Identity.kt') -Raw).Replace('gurbakir-local.db', 'renamed.db') | Set-Content -NoNewline (Join-Path $root 'app/src/main/kotlin/Identity.kt') }; ExpectedFailure = "gurbakir-persistence-identities" }
+        @{ Name = "persistence identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/staging.properties'; (Get-Content $p -Raw).Replace('gurbakir.cart.staging.v1', 'renamed.cart.staging.v1') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-persistence-identities" },
+        @{ Name = "Customer Account user agent mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('Gurbakir-Android', 'Changed-Android') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-client-user-agent" }
     )
 
     $passed = 0

@@ -32,7 +32,6 @@ private const val HTTP_SERVER_ERROR_START = 500
 private const val MAXIMUM_TOKEN_RESPONSE_BYTES = 128L * 1024L
 private const val MAXIMUM_TOKEN_VALUE_LENGTH = 64 * 1024
 private const val MAXIMUM_ACCESS_TOKEN_LIFETIME_SECONDS = 31L * 24L * 60L * 60L
-private const val CLIENT_USER_AGENT = "Gurbakir-Android"
 
 data class CustomerTokenPayload(
     val accessToken: SensitiveToken,
@@ -163,7 +162,7 @@ internal object ShopifyCustomerAccountTokenRequestFactory {
                     .build()
             }
         }
-        return tokenRequest(plan.discovery.tokenEndpoint, body)
+        return tokenRequest(plan.discovery.tokenEndpoint, body, configuration.userAgent)
     }
 
     fun refresh(configuration: CustomerAccountConfiguration, plan: CustomerTokenRefreshPlan): Request {
@@ -175,13 +174,13 @@ internal object ShopifyCustomerAccountTokenRequestFactory {
                 .add("refresh_token", refreshToken)
                 .build()
         }
-        return tokenRequest(plan.discovery.tokenEndpoint, body)
+        return tokenRequest(plan.discovery.tokenEndpoint, body, configuration.userAgent)
     }
 
-    private fun tokenRequest(endpoint: String, body: FormBody): Request = Request.Builder()
+    private fun tokenRequest(endpoint: String, body: FormBody, userAgent: String): Request = Request.Builder()
         .url(endpoint)
         .header("Accept", "application/json")
-        .header("User-Agent", CLIENT_USER_AGENT)
+        .header("User-Agent", userAgent)
         .post(body)
         .build()
 }

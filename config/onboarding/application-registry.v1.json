@@ -1,0 +1,417 @@
+{
+  "schemaVersion": 1,
+  "providerContracts": {
+    "shopifyAdminApiVersion": "2026-07",
+    "shopifyCustomerAccountApiVersion": "2026-07",
+    "allowedStorefrontApiVersions": ["2026-07"],
+    "gate7HomeContentSchemaVersion": 1
+  },
+  "modules": [
+    {
+      "key": "account",
+      "gradleProject": ":account",
+      "directory": "account",
+      "role": "provider",
+      "allowedDirectProjects": [":foundation"],
+      "ciTasks": {
+        "unit": [":account:testDebugUnitTest"],
+        "assemble": [],
+        "api30": [":account:ciApi30DebugAndroidTest"],
+        "api23": []
+      }
+    },
+    {
+      "key": "app",
+      "gradleProject": ":app",
+      "directory": "app",
+      "role": "real-brand-application",
+      "allowedDirectProjects": [":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase"],
+      "ciTasks": {
+        "unit": [":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest"],
+        "assemble": [":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest"],
+        "api30": [":app:ciApi30DevelopmentDebugAndroidTest"],
+        "api23": []
+      }
+    },
+    {
+      "key": "checkout",
+      "gradleProject": ":checkout",
+      "directory": "checkout",
+      "role": "provider",
+      "allowedDirectProjects": [],
+      "ciTasks": {
+        "unit": [":checkout:testDebugUnitTest"],
+        "assemble": [],
+        "api30": [],
+        "api23": []
+      }
+    },
+    {
+      "key": "firebase",
+      "gradleProject": ":firebase",
+      "directory": "firebase",
+      "role": "provider",
+      "allowedDirectProjects": [":foundation"],
+      "ciTasks": {
+        "unit": [":firebase:testDebugUnitTest"],
+        "assemble": [],
+        "api30": [],
+        "api23": []
+      }
+    },
+    {
+      "key": "foundation",
+      "gradleProject": ":foundation",
+      "directory": "foundation",
+      "role": "shared",
+      "allowedDirectProjects": [],
+      "ciTasks": {
+        "unit": [":foundation:testDebugUnitTest"],
+        "assemble": [],
+        "api30": [],
+        "api23": []
+      }
+    },
+    {
+      "key": "mobile-core",
+      "gradleProject": ":mobile-core",
+      "directory": "mobile-core",
+      "role": "shared",
+      "allowedDirectProjects": [":foundation", ":storefront", ":account", ":checkout"],
+      "ciTasks": {
+        "unit": [":mobile-core:testDebugUnitTest"],
+        "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease"],
+        "api30": [":mobile-core:ciApi30DebugAndroidTest"],
+        "api23": [":mobile-core:ciApi23DebugAndroidTest"]
+      }
+    },
+    {
+      "key": "storefront",
+      "gradleProject": ":storefront",
+      "directory": "storefront",
+      "role": "provider",
+      "allowedDirectProjects": [":foundation"],
+      "ciTasks": {
+        "unit": [":storefront:testDebugUnitTest"],
+        "assemble": [],
+        "api30": [":storefront:ciApi30DebugAndroidTest"],
+        "api23": []
+      }
+    },
+    {
+      "key": "synthetic",
+      "gradleProject": ":synthetic",
+      "directory": "apps/synthetic",
+      "role": "synthetic-conformance-application",
+      "allowedDirectProjects": [":mobile-core", ":foundation", ":storefront", ":account", ":checkout"],
+      "ciTasks": {
+        "unit": [":synthetic:testDebugUnitTest"],
+        "assemble": [":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest"],
+        "api30": [":synthetic:ciApi30DebugAndroidTest"],
+        "api23": [":synthetic:ciApi23DebugAndroidTest"]
+      }
+    }
+  ],
+  "applications": [
+    {
+      "key": "gurbakir",
+      "module": ":app",
+      "role": "real-brand-application",
+      "fixtureOnly": false,
+      "releaseBoundary": "nonproduction-only",
+      "providerModules": [":firebase"],
+      "configurationProjection": "config/onboarding/generated/gurbakir",
+      "identity": {
+        "displayName": "Gürbakır",
+        "analyticsNamespace": "gurbakir",
+        "compositionSource": "app/src/main/kotlin/com/gurbakir/mobile/config/BuildConfigurationSource.kt",
+        "brandKey": "gurbakir",
+        "defaultLocale": "tr",
+        "supportedLocales": ["tr", "en"],
+        "market": {
+          "id": "TR",
+          "countryCode": "TR",
+          "currencyCode": "TRY"
+        },
+        "supportedTerritory": "TR",
+        "searchNormalizationLocale": "tr-TR",
+        "databaseName": "gurbakir-local.db",
+        "customerAccount": {
+          "mode": "enabled",
+          "userAgent": "Gurbakir-Android",
+          "callbackSchemeSuffix": "gurbakir",
+          "callbackHost": "oauth",
+          "callbackPath": "/callback",
+          "scopes": ["openid", "email", "customer-account-api:full"]
+        },
+        "webRoles": {
+          "collectionAppLink": {
+            "origin": "https://gurbakir.com",
+            "pathPrefix": "/collections/"
+          },
+          "productAppLink": {
+            "origin": "https://gurbakir.com",
+            "pathPrefix": "/apps/mobile/products/"
+          },
+          "orderAppLink": {
+            "origin": "https://gurbakir.com",
+            "pathPrefix": "/apps/mobile/orders/"
+          },
+          "legalSupport": {
+            "origin": "https://gurbakir.com",
+            "paths": {
+              "support": "/pages/contact",
+              "privacy": "/policies/privacy-policy",
+              "terms": "/policies/terms-of-service",
+              "shipping": "/policies/shipping-policy",
+              "returns": "/policies/refund-policy",
+              "legalNotice": "/policies/legal-notice"
+            }
+          },
+          "checkout": {
+            "hostPolicy": "storefront-origin-only"
+          },
+          "assetLinks": {
+            "mode": "validate-only",
+            "manifestAutoVerify": false
+          }
+        },
+        "nativeCompositionAssertions": {
+          "search": "ENABLED",
+          "wishlist": "ENABLED",
+          "customerAccount": "ENABLED",
+          "primaryNavigation": ["HOME", "CATEGORIES", "SEARCH", "WISHLIST", "ACCOUNT"]
+        }
+      },
+      "profiles": [
+        {
+          "key": "development",
+          "runtimeEnvironment": "DEVELOPMENT",
+          "displayName": "Gürbakır Geliştirme",
+          "localConfiguration": "config/local/gurbakir/development.properties",
+          "providerBindingFile": "config/local/gurbakir/development.providers.json",
+          "variants": [
+            {
+              "name": "developmentDebug",
+              "buildType": "debug",
+              "applicationId": "com.gurbakir.mobile.dev.debug",
+              "firebaseConfig": "app/src/developmentDebug/google-services.json"
+            },
+            {
+              "name": "developmentRelease",
+              "buildType": "release",
+              "applicationId": "com.gurbakir.mobile.dev",
+              "firebaseConfig": "app/src/developmentRelease/google-services.json"
+            }
+          ],
+          "storefront": {
+            "mode": "enabled",
+            "domain": "gurbakir.com",
+            "apiVersion": "2026-07",
+            "publicTokenLocalKey": "shopify.storefrontPublicToken",
+            "mediaOrigins": ["gurbakir.com"],
+            "sharedResourceGroup": "gurbakir-existing-shop",
+            "catalog": {
+              "menuHandle": "main-menu",
+              "managementMode": "validate-only"
+            },
+            "home": {
+              "rootType": "mobile_home",
+              "rootHandle": "primary",
+              "contentSchemaVersion": 1,
+              "definitionContract": "gate7-v1",
+              "definitionManagementMode": "create-if-missing",
+              "entryManagementMode": "validate-only",
+              "sourceMode": "shopify-metaobject"
+            }
+          },
+          "customerAccount": {
+            "mode": "enabled-manual-registration",
+            "discoveryOrigin": "https://gurbakir.com",
+            "clientIdLocalKey": "shopify.customerAccountClientId"
+          },
+          "firebase": {
+            "mode": "firebase-or-local-default",
+            "ownershipKey": "gurbakir-development",
+            "registrationManagementMode": "validate-only",
+            "projectIdentitySource": "provider-binding"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "gurbakir_secure_cart_development",
+            "cartKeyAlias": "gurbakir.cart.development.v1",
+            "customerPreferences": "gurbakir_secure_customer_session_development",
+            "customerKeyAlias": "gurbakir.customer.session.development.v1"
+          }
+        },
+        {
+          "key": "staging",
+          "runtimeEnvironment": "STAGING",
+          "displayName": "Gürbakır Hazırlık",
+          "localConfiguration": "config/local/gurbakir/staging.properties",
+          "providerBindingFile": "config/local/gurbakir/staging.providers.json",
+          "variants": [
+            {
+              "name": "stagingDebug",
+              "buildType": "debug",
+              "applicationId": "com.gurbakir.mobile.staging.debug",
+              "firebaseConfig": "app/src/stagingDebug/google-services.json"
+            },
+            {
+              "name": "stagingRelease",
+              "buildType": "release",
+              "applicationId": "com.gurbakir.mobile.staging",
+              "firebaseConfig": "app/src/stagingRelease/google-services.json"
+            }
+          ],
+          "storefront": {
+            "mode": "enabled",
+            "domain": "gurbakir.com",
+            "apiVersion": "2026-07",
+            "publicTokenLocalKey": "shopify.storefrontPublicToken",
+            "mediaOrigins": ["gurbakir.com"],
+            "sharedResourceGroup": "gurbakir-existing-shop",
+            "catalog": {
+              "menuHandle": "main-menu",
+              "managementMode": "validate-only"
+            },
+            "home": {
+              "rootType": "mobile_home",
+              "rootHandle": "primary",
+              "contentSchemaVersion": 1,
+              "definitionContract": "gate7-v1",
+              "definitionManagementMode": "create-if-missing",
+              "entryManagementMode": "validate-only",
+              "sourceMode": "shopify-metaobject"
+            }
+          },
+          "customerAccount": {
+            "mode": "enabled-manual-registration",
+            "discoveryOrigin": "https://gurbakir.com",
+            "clientIdLocalKey": "shopify.customerAccountClientId"
+          },
+          "firebase": {
+            "mode": "firebase-or-local-default",
+            "ownershipKey": "gurbakir-staging",
+            "registrationManagementMode": "validate-only",
+            "projectIdentitySource": "provider-binding"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "gurbakir_secure_cart_staging",
+            "cartKeyAlias": "gurbakir.cart.staging.v1",
+            "customerPreferences": "gurbakir_secure_customer_session_staging",
+            "customerKeyAlias": "gurbakir.customer.session.staging.v1"
+          }
+        }
+      ]
+    },
+    {
+      "key": "synthetic",
+      "module": ":synthetic",
+      "role": "synthetic-conformance-application",
+      "fixtureOnly": false,
+      "releaseBoundary": "never-production",
+      "providerModules": [],
+      "configurationProjection": null,
+      "identity": {
+        "displayName": "Gate 2 Synthetic",
+        "analyticsNamespace": "gate2_synthetic",
+        "compositionSource": "apps/synthetic/src/main/kotlin/com/example/gate2synthetic/config/Gate2SyntheticConfiguration.kt",
+        "brandKey": "gate2-synthetic",
+        "defaultLocale": "en-CA",
+        "supportedLocales": ["en-CA"],
+        "market": {
+          "id": "ZZ",
+          "countryCode": "ZZ",
+          "currencyCode": "XTS"
+        },
+        "supportedTerritory": "ZZ",
+        "searchNormalizationLocale": "en-CA",
+        "databaseName": "gate2-synthetic-local.db",
+        "customerAccount": {
+          "mode": "disabled"
+        },
+        "webRoles": {
+          "collectionAppLink": {
+            "origin": "https://links.gate2.invalid",
+            "pathPrefix": "/collections/"
+          },
+          "productAppLink": {
+            "origin": "https://links.gate2.invalid",
+            "pathPrefix": "/apps/mobile/products/"
+          },
+          "orderAppLink": null,
+          "legalSupport": null,
+          "checkout": {
+            "hostPolicy": "inert-storefront-origin-only"
+          },
+          "assetLinks": {
+            "mode": "disabled",
+            "manifestAutoVerify": false
+          }
+        },
+        "nativeCompositionAssertions": {
+          "search": "ENABLED",
+          "wishlist": "DISABLED",
+          "customerAccount": "DISABLED",
+          "primaryNavigation": ["SEARCH", "HOME", "CATEGORIES"]
+        }
+      },
+      "profiles": [
+        {
+          "key": "conformance",
+          "runtimeEnvironment": "DEVELOPMENT",
+          "displayName": "Gate 2 Synthetic",
+          "localConfiguration": null,
+          "providerBindingFile": null,
+          "variants": [
+            {
+              "name": "debug",
+              "buildType": "debug",
+              "applicationId": "com.example.gate2synthetic.debug",
+              "firebaseConfig": null
+            },
+            {
+              "name": "release",
+              "buildType": "release",
+              "applicationId": "com.example.gate2synthetic",
+              "firebaseConfig": null
+            }
+          ],
+          "storefront": {
+            "mode": "disabled-offline-fixture",
+            "domain": "storefront.gate2.invalid",
+            "apiVersion": "2026-07",
+            "publicTokenPolicy": "must-be-blank",
+            "catalog": {
+              "menuHandle": "synthetic-catalog-menu",
+              "managementMode": "disabled"
+            },
+            "home": {
+              "sourceMode": "disabled",
+              "definitionManagementMode": "disabled",
+              "entryManagementMode": "disabled"
+            }
+          },
+          "customerAccount": {
+            "mode": "disabled"
+          },
+          "firebase": {
+            "mode": "disabled"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "gate2_synthetic_secure_cart_development",
+            "cartKeyAlias": "gate2.synthetic.cart.development.v1",
+            "customerPreferences": "gate2_synthetic_secure_customer_session_development",
+            "customerKeyAlias": "gate2.synthetic.customer.session.development.v1"
+          }
+        }
+      ]
+    }
+  ],
+  "ciLanes": {
+    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest"],
+    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest"],
+    "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest"],
+    "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest"]
+  }
+}

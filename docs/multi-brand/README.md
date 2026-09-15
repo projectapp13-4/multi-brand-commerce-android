@@ -1,6 +1,6 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–7 complete; Gate 7 technically closed; Multi-Brand work remains unfinished**
+Status: **Gates 0–7 complete; Gate 8 implementation in progress; Multi-Brand work remains unfinished**
 
 ## Purpose
 
@@ -62,6 +62,7 @@ architecture.
 | 5 | [Handoff](GATE-5-COMPLETION-HANDOFF.md) | Technically closed |
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
+| 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md) | Implementation in progress |
 
 ## Gate 6 closure evidence
 
@@ -149,9 +150,10 @@ planned from current source and architecture. They must preserve:
 - bounded merchant-content authority with native executable behavior retained by Android; and
 - honest separation between reusable contracts and concrete brand behavior.
 
-Gate 8 provisioning/onboarding automation, a second real merchant/store pilot,
-Gate 9 cumulative conformance, production onboarding/configuration/signing/
-publication and P3-16 remain unstarted or separately governed unless later
-evidence and approval establish otherwise.
+Gate 8 provisioning/onboarding implementation is in progress under its approved
+digest-bound plan. A second real merchant/store pilot, Gate 9 cumulative
+conformance, production onboarding/configuration/signing/publication and P3-16
+remain unstarted or separately governed unless later evidence and approval
+establish otherwise.
 
 The repository-wide authority map remains [docs/README.md](../README.md).

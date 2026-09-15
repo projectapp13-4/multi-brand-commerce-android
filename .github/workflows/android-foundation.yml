@@ -38,6 +38,15 @@ jobs:
         shell: pwsh
         run: ./scripts/Test-PublicReadiness.ps1 -RequireCleanWorktree
 
+      - name: Gate 8 onboarding contract and enrollment
+        shell: pwsh
+        run: |
+          ./scripts/Test-MultiBrandOnboarding.ps1 -Suite All
+          ./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit -ValidateOnly
+          ./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble -ValidateOnly
+          ./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30 -ValidateOnly
+          ./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23 -ValidateOnly
+
       - name: Set up JDK 17
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
@@ -46,6 +55,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Install pinned Android platform
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
@@ -74,32 +85,24 @@ jobs:
           exit "$status"
 
       - name: JVM foundation tests
-        run: >-
-          ./gradlew --no-daemon
-          :mobile-core:testDebugUnitTest
-          :foundation:testDebugUnitTest
-          :account:testDebugUnitTest
-          :checkout:testDebugUnitTest
-          :storefront:testDebugUnitTest
-          :firebase:testDebugUnitTest
-          :synthetic:testDebugUnitTest
-          :app:testDevelopmentDebugUnitTest
-          :app:testStagingDebugUnitTest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane unit)
+          if (-not $?) { throw "Failed to resolve the unit Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the unit lane." }
+          & ./gradlew --no-daemon @tasks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Development and staging package verification
-        run: >-
-          ./gradlew --no-daemon
-          :mobile-core:assembleDebug
-          :mobile-core:assembleRelease
-          :app:assembleDevelopmentDebug
-          :app:assembleDevelopmentRelease
-          :app:assembleStagingDebug
-          :app:assembleStagingRelease
-          :app:assembleDevelopmentDebugAndroidTest
-          :app:assembleStagingDebugAndroidTest
-          :synthetic:assembleDebug
-          :synthetic:assembleRelease
-          :synthetic:assembleDebugAndroidTest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
+          if (-not $?) { throw "Failed to resolve the assemble Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the assemble lane." }
+          & ./gradlew --no-daemon @tasks
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Synthetic package contract
         shell: pwsh
@@ -159,6 +162,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Install pinned Android platform and emulator
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "emulator"
@@ -205,15 +210,14 @@ jobs:
         run: df -h
 
       - name: Core and development instrumentation tests
-        run: >-
-          ./gradlew --no-daemon --no-configuration-cache
-          :account:ciApi30DebugAndroidTest
-          :storefront:ciApi30DebugAndroidTest
-          :mobile-core:ciApi30DebugAndroidTest
-          :app:ciApi30DevelopmentDebugAndroidTest
-          :synthetic:ciApi30DebugAndroidTest
-          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          --stacktrace --info
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api30)
+          if (-not $?) { throw "Failed to resolve the api30 Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api30 lane." }
+          & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   minimum-sdk-instrumentation:
     runs-on: ubuntu-latest
@@ -245,6 +249,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Install pinned Android platform and emulator
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "emulator"
@@ -277,9 +283,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Shared active-path and synthetic minimum-SDK instrumentation tests
-        run: >-
-          ./gradlew --no-daemon --no-configuration-cache
-          :mobile-core:ciApi23DebugAndroidTest
-          :synthetic:ciApi23DebugAndroidTest
-          -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
-          --stacktrace --info
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane api23)
+          if (-not $?) { throw "Failed to resolve the api23 Gradle lane." }
+          if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the api23 lane." }
+          & ./gradlew --no-daemon --no-configuration-cache @tasks "-Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect" --stacktrace --info
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

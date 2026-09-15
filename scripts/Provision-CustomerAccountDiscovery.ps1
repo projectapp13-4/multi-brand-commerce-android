@@ -1,10 +1,17 @@
 [CmdletBinding()]
 param(
-    [string]$ConfigurationPath = ''
+    [Parameter(Mandatory = $true)][string]$Application,
+    [Parameter(Mandatory = $true)][ValidateSet('development', 'staging')][string]$Profile
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+Write-Warning 'Provision-CustomerAccountDiscovery.ps1 is a compatibility wrapper; use Invoke-MultiBrandOnboarding.ps1 -Command Inspect.'
+& (Join-Path $PSScriptRoot 'Invoke-MultiBrandOnboarding.ps1') -Command Inspect -Application $Application -Profile $Profile
+exit $LASTEXITCODE
+
+<# Legacy implementation retained below only as historical source context and is unreachable.
 
 if ([string]::IsNullOrWhiteSpace($ConfigurationPath)) {
     $ConfigurationPath = Join-Path $PSScriptRoot '..\config\local.properties'
@@ -85,3 +92,4 @@ foreach ($entry in $properties.GetEnumerator()) {
 
 $clientConfigured = -not [string]::IsNullOrWhiteSpace([string]$properties['shopify.customerAccountClientId'])
 Write-Output ('PASS: verified Shopify discovery saved to ignored local configuration; client_id configured={0}' -f $clientConfigured)
+#>
