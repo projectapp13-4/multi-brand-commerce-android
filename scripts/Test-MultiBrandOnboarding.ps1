@@ -1136,6 +1136,8 @@ public sealed class Gate8BlockingReadStream : Stream
         -Pattern 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH' `
         -Name 'Customer discovery rejects a foreign HTTPS endpoint'
     $firebaseBinding = @{
+        application = 'gurbakir'
+        profile = 'development'
         firebase = @{
             projectId = 'fixture-project-123'
             projectNumber = '123456789012'
@@ -1146,9 +1148,11 @@ public sealed class Gate8BlockingReadStream : Stream
         }
     }
     $script:firebasePageRequests = [Collections.Generic.List[string]]::new()
+    $script:firebasePageHeaders = [Collections.Generic.List[object]]::new()
     $firebaseTransport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         $script:firebasePageRequests.Add([string]$uri.Query)
+        $script:firebasePageHeaders.Add($headers)
         if ([string]$uri.Query -match 'pageToken=next-page') {
             return [pscustomobject]@{ StatusCode = 200; Data = @{
                 apps = @(@{ appId = '1:123456789012:android:fedcba9876543210'; packageName = 'com.gurbakir.mobile.dev' })
@@ -1163,6 +1167,106 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition ($firebase.Classification -ceq 'PASS' -and $script:firebasePageRequests.Count -eq 2 -and $script:firebasePageRequests[0] -match 'pageSize=100') `
         -Name 'Firebase inspection uses fixed 100-record pagination and compares all pages'
+    Assert-True `
+        -Condition (
+            $script:firebasePageHeaders.Count -eq 2 -and
+            [string]$script:firebasePageHeaders[0]['x-goog-user-project'] -ceq 'fixture-project-123' -and
+            [string]$script:firebasePageHeaders[1]['x-goog-user-project'] -ceq 'fixture-project-123'
+        ) `
+        -Name 'Firebase development inspection bills only the independently bound development project'
+
+    $stagingSelected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'staging'
+    $stagingFirebaseBinding = @{
+        application = 'gurbakir'
+        profile = 'staging'
+        firebase = @{
+            projectId = 'fixture-staging-456'
+            projectNumber = '987654321098'
+            androidAppIdsByVariant = @{
+                stagingDebug = '1:987654321098:android:0123456789abcdef'
+                stagingRelease = '1:987654321098:android:fedcba9876543210'
+            }
+        }
+    }
+    $script:stagingFirebaseHeaders = [Collections.Generic.List[object]]::new()
+    $stagingFirebaseTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $script:stagingFirebaseHeaders.Add($headers)
+        [pscustomobject]@{ StatusCode = 200; Data = @{
+            apps = @(
+                @{ appId = '1:987654321098:android:0123456789abcdef'; packageName = 'com.gurbakir.mobile.staging.debug' },
+                @{ appId = '1:987654321098:android:fedcba9876543210'; packageName = 'com.gurbakir.mobile.staging' }
+            )
+        } }
+    }
+    $stagingFirebase = Get-OnboardingFirebaseState `
+        $stagingSelected `
+        $stagingFirebaseBinding `
+        'fixture-firebase-token' `
+        $stagingFirebaseTransport
+    Assert-True `
+        -Condition (
+            $stagingFirebase.Classification -ceq 'PASS' -and
+            $script:stagingFirebaseHeaders.Count -eq 1 -and
+            [string]$script:stagingFirebaseHeaders[0]['x-goog-user-project'] -ceq 'fixture-staging-456'
+        ) `
+        -Name 'Firebase staging inspection bills only the independently bound staging project'
+
+    $crossProfileFirebaseBinding = @{
+        application = 'gurbakir'
+        profile = 'staging'
+        firebase = $firebaseBinding.firebase
+    }
+    Assert-Throws `
+        -Action {
+            Get-OnboardingFirebaseState `
+                $selected `
+                $crossProfileFirebaseBinding `
+                'fixture-firebase-token' `
+                $firebaseTransport
+        } `
+        -Pattern 'FIREBASE_BINDING_TARGET_MISMATCH' `
+        -Name 'Firebase inspection rejects a provider binding selected for another profile'
+
+    $previousQuotaProject = [Environment]::GetEnvironmentVariable('GOOGLE_CLOUD_QUOTA_PROJECT', 'Process')
+    try {
+        [Environment]::SetEnvironmentVariable('GOOGLE_CLOUD_QUOTA_PROJECT', 'attacker-project-999', 'Process')
+        $script:injectionFirebaseHeaders = [Collections.Generic.List[object]]::new()
+        $injectionFirebaseTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            $script:injectionFirebaseHeaders.Add($headers)
+            & $firebaseTransport $method $uri $headers $body $maximumBytes
+        }
+        [void](Get-OnboardingFirebaseState $selected $firebaseBinding 'fixture-firebase-token' $injectionFirebaseTransport)
+        Assert-True `
+            -Condition (
+                $script:injectionFirebaseHeaders.Count -gt 0 -and
+                [string]$script:injectionFirebaseHeaders[0]['x-goog-user-project'] -ceq 'fixture-project-123'
+            ) `
+            -Name 'Firebase inspection ignores caller-controlled quota-project environment overrides'
+    } finally {
+        [Environment]::SetEnvironmentVariable('GOOGLE_CLOUD_QUOTA_PROJECT', $previousQuotaProject, 'Process')
+    }
+
+    $firebaseIdentityMismatchTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        [pscustomobject]@{ StatusCode = 200; Data = @{
+            apps = @(
+                @{ appId = '1:123456789012:android:0123456789abcdef'; packageName = 'com.attacker.mobile' },
+                @{ appId = '1:123456789012:android:fedcba9876543210'; packageName = 'com.gurbakir.mobile.dev' }
+            )
+        } }
+    }
+    Assert-Throws `
+        -Action {
+            Get-OnboardingFirebaseState `
+                $selected `
+                $firebaseBinding `
+                'fixture-firebase-token' `
+                $firebaseIdentityMismatchTransport
+        } `
+        -Pattern 'FIREBASE_APP_IDENTITY_MISMATCH' `
+        -Name 'Firebase quota-project routing preserves exact app identity matching'
     $wrongAssetLinksTransport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         [pscustomobject]@{ StatusCode = 200; Data = @(@{
