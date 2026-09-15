@@ -6,7 +6,12 @@ function Get-OnboardingFirebaseState {
     if ([string]$Selected.Profile.firebase.mode -ceq 'disabled') { return [pscustomobject]@{ Classification = 'NOT_APPLICABLE'; Fingerprint = ('0' * 64) } }
     if ($null -eq $Binding.firebase) { throw 'MISSING_FIREBASE_BINDING' }
     if ([string]::IsNullOrWhiteSpace($Token)) { throw 'MISSING_FIREBASE_ACCESS_TOKEN' }
+    if ([string]$Binding.application -cne [string]$Selected.Application.key -or
+        [string]$Binding.profile -cne [string]$Selected.Profile.key) {
+        throw 'FIREBASE_BINDING_TARGET_MISMATCH'
+    }
     $project = [string]$Binding.firebase.projectId
+    if ($project -cnotmatch '^[a-z][a-z0-9-]{4,28}[a-z0-9]$') { throw 'INVALID_FIREBASE_BINDING' }
     $apps = [System.Collections.Generic.List[object]]::new()
     $pageToken = ''
     $seenTokens = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -15,7 +20,14 @@ function Get-OnboardingFirebaseState {
         if ($pageToken.Length -gt 0) {
             $query += '&pageToken=' + [uri]::EscapeDataString($pageToken)
         }
-        $response = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]"https://firebase.googleapis.com/v1beta1/projects/$project/androidApps?$query") -Headers @{ Authorization = "Bearer $Token" } -Transport $Transport
+        $response = Invoke-OnboardingJsonRequest `
+            -Method GET `
+            -Uri ([uri]"https://firebase.googleapis.com/v1beta1/projects/$project/androidApps?$query") `
+            -Headers @{
+                Authorization = "Bearer $Token"
+                'x-goog-user-project' = $project
+            } `
+            -Transport $Transport
         if ($response.StatusCode -ne 200) { throw 'FIREBASE_MANAGEMENT_FAILURE' }
         foreach ($app in @($response.Data.apps)) { $apps.Add($app) }
         $nextPageToken = if ($response.Data -is [System.Collections.IDictionary] -and $response.Data.Contains('nextPageToken')) {
