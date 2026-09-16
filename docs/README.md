@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-14
+Status date: 2026-09-16
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -30,12 +30,21 @@ history, protected bootstrap, and historical-archive cutover evidence.
 - [`multi-brand/GATE-7-COMPLETION-HANDOFF.md`](multi-brand/GATE-7-COMPLETION-HANDOFF.md)
   remains the historically accurate pre-merge implementation/evidence record;
   it is not rewritten to claim later lifecycle events.
+- Gate 8 provisioning/onboarding is technically closed. Implementation PR #8
+  merged as `d71353bddb9a4610b1ff9908404b90ac4261911d`; corrective PRs #9,
+  #10 and #11 merged through final main
+  `77455f5e8f2711a85194626892f1ad6fab081e86`; and exact merged-main run
+  `35030134061` passed `validate`, API 30 `instrumentation`, and API 23
+  `minimum-sdk-instrumentation`. Configured development/staging acceptance
+  passed with trusted bindings, preserved Menu and selected Home content, one
+  DRAFT/unselected acceptance probe, and repeated zero-write idempotence.
+  [`multi-brand/GATE-8-COMPLETION-HANDOFF.md`](multi-brand/GATE-8-COMPLETION-HANDOFF.md)
+  remains the historical pre-merge record rather than the closure authority.
 - The Multi-Brand migration remains unfinished. Gürbakır `:app` is the first
   real brand application; `:synthetic` is not a merchant application; no second
-  real brand application exists. Gate 8 provisioning/onboarding implementation
-  is in progress under the approved, digest-bound
-  [`multi-brand/plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md`](multi-brand/plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md).
-  This does not start second-store proof, Gate 9, P3-16, or production onboarding.
+  real brand application exists. The second real merchant/store pilot is the
+  next separate slice. Gate 9, P3-16, and production onboarding remain
+  unstarted or separately governed.
 - Phase 3 functional implementation and integrated acceptance are complete
   through **P3-15**. Account-deletion merchant acknowledgement,
   retention/SLA execution, and actual remote deletion remain externally
