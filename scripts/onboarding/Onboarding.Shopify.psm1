@@ -13,6 +13,29 @@ function Invoke-ShopifyAdminOperation {
     return $response.Data.data
 }
 
+function Invoke-ShopifyStorefrontOperation {
+    param($Selected, [string]$Token, [string]$Query, [hashtable]$Variables, [scriptblock]$Transport)
+    if ([string]::IsNullOrWhiteSpace($Token)) { throw 'MISSING_SHOPIFY_STOREFRONT_TOKEN' }
+    if ($Token.Length -gt 4096 -or $Token -cnotmatch '^[\x21-\x7e]+$') {
+        throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.storefrontPublicToken'
+    }
+    $domain = [string]$Selected.Profile.storefront.domain
+    $version = [string]$Selected.Profile.storefront.apiVersion
+    $uri = [uri]"https://$domain/api/$version/graphql.json"
+    $body = [ordered]@{ query = $Query; variables = $Variables } | ConvertTo-Json -Depth 12 -Compress
+    $response = Invoke-OnboardingJsonRequest `
+        -Method POST `
+        -Uri $uri `
+        -Headers @{ 'X-Shopify-Storefront-Access-Token' = $Token } `
+        -Body $body `
+        -Transport $Transport
+    if ($response.StatusCode -ne 200 -or
+        ($response.Data -is [Collections.IDictionary] -and $response.Data.Contains('errors'))) {
+        throw 'SHOPIFY_STOREFRONT_OPERATION_FAILED'
+    }
+    return $response.Data.data
+}
+
 function Import-ShopifyHomeSchemaContract {
     [CmdletBinding()]
     param()
@@ -347,6 +370,32 @@ function Get-ShopifyVerifiedTargetState {
     return [pscustomobject]@{ Classification = 'PASS'; Fingerprint = $hash }
 }
 
+function Get-ShopifyStorefrontTargetState {
+    [CmdletBinding()]
+    param($Selected, $Binding, [string]$Token, [scriptblock]$Transport)
+
+    if ([string]$Selected.Profile.storefront.mode -cne 'enabled') {
+        return [pscustomobject]@{ Classification = 'NOT_APPLICABLE'; Fingerprint = ('0' * 64) }
+    }
+    $query = 'query Gate8VerifyStorefrontShop{shop{id primaryDomain{host}}}'
+    $data = Invoke-ShopifyStorefrontOperation $Selected $Token $query @{} $Transport
+    $shopId = [string]$data.shop.id
+    $primaryHost = [string]$data.shop.primaryDomain.host
+    if ($shopId -cnotmatch '^gid://shopify/Shop/(?<id>[0-9]+)$' -or
+        [string]$Matches.id -cne [string]$Binding.shopify.shopId -or
+        $primaryHost -cne [string]$Selected.Profile.storefront.domain) {
+        throw 'SHOPIFY_STOREFRONT_IDENTITY_MISMATCH'
+    }
+    $canonical = Get-OnboardingCanonicalJson ([ordered]@{
+        id = $shopId
+        primaryDomain = $primaryHost
+    })
+    $hash = [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))
+    ).ToLowerInvariant()
+    return [pscustomobject]@{ Classification = 'PASS'; Fingerprint = $hash }
+}
+
 function Get-ShopifyHomeDefinitionState {
     [CmdletBinding()]
     param($Binding, [string]$Token, [scriptblock]$Transport)
@@ -493,4 +542,4 @@ function Get-ShopifyAcceptanceProbeState {
     [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; ResourceId = if ($null -eq $probe) { $null } else { [string]$probe.id } }
 }
 
-Export-ModuleMember -Function @('Import-ShopifyHomeSchemaContract', 'ConvertTo-ShopifyHomeDefinitionCreateInput', 'Get-ShopifyVerifiedTargetState', 'Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')
+Export-ModuleMember -Function @('Import-ShopifyHomeSchemaContract', 'ConvertTo-ShopifyHomeDefinitionCreateInput', 'Get-ShopifyVerifiedTargetState', 'Get-ShopifyStorefrontTargetState', 'Get-ShopifyHomeDefinitionState', 'Get-ShopifyMenuState', 'Get-ShopifyAcceptanceProbeState', 'New-ShopifyHomeDefinition', 'New-ShopifyAcceptanceProbe')

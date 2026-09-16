@@ -134,6 +134,40 @@ function Get-OnboardingSha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Read-OnboardingBoundedFileBytes {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][int]$MaximumBytes
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw (New-OnboardingContractError -Code 'MISSING_FILE' -Field $Path)
+    }
+    $stream = [IO.FileStream]::new(
+        [IO.Path]::GetFullPath($Path),
+        [IO.FileMode]::Open,
+        [IO.FileAccess]::Read,
+        [IO.FileShare]::Read
+    )
+    $memory = [IO.MemoryStream]::new()
+    try {
+        if ($stream.Length -gt $MaximumBytes) {
+            throw (New-OnboardingContractError -Code 'FILE_TOO_LARGE' -Field $Path)
+        }
+        $buffer = [byte[]]::new(8192)
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            if ($memory.Length + $read -gt $MaximumBytes) {
+                throw (New-OnboardingContractError -Code 'FILE_TOO_LARGE' -Field $Path)
+            }
+            $memory.Write($buffer, 0, $read)
+        }
+        return $memory.ToArray()
+    } finally {
+        $memory.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Read-OnboardingStrictJson {
     [CmdletBinding()]
     param(
@@ -141,13 +175,7 @@ function Read-OnboardingStrictJson {
         [int]$MaximumBytes = 262144
     )
 
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw (New-OnboardingContractError -Code 'MISSING_FILE' -Field $Path)
-    }
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -gt $MaximumBytes) {
-        throw (New-OnboardingContractError -Code 'FILE_TOO_LARGE' -Field $Path)
-    }
+    $bytes = Read-OnboardingBoundedFileBytes -Path $Path -MaximumBytes $MaximumBytes
     if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xef -and $bytes[1] -eq 0xbb -and $bytes[2] -eq 0xbf) {
         throw (New-OnboardingContractError -Code 'UTF8_BOM_FORBIDDEN' -Field $Path)
     }
@@ -180,13 +208,7 @@ function Read-OnboardingProperties {
         [switch]$AllowEmptyValues
     )
 
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw (New-OnboardingContractError -Code 'MISSING_FILE' -Field $Path)
-    }
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -gt $MaximumBytes) {
-        throw (New-OnboardingContractError -Code 'FILE_TOO_LARGE' -Field $Path)
-    }
+    $bytes = Read-OnboardingBoundedFileBytes -Path $Path -MaximumBytes $MaximumBytes
     if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xef -and $bytes[1] -eq 0xbb -and $bytes[2] -eq 0xbf) {
         throw (New-OnboardingContractError -Code 'UTF8_BOM_FORBIDDEN' -Field $Path)
     }

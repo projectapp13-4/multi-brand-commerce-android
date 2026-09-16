@@ -2,14 +2,40 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'Onboarding.Common.psm1') -Force
 function Get-OnboardingAssetLinksState {
     [CmdletBinding()]
-    param([Parameter(Mandatory)]$Selected, [scriptblock]$Transport)
-    $associationHost = ([uri][string]$Selected.Application.identity.webRoles.collectionAppLink.origin).Host
-    $response = Invoke-OnboardingJsonRequest -Method GET -Uri ([uri]"https://$associationHost/.well-known/assetlinks.json") -Transport $Transport
-    if ($response.StatusCode -ne 200) { return [pscustomobject]@{ Classification = 'EXTERNALLY_BLOCKED'; Fingerprint = ('0' * 64) } }
-    $canonical = Get-OnboardingCanonicalJson $response.Data
-    $sha = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($canonical))
-    $expectedPackages = @($Selected.Profile.variants | ForEach-Object { [string]$_.applicationId })
-    $matchingStatements = @(
+    param(
+        [Parameter(Mandatory)]$Selected,
+        [scriptblock]$Transport,
+        [System.Collections.IDictionary]$TrustedFingerprintsByPackage
+    )
+    if ([string]$Selected.Application.identity.webRoles.assetLinks.mode -ceq 'disabled') {
+        return [pscustomobject]@{ Classification = 'NOT_APPLICABLE'; Fingerprint = ('0' * 64) }
+    }
+
+    $hosts = @(
+        @(
+            foreach ($role in @('collectionAppLink', 'productAppLink', 'orderAppLink')) {
+                $link = $Selected.Application.identity.webRoles[$role]
+                if ($null -ne $link) { ([uri][string]$link.origin).IdnHost.ToLowerInvariant() }
+            }
+        ) | Sort-Object -Unique -CaseSensitive
+    )
+    $expectedPackages = @(
+        @($Selected.Profile.variants | ForEach-Object { [string]$_.applicationId }) |
+            Sort-Object -Unique -CaseSensitive
+    )
+    $observations = [Collections.Generic.List[object]]::new()
+    $coveredPairs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $providerFingerprints = @{}
+
+    foreach ($hostName in $hosts) {
+        $response = Invoke-OnboardingJsonRequest `
+            -Method GET `
+            -Uri ([uri]"https://$hostName/.well-known/assetlinks.json") `
+            -Transport $Transport
+        if ($response.StatusCode -ne 200) {
+            return [pscustomobject]@{ Classification = 'EXTERNALLY_BLOCKED'; Fingerprint = ('0' * 64) }
+        }
+        $observations.Add([ordered]@{ host = $hostName; statements = $response.Data })
         foreach ($statement in @($response.Data)) {
             if ($statement -isnot [System.Collections.IDictionary] -or
                 $statement.target -isnot [System.Collections.IDictionary] -or
@@ -18,14 +44,56 @@ function Get-OnboardingAssetLinksState {
                 'delegate_permission/common.handle_all_urls' -cnotin @($statement.relation)) {
                 continue
             }
-            $fingerprints = @($statement.target.sha256_cert_fingerprints)
-            if ($fingerprints.Count -eq 0 -or @($fingerprints | Where-Object { [string]$_ -notmatch '^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$' }).Count -gt 0) {
+            $fingerprints = @(
+                $statement.target.sha256_cert_fingerprints |
+                    ForEach-Object { ([string]$_).ToUpperInvariant() }
+            )
+            if ($fingerprints.Count -eq 0 -or
+                @($fingerprints | Where-Object { $_ -cnotmatch '^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$' }).Count -gt 0) {
                 continue
             }
-            $statement
+            $packageName = [string]$statement.target.package_name
+            $pair = "$hostName|$packageName"
+            [void]$coveredPairs.Add($pair)
+            if (-not $providerFingerprints.ContainsKey($pair)) {
+                $providerFingerprints[$pair] = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+            }
+            foreach ($fingerprint in $fingerprints) { [void]$providerFingerprints[$pair].Add($fingerprint) }
         }
-    )
-    $classification = if ($matchingStatements.Count -gt 0) { 'PASS' } else { 'FAIL' }
-    [pscustomobject]@{ Classification = $classification; Fingerprint = [Convert]::ToHexString($sha).ToLowerInvariant() }
+    }
+
+    $canonical = Get-OnboardingCanonicalJson @($observations.ToArray())
+    $sha = [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($canonical))
+    $fingerprint = [Convert]::ToHexString($sha).ToLowerInvariant()
+    $expectedPairCount = $hosts.Count * $expectedPackages.Count
+    if ($coveredPairs.Count -eq 0) {
+        return [pscustomobject]@{ Classification = 'FAIL'; Fingerprint = $fingerprint }
+    }
+    if ($coveredPairs.Count -ne $expectedPairCount) {
+        return [pscustomobject]@{ Classification = 'PARTIAL'; Fingerprint = $fingerprint }
+    }
+    if ($null -eq $TrustedFingerprintsByPackage) {
+        return [pscustomobject]@{ Classification = 'NOT_VERIFIED'; Fingerprint = $fingerprint }
+    }
+    foreach ($packageName in $expectedPackages) {
+        if (-not $TrustedFingerprintsByPackage.Contains($packageName)) {
+            return [pscustomobject]@{ Classification = 'NOT_VERIFIED'; Fingerprint = $fingerprint }
+        }
+        $trusted = @(
+            $TrustedFingerprintsByPackage[$packageName] |
+                ForEach-Object { ([string]$_).ToUpperInvariant() }
+        )
+        if ($trusted.Count -eq 0 -or
+            @($trusted | Where-Object { $_ -cnotmatch '^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$' }).Count -gt 0) {
+            return [pscustomobject]@{ Classification = 'FAIL'; Fingerprint = $fingerprint }
+        }
+        foreach ($hostName in $hosts) {
+            $provider = $providerFingerprints["$hostName|$packageName"]
+            if (@($trusted | Where-Object { $provider.Contains($_) }).Count -eq 0) {
+                return [pscustomobject]@{ Classification = 'FAIL'; Fingerprint = $fingerprint }
+            }
+        }
+    }
+    [pscustomobject]@{ Classification = 'PASS'; Fingerprint = $fingerprint }
 }
 Export-ModuleMember -Function 'Get-OnboardingAssetLinksState'
