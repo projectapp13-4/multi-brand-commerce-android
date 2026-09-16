@@ -40,6 +40,31 @@ function Assert-OnboardingEnum {
     }
 }
 
+function Assert-OnboardingJsonInteger {
+    param(
+        [AllowNull()]$Value,
+        [Parameter(Mandatory)][string]$Field
+    )
+
+    if ($Value -isnot [long] -and $Value -isnot [int] -and
+        $Value -isnot [short] -and $Value -isnot [byte]) {
+        throw (New-OnboardingContractError -Code 'INVALID_JSON_TYPE' -Field $Field)
+    }
+    return [long]$Value
+}
+
+function Assert-OnboardingJsonBoolean {
+    param(
+        [AllowNull()]$Value,
+        [Parameter(Mandatory)][string]$Field
+    )
+
+    if ($Value -isnot [bool]) {
+        throw (New-OnboardingContractError -Code 'INVALID_JSON_TYPE' -Field $Field)
+    }
+    return [bool]$Value
+}
+
 function Assert-OnboardingKey {
     param(
         [Parameter(Mandatory)][string]$Value,
@@ -82,6 +107,9 @@ function Assert-OnboardingHttpsOrigin {
         $uri.Scheme -cne 'https' -or
         -not [string]::IsNullOrEmpty($uri.UserInfo) -or
         -not [string]::IsNullOrEmpty($uri.Fragment) -or
+        -not [string]::IsNullOrEmpty($uri.Query) -or
+        -not $uri.IsDefaultPort -or
+        $Value -cmatch '^https://[^/]+:' -or
         $uri.AbsolutePath -cne '/') {
         throw (New-OnboardingContractError -Code 'UNSAFE_URL' -Field $Field)
     }
@@ -248,6 +276,9 @@ function Assert-OnboardingIdentity {
         -Allowed @('mode', 'manifestAutoVerify') -Required @('mode', 'manifestAutoVerify') -Field "$Field.webRoles.assetLinks"
     Assert-OnboardingEnum -Value ([string]$Identity.webRoles.assetLinks.mode) `
         -Allowed @('validate-only', 'disabled') -Field "$Field.webRoles.assetLinks.mode"
+    [void](Assert-OnboardingJsonBoolean `
+        -Value $Identity.webRoles.assetLinks.manifestAutoVerify `
+        -Field "$Field.webRoles.assetLinks.manifestAutoVerify")
 
     Assert-OnboardingObjectFields -Object $Identity.nativeCompositionAssertions `
         -Allowed @('search', 'wishlist', 'customerAccount', 'primaryNavigation') `
@@ -319,7 +350,8 @@ function Assert-OnboardingProfile {
                 throw (New-OnboardingContractError -Code 'MISSING_FIELD' -Field "$field.storefront.$required")
             }
         }
-        Assert-OnboardingHost -HostName ([string]$Profile.storefront.domain) -Field "$field.storefront.domain"
+        Assert-OnboardingHost -HostName ([string]$Profile.storefront.domain) -Field "$field.storefront.domain" `
+            -AllowInvalidTld:([bool]$Application.fixtureOnly)
         Assert-OnboardingKey -Value ([string]$Profile.storefront.sharedResourceGroup) -Field "$field.storefront.sharedResourceGroup"
         if ([string]$Profile.storefront.apiVersion -cnotin @($ProviderContracts.allowedStorefrontApiVersions)) {
             throw (New-OnboardingContractError -Code 'UNSUPPORTED_STOREFRONT_API_VERSION' -Field "$field.storefront.apiVersion")
@@ -329,7 +361,10 @@ function Assert-OnboardingProfile {
         }
         $mediaOrigins = @(Assert-OnboardingArray -Value $Profile.storefront.mediaOrigins -Field "$field.storefront.mediaOrigins" -MaximumCount 8)
         if ($mediaOrigins.Count -lt 1) { throw (New-OnboardingContractError -Code 'MISSING_MEDIA_ORIGIN' -Field "$field.storefront.mediaOrigins") }
-        foreach ($origin in $mediaOrigins) { Assert-OnboardingHost -HostName ([string]$origin) -Field "$field.storefront.mediaOrigins" }
+        foreach ($origin in $mediaOrigins) {
+            Assert-OnboardingHost -HostName ([string]$origin) -Field "$field.storefront.mediaOrigins" `
+                -AllowInvalidTld:([bool]$Application.fixtureOnly)
+        }
     } else {
         if ($Profile.storefront.Contains('sharedResourceGroup')) {
             throw (New-OnboardingContractError -Code 'DISABLED_RESOURCE_GROUP' -Field "$field.storefront.sharedResourceGroup")
@@ -370,7 +405,8 @@ function Assert-OnboardingProfile {
             }
             if ([string]$Profile.storefront.home.rootType -cne 'mobile_home' -or
                 [string]$Profile.storefront.home.rootHandle -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$' -or
-                [int]$Profile.storefront.home.contentSchemaVersion -ne [int]$ProviderContracts.gate7HomeContentSchemaVersion -or
+                (Assert-OnboardingJsonInteger -Value $Profile.storefront.home.contentSchemaVersion -Field "$field.storefront.home.contentSchemaVersion") -ne
+                    (Assert-OnboardingJsonInteger -Value $ProviderContracts.gate7HomeContentSchemaVersion -Field 'providerContracts.gate7HomeContentSchemaVersion') -or
                 [string]$Profile.storefront.home.definitionContract -cne 'gate7-v1' -or
                 [string]$Profile.storefront.home.definitionManagementMode -cne 'create-if-missing' -or
                 [string]$Profile.storefront.home.entryManagementMode -cne 'validate-only' -or
@@ -431,6 +467,49 @@ function Assert-OnboardingProfile {
     }
 }
 
+function Assert-OnboardingNativeCompositionCompatibility {
+    param(
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Application,
+        [Parameter(Mandatory)][string]$Field
+    )
+
+    if ([bool]$Application.fixtureOnly) {
+        return
+    }
+
+    # These expectations are deliberately independent of the registry under
+    # validation. The matching JVM application tests execute the consumed
+    # compositions; this guard prevents a self-consistent registry/projection
+    # edit from contradicting those compiled application contracts.
+    $expectations = @{
+        gurbakir = [ordered]@{
+            search = 'ENABLED'
+            wishlist = 'ENABLED'
+            customerAccount = 'ENABLED'
+            primaryNavigation = @('HOME', 'CATEGORIES', 'SEARCH', 'WISHLIST', 'ACCOUNT')
+        }
+        synthetic = [ordered]@{
+            search = 'ENABLED'
+            wishlist = 'DISABLED'
+            customerAccount = 'DISABLED'
+            primaryNavigation = @('SEARCH', 'HOME', 'CATEGORIES')
+        }
+    }
+    $applicationKey = [string]$Application.key
+    if (-not $expectations.ContainsKey($applicationKey)) {
+        throw (New-OnboardingContractError -Code 'MISSING_NATIVE_COMPOSITION_EXPECTATION' -Field $Field)
+    }
+    $actual = [ordered]@{
+        search = [string]$Application.identity.nativeCompositionAssertions.search
+        wishlist = [string]$Application.identity.nativeCompositionAssertions.wishlist
+        customerAccount = [string]$Application.identity.nativeCompositionAssertions.customerAccount
+        primaryNavigation = @($Application.identity.nativeCompositionAssertions.primaryNavigation | ForEach-Object { [string]$_ })
+    }
+    if ((Get-OnboardingCanonicalJson $actual) -cne (Get-OnboardingCanonicalJson $expectations[$applicationKey])) {
+        throw (New-OnboardingContractError -Code 'NATIVE_COMPOSITION_MISMATCH' -Field $Field)
+    }
+}
+
 function Import-OnboardingRegistry {
     [CmdletBinding()]
     param(
@@ -444,16 +523,19 @@ function Import-OnboardingRegistry {
         -Allowed @('schemaVersion', 'providerContracts', 'modules', 'applications', 'ciLanes') `
         -Required @('schemaVersion', 'providerContracts', 'modules', 'applications', 'ciLanes') `
         -Field '$'
-    if ([int]$registry.schemaVersion -ne 1) {
+    if ((Assert-OnboardingJsonInteger -Value $registry.schemaVersion -Field '$.schemaVersion') -ne 1) {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_SCHEMA_VERSION' -Field '$.schemaVersion')
     }
     Assert-OnboardingObjectFields -Object $registry.providerContracts `
         -Allowed @('shopifyAdminApiVersion', 'shopifyCustomerAccountApiVersion', 'allowedStorefrontApiVersions', 'gate7HomeContentSchemaVersion') `
         -Required @('shopifyAdminApiVersion', 'shopifyCustomerAccountApiVersion', 'allowedStorefrontApiVersions', 'gate7HomeContentSchemaVersion') `
         -Field '$.providerContracts'
+    $gate7SchemaVersion = Assert-OnboardingJsonInteger `
+        -Value $registry.providerContracts.gate7HomeContentSchemaVersion `
+        -Field '$.providerContracts.gate7HomeContentSchemaVersion'
     if ([string]$registry.providerContracts.shopifyAdminApiVersion -cne '2026-07' -or
         [string]$registry.providerContracts.shopifyCustomerAccountApiVersion -cne '2026-07' -or
-        [int]$registry.providerContracts.gate7HomeContentSchemaVersion -ne 1) {
+        $gate7SchemaVersion -ne 1) {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_PROVIDER_CONTRACT' -Field '$.providerContracts')
     }
     $storefrontVersions = @(Assert-OnboardingArray -Value $registry.providerContracts.allowedStorefrontApiVersions `
@@ -492,6 +574,7 @@ function Import-OnboardingRegistry {
     $applicationIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $persistenceValues = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $firebaseOwnership = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $firebaseConfigPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     for ($applicationIndex = 0; $applicationIndex -lt $applications.Count; $applicationIndex++) {
         $application = $applications[$applicationIndex]
         $field = "applications[$applicationIndex]"
@@ -503,6 +586,7 @@ function Import-OnboardingRegistry {
         }
         Assert-OnboardingEnum -Value ([string]$application.role) `
             -Allowed @('real-brand-application', 'synthetic-conformance-application') -Field "$field.role"
+        $fixtureOnly = Assert-OnboardingJsonBoolean -Value $application.fixtureOnly -Field "$field.fixtureOnly"
         if (-not $modulePaths.Contains([string]$application.module)) {
             throw (New-OnboardingContractError -Code 'UNKNOWN_APPLICATION_MODULE' -Field "$field.module")
         }
@@ -510,7 +594,7 @@ function Import-OnboardingRegistry {
         if ($moduleRecord.Count -ne 1 -or [string]$moduleRecord[0].role -cne [string]$application.role) {
             throw (New-OnboardingContractError -Code 'APPLICATION_ROLE_MISMATCH' -Field "$field.role")
         }
-        if ([bool]$application.fixtureOnly -and -not $AllowFixtureRecords) {
+        if ($fixtureOnly -and -not $AllowFixtureRecords) {
             throw (New-OnboardingContractError -Code 'FIXTURE_RECORD_FORBIDDEN' -Field "$field.fixtureOnly")
         }
         if ($null -ne $application.configurationProjection) {
@@ -524,7 +608,8 @@ function Import-OnboardingRegistry {
             }
         }
         Assert-OnboardingIdentity -Identity $application.identity -Role ([string]$application.role) `
-            -RepositoryRoot $RepositoryRoot -Field "$field.identity" -AllowInvalidTld:([bool]$application.fixtureOnly)
+            -RepositoryRoot $RepositoryRoot -Field "$field.identity" -AllowInvalidTld:$fixtureOnly
+        Assert-OnboardingNativeCompositionCompatibility -Application $application -Field "$field.identity.nativeCompositionAssertions"
         $profiles = @(Assert-OnboardingArray -Value $application.profiles -Field "$field.profiles" -MaximumCount 8)
         if ($profiles.Count -lt 1) {
             throw (New-OnboardingContractError -Code 'MISSING_PROFILE' -Field "$field.profiles")
@@ -539,6 +624,10 @@ function Import-OnboardingRegistry {
             foreach ($variant in @($profile.variants)) {
                 if (-not $applicationIds.Add([string]$variant.applicationId)) {
                     throw (New-OnboardingContractError -Code 'APPLICATION_ID_COLLISION' -Field "$field.profiles.variants.applicationId")
+                }
+                if ($null -ne $variant.firebaseConfig -and
+                    -not $firebaseConfigPaths.Add([string]$variant.firebaseConfig)) {
+                    throw (New-OnboardingContractError -Code 'FIREBASE_CONFIG_PATH_COLLISION' -Field "$field.profiles.variants.firebaseConfig")
                 }
             }
             foreach ($name in @('cartPreferences', 'cartKeyAlias', 'customerPreferences', 'customerKeyAlias')) {
@@ -585,7 +674,7 @@ function Import-OnboardingRegistry {
                 $null -ne $application.configurationProjection) {
                 throw (New-OnboardingContractError -Code 'SYNTHETIC_ROLE_VIOLATION' -Field $field)
             }
-        } elseif ([bool]$application.fixtureOnly) {
+        } elseif ($fixtureOnly) {
             if ([string]$application.releaseBoundary -cne 'test-fixture-only') {
                 throw (New-OnboardingContractError -Code 'FIXTURE_ROLE_VIOLATION' -Field $field)
             }
@@ -645,7 +734,7 @@ function Import-OnboardingProviderBinding {
         -Allowed @('schemaVersion', 'application', 'profile', 'approvedEvidenceRef', 'shopify', 'firebase') `
         -Required @('schemaVersion', 'application', 'profile', 'approvedEvidenceRef', 'shopify') `
         -Field '$'
-    if ([int]$binding.schemaVersion -ne 1) {
+    if ((Assert-OnboardingJsonInteger -Value $binding.schemaVersion -Field '$.schemaVersion') -ne 1) {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_SCHEMA_VERSION' -Field '$.schemaVersion')
     }
     if ([string]$binding.application -cne $Application -or [string]$binding.profile -cne $Profile) {
@@ -700,7 +789,8 @@ function Import-OnboardingReceipt {
         'diagnosticCodes', 'readback', 'recovery'
     )
     Assert-OnboardingObjectFields -Object $receipt -Allowed $topFields -Required $topFields -Field '$'
-    if ([int]$receipt.receiptSchemaVersion -ne 1 -or [string]$receipt.operationContractVersion -cne 'gate8-v1') {
+    if ((Assert-OnboardingJsonInteger -Value $receipt.receiptSchemaVersion -Field '$.receiptSchemaVersion') -ne 1 -or
+        [string]$receipt.operationContractVersion -cne 'gate8-v1') {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_RECEIPT_VERSION' -Field '$')
     }
     Assert-OnboardingEnum -Value ([string]$receipt.kind) -Allowed @('PLAN', 'RESULT', 'RECOVERY') -Field '$.kind'
@@ -784,8 +874,8 @@ function Import-OnboardingReceipt {
         Assert-OnboardingEnum -Value ([string]$action.intendedAction) -Allowed @('NONE', 'CREATE', 'ATOMIC_REPLACE') -Field '$.actions.intendedAction'
         Assert-OnboardingEnum -Value ([string]$action.status) -Allowed @('PLANNED', 'NO_OP', 'SUCCEEDED', 'BLOCKED', 'FAILED', 'AMBIGUOUS') -Field '$.actions.status'
         Assert-OnboardingEnum -Value ([string]$action.afterClassification) -Allowed @('ABSENT', 'CORRECT', 'COMPATIBLE', 'INCOMPATIBLE', 'DRIFTED', 'UNKNOWN') -Field '$.actions.afterClassification'
-        $ordinal = 0
-        if (-not [int]::TryParse([string]$action.ordinal, [ref]$ordinal) -or
+        $ordinal = Assert-OnboardingJsonInteger -Value $action.ordinal -Field '$.actions.ordinal'
+        if (
             $ordinal -lt 1 -or $ordinal -gt 16 -or -not $actionOrdinals.Add($ordinal)) {
             throw (New-OnboardingContractError -Code 'INVALID_ACTION_ORDINAL' -Field '$.actions.ordinal')
         }
@@ -829,8 +919,8 @@ function Import-OnboardingReceipt {
         Assert-OnboardingEnum -Value ([string]$recovery.nextAction) -Allowed @('REINSPECT', 'RESTORE_LOCAL_BACKUP', 'MANUAL_REVIEW', 'NO_ACTION') -Field '$.recovery.nextAction'
         Assert-OnboardingEnum -Value ([string]$recovery.resourceKind) -Allowed @('LOCAL_CONFIGURATION', 'SHOPIFY_HOME_DEFINITION', 'SHOPIFY_HOME_ACCEPTANCE_PROBE') -Field '$.recovery.resourceKind'
         Assert-OnboardingEnum -Value ([string]$recovery.classification) -Allowed @('ABSENT', 'CORRECT', 'COMPATIBLE', 'INCOMPATIBLE', 'DRIFTED', 'UNKNOWN') -Field '$.recovery.classification'
-        $recoveryOrdinal = 0
-        if (-not [int]::TryParse([string]$recovery.ordinal, [ref]$recoveryOrdinal) -or $recoveryOrdinal -lt 1 -or $recoveryOrdinal -gt 16) {
+        $recoveryOrdinal = Assert-OnboardingJsonInteger -Value $recovery.ordinal -Field '$.recovery.ordinal'
+        if ($recoveryOrdinal -lt 1 -or $recoveryOrdinal -gt 16) {
             throw (New-OnboardingContractError -Code 'INVALID_ACTION_ORDINAL' -Field '$.recovery.ordinal')
         }
         Assert-OnboardingText -Value ([string]$recovery.resourceKey) -Field '$.recovery.resourceKey'

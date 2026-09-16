@@ -156,25 +156,38 @@ val requireConfiguredProfile =
 check((selectedApplication == null) == (selectedProfile == null)) {
     "onboardingApplication and onboardingProfile must be supplied together."
 }
-if (selectedApplication != null) {
-    check(selectedApplication == "gurbakir") { "The :app module can only consume the enrolled gurbakir application." }
+if (selectedApplication == "gurbakir") {
     check(selectedProfile in onboardingProfiles) { "Unknown onboarding profile for :app." }
 }
 if (requireConfiguredProfile) {
     check(selectedApplication != null && selectedProfile != null) {
         "requireConfiguredProfile requires an explicit application and profile."
     }
-    val selected = onboardingProfiles.getValue(selectedProfile)
+}
+if (requireConfiguredProfile && selectedApplication == "gurbakir") {
+    val selectedProfileKey = checkNotNull(selectedProfile)
+    val selected = onboardingProfiles.getValue(selectedProfileKey)
     check(selected.localFile.isFile && selected.local.keys == localKeys) {
         "The explicitly selected onboarding profile is UNCONFIGURED."
     }
-    val otherProfile = onboardingProfiles.keys.single { it != selectedProfile }
+    val otherProfile = onboardingProfiles.keys.single { it != selectedProfileKey }
     check(
         gradle.startParameter.taskNames.none {
             it.startsWith(":app:", ignoreCase = true) && it.contains(otherProfile, ignoreCase = true)
         }
     ) {
         "Configured app tasks must belong to the explicitly selected onboarding profile."
+    }
+}
+
+// Every Android application module validates only the selector that it owns.
+// A different enrolled application may be selected while Gradle configures
+// this project, but no :app task may execute under that foreign selection.
+gradle.taskGraph.whenReady {
+    if (selectedApplication != null && selectedApplication != "gurbakir") {
+        check(allTasks.none { it.project.path == project.path }) {
+            "A :app task does not belong to the selected onboarding application."
+        }
     }
 }
 

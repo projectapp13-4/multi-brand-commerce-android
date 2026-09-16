@@ -128,6 +128,16 @@ function Write-TestProbeRecoveryEvidence {
 
 function Invoke-RegistrySuite {
     $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    $commonSource = [IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Common.psm1'),
+        [Text.Encoding]::UTF8
+    )
+    Assert-True `
+        -Condition (
+            $commonSource.Contains('function Read-OnboardingBoundedFileBytes') -and
+            -not $commonSource.Contains('[System.IO.File]::ReadAllBytes($Path)')
+        ) `
+        -Name 'strict local contract readers bound allocation before loading complete files'
     $registry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
     Assert-True -Condition ($registry.schemaVersion -eq 1) -Name 'current registry schema is accepted'
 
@@ -182,6 +192,53 @@ function Invoke-RegistrySuite {
             -Action { Import-OnboardingRegistry -Path $duplicatePath -RepositoryRoot $repoRoot } `
             -Pattern 'DUPLICATE_FIELD' `
             -Name 'case-colliding JSON field fails before projection'
+
+        $stringSchemaPath = Join-Path $temporaryRoot 'string-schema-version.json'
+        [System.IO.File]::WriteAllText(
+            $stringSchemaPath,
+            $raw.Replace('"schemaVersion": 1,', '"schemaVersion": "1",'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $stringSchemaPath -RepositoryRoot $repoRoot } `
+            -Pattern 'INVALID_JSON_TYPE' `
+            -Name 'registry schema version requires a JSON integer rather than a coercible string'
+
+        $unsafeOriginPath = Join-Path $temporaryRoot 'unsafe-app-link-port.json'
+        [System.IO.File]::WriteAllText(
+            $unsafeOriginPath,
+            $raw.Replace('"origin": "https://gurbakir.com",', '"origin": "https://gurbakir.com:443/",'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $unsafeOriginPath -RepositoryRoot $repoRoot } `
+            -Pattern 'UNSAFE_URL' `
+            -Name 'App Link origins reject even an explicitly written default port'
+
+        $queryOriginPath = Join-Path $temporaryRoot 'unsafe-app-link-query.json'
+        [System.IO.File]::WriteAllText(
+            $queryOriginPath,
+            $raw.Replace('"origin": "https://gurbakir.com",', '"origin": "https://gurbakir.com/?audit=1",'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $queryOriginPath -RepositoryRoot $repoRoot } `
+            -Pattern 'UNSAFE_URL' `
+            -Name 'App Link origins reject query components'
+
+        $nativeMismatchPath = Join-Path $temporaryRoot 'native-composition-mismatch.json'
+        [System.IO.File]::WriteAllText(
+            $nativeMismatchPath,
+            $raw.Replace(
+                '"wishlist": "ENABLED",' + "`n" + '          "customerAccount": "ENABLED",' + "`n" + '          "primaryNavigation": ["HOME", "CATEGORIES", "SEARCH", "WISHLIST", "ACCOUNT"]',
+                '"wishlist": "DISABLED",' + "`n" + '          "customerAccount": "ENABLED",' + "`n" + '          "primaryNavigation": ["HOME", "CATEGORIES", "SEARCH", "ACCOUNT"]'
+            ),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $nativeMismatchPath -RepositoryRoot $repoRoot } `
+            -Pattern 'NATIVE_COMPOSITION_MISMATCH' `
+            -Name 'tracked native assertions must match independently frozen application composition'
 
         $fixturePath = Join-Path $temporaryRoot 'fixture.json'
         $fixtureMarker = '"fixtureOnly": false,'
@@ -242,8 +299,28 @@ function Invoke-RegistrySuite {
         $futureApplication.identity.webRoles.collectionAppLink.origin = 'https://future.invalid'
         $futureApplication.identity.webRoles.productAppLink.origin = 'https://future.invalid'
         $futureApplication.profiles[0].displayName = 'Future Fixture Development'
+        $futureApplication.profiles[0].localConfiguration = 'config/local/future-fixture/conformance.properties'
+        $futureApplication.profiles[0].providerBindingFile = 'config/local/future-fixture/conformance.providers.json'
         $futureApplication.profiles[0].variants[0].applicationId = 'com.example.futurefixture.debug'
         $futureApplication.profiles[0].variants[1].applicationId = 'com.example.futurefixture'
+        $futureApplication.profiles[0].storefront = [ordered]@{
+            mode = 'enabled'
+            domain = 'future.invalid'
+            apiVersion = '2026-07'
+            publicTokenLocalKey = 'shopify.storefrontPublicToken'
+            mediaOrigins = @('future.invalid')
+            sharedResourceGroup = 'future-fixture-shop'
+            catalog = [ordered]@{ menuHandle = 'future-menu'; managementMode = 'validate-only' }
+            home = [ordered]@{
+                rootType = 'mobile_home'
+                rootHandle = 'primary'
+                contentSchemaVersion = 1
+                definitionContract = 'gate7-v1'
+                definitionManagementMode = 'create-if-missing'
+                entryManagementMode = 'validate-only'
+                sourceMode = 'shopify-metaobject'
+            }
+        }
         $futureApplication.profiles[0].protectedPersistence.cartPreferences = 'future_fixture_secure_cart_development'
         $futureApplication.profiles[0].protectedPersistence.cartKeyAlias = 'future-fixture.cart.development.v1'
         $futureApplication.profiles[0].protectedPersistence.customerPreferences = 'future_fixture_secure_customer_session_development'
@@ -270,6 +347,25 @@ function Invoke-RegistrySuite {
             -AllowFixtureRecords
         Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.key -ceq 'future-fixture' }).Count -eq 1) `
             -Name 'future real-brand fixture is accepted only in explicit fixture mode'
+        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 2) `
+            -Name 'fixture registry exercises two independently enrolled real application records'
+        $futureSelected = Get-OnboardingApplicationProfile `
+            -Registry $acceptedFixture -Application 'future-fixture' -Profile 'conformance'
+        Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+        $futureContext = [pscustomobject]@{
+            Registry = $acceptedFixture
+            Selected = $futureSelected
+            Binding = @{ application = 'future-fixture'; profile = 'conformance'; shopify = @{ shopId = '1234567890' } }
+            RepositoryRoot = $repoRoot
+        }
+        $futureClientLines = @(Get-OnboardingValidatedClientConfigurationLines `
+            -Context $futureContext `
+            -Values @{ 'shopify.storefrontPublicToken' = 'fixture-public-token' })
+        Assert-True `
+            -Condition ($futureClientLines.Count -eq 1 -and $futureClientLines[0] -ceq 'shopify.storefrontPublicToken=fixture-public-token') `
+            -Name 'real Storefront profile with Account disabled requires no dummy Customer configuration'
+        Import-Module $registryModule -Force
+        Import-Module $commonModule -Force
         Assert-Throws `
             -Action { Import-OnboardingRegistry -Path $futureRegistryPath -RepositoryRoot $repoRoot } `
             -Pattern 'FIXTURE_RECORD_FORBIDDEN' `
@@ -356,6 +452,20 @@ function Invoke-RegistrySuite {
             -Pattern 'APPLICATION_ID_COLLISION' `
             -Name 'cross-application ID collision fails'
 
+        $firebasePathCollision = Join-Path $temporaryRoot 'firebase-path-collision.json'
+        [System.IO.File]::WriteAllText(
+            $firebasePathCollision,
+            $raw.Replace(
+                '"firebaseConfig": "app/src/stagingDebug/google-services.json"',
+                '"firebaseConfig": "app/src/developmentDebug/google-services.json"'
+            ),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingRegistry -Path $firebasePathCollision -RepositoryRoot $repoRoot } `
+            -Pattern 'FIREBASE_CONFIG_PATH_COLLISION' `
+            -Name 'Firebase configuration paths have one global application profile owner'
+
         $projectionCopy = Join-Path $temporaryRoot 'projection.properties'
         $projectionText = ($lines -join "`n") + "`n"
         [System.IO.File]::WriteAllText(
@@ -433,6 +543,22 @@ function Invoke-RegistrySuite {
             -Pattern 'UNKNOWN_FIELD' `
             -Name 'provider binding rejects secret-shaped extra fields'
 
+        $stringBindingSchemaPath = Join-Path $temporaryRoot 'string-provider-binding-schema.json'
+        [System.IO.File]::WriteAllText(
+            $stringBindingSchemaPath,
+            $bindingJson.Replace('"schemaVersion": 1', '"schemaVersion": "1"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action {
+                Import-OnboardingProviderBinding `
+                    -Path $stringBindingSchemaPath `
+                    -Application 'gurbakir' `
+                    -Profile 'development'
+            } `
+            -Pattern 'INVALID_JSON_TYPE' `
+            -Name 'provider-binding schema version requires a JSON integer'
+
         $receiptPath = Join-Path $temporaryRoot 'receipt.json'
         $receiptJson = @'
 {
@@ -469,6 +595,17 @@ function Invoke-RegistrySuite {
         $receipt = Import-OnboardingReceipt -Path $receiptPath
         Assert-True -Condition ($receipt.operationContractVersion -ceq 'gate8-v1') `
             -Name 'closed Plan receipt is accepted'
+
+        $stringReceiptSchemaPath = Join-Path $temporaryRoot 'string-receipt-schema.json'
+        [System.IO.File]::WriteAllText(
+            $stringReceiptSchemaPath,
+            $receiptJson.Replace('"receiptSchemaVersion": 1', '"receiptSchemaVersion": "1"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingReceipt -Path $stringReceiptSchemaPath } `
+            -Pattern 'INVALID_JSON_TYPE' `
+            -Name 'receipt schema version requires a JSON integer'
 
         $receiptSchema = Get-Content `
             -LiteralPath (Join-Path $repoRoot 'config\onboarding\operator-receipt.schema.v1.json') `
@@ -564,6 +701,20 @@ function Invoke-ConfigurationSuite {
         -Name 'app build reads deterministic profile projections'
     Assert-True -Condition ($appBuild.Contains('config/local/gurbakir')) `
         -Name 'app build scopes controlled client values by application and profile'
+    Assert-True `
+        -Condition (
+            -not $appBuild.Contains('check(selectedApplication == "gurbakir")') -and
+            $appBuild.Contains('selectedApplication == "gurbakir"') -and
+            $appBuild.Contains('gradle.taskGraph.whenReady') -and
+            $appBuild.Contains('does not belong to the selected onboarding application')
+        ) `
+        -Name 'Gurbakir module validates its own tasks without vetoing another explicitly enrolled application selection'
+    Assert-True `
+        -Condition (
+            $appBuild.Contains('if (requireConfiguredProfile) {') -and
+            $appBuild.Contains('requireConfiguredProfile requires an explicit application and profile.')
+        ) `
+        -Name 'strict configured selection always requires an explicit application and profile pair'
     Assert-True -Condition (-not $storefrontBuild.Contains('config/local.properties')) `
         -Name 'Storefront proofs do not read root local configuration'
     Assert-True `
@@ -626,6 +777,17 @@ function Invoke-EnrollmentSuite {
         (Join-Path $repoRoot 'scripts\Get-RegisteredGradleTasks.ps1'),
         [System.Text.Encoding]::UTF8
     )
+    $firebaseValidator = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'scripts\Test-FirebaseConfiguration.ps1'),
+        [System.Text.Encoding]::UTF8
+    )
+    Assert-True `
+        -Condition (
+            $firebaseValidator.Contains("role -ceq 'real-brand-application'") -and
+            -not $firebaseValidator.Contains("key -ceq 'gurbakir'") -and
+            -not $firebaseValidator.Contains("-Application 'gurbakir'")
+        ) `
+        -Name 'Firebase configuration validation derives every enabled real application profile from the registry'
     Assert-True `
         -Condition (
             $taskResolver.Contains('projectDir') -and
@@ -892,6 +1054,23 @@ public sealed class Gate8BlockingReadStream : Stream
         -Name 'strict UTF-8 decoding applies to raw injected provider fixtures'
     $registry = Import-OnboardingRegistry -Path (Join-Path $repoRoot 'config\onboarding\application-registry.v1.json') -RepositoryRoot $repoRoot
     $selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'development'
+    $stagingSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'staging'
+    $syntheticSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'synthetic' -Profile 'conformance'
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    $disabledFirebaseState = & (Get-Module Onboarding.Operator) {
+        param($Context)
+        Get-OnboardingFirebaseInspectionState `
+            -Context $Context -Application 'synthetic' -Profile 'conformance' `
+            -Transport { throw 'disabled Firebase must not issue a request' }
+    } ([pscustomobject]@{ Selected = $syntheticSelection; Binding = @{} })
+    Assert-True `
+        -Condition ([string]$disabledFirebaseState.Classification -ceq 'NOT_APPLICABLE') `
+        -Name 'Inspect classifies disabled Firebase before any credential lookup or provider request'
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Shopify.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.CustomerAccount.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.AppLinks.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Firebase.psm1') -Force
+    Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Common.psm1') -Force
     $binding = @{ shopify = @{ adminShopDomain = 'fixture-shop.myshopify.com'; shopId = '1234567890' } }
     $script:adminBodies = [Collections.Generic.List[string]]::new()
     $adminTransport = {
@@ -916,6 +1095,37 @@ public sealed class Gate8BlockingReadStream : Stream
         -Action { Get-ShopifyVerifiedTargetState $binding 'fixture-admin-token' $wrongShopTransport } `
         -Pattern 'SHOPIFY_TARGET_IDENTITY_MISMATCH' `
         -Name 'Admin token shop identity must match the independently approved binding'
+    $script:storefrontIdentityUri = $null
+    $script:storefrontIdentityHeaders = $null
+    $storefrontIdentityTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $script:storefrontIdentityUri = $uri
+        $script:storefrontIdentityHeaders = $headers
+        [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ shop = @{
+            id = 'gid://shopify/Shop/1234567890'
+            primaryDomain = @{ host = 'gurbakir.com' }
+        } } } }
+    }
+    $storefrontIdentity = Get-ShopifyStorefrontTargetState `
+        $selected $binding 'fixture-public-token' $storefrontIdentityTransport
+    Assert-True `
+        -Condition (
+            [string]$storefrontIdentity.Classification -ceq 'PASS' -and
+            [string]$script:storefrontIdentityUri.Host -ceq 'gurbakir.com' -and
+            [string]$script:storefrontIdentityHeaders['X-Shopify-Storefront-Access-Token'] -ceq 'fixture-public-token'
+        ) `
+        -Name 'Storefront public client shop identity joins the selected profile to the independent shop binding'
+    Assert-Throws `
+        -Action {
+            Get-ShopifyStorefrontTargetState $selected $binding 'fixture-public-token' {
+                [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ shop = @{
+                    id = 'gid://shopify/Shop/9999999999'
+                    primaryDomain = @{ host = 'gurbakir.com' }
+                } } } }
+            }
+        } `
+        -Pattern 'SHOPIFY_STOREFRONT_IDENTITY_MISMATCH' `
+        -Name 'Storefront public client cannot target a different shop than the independent binding'
 
     $liveCompatibleDefinitions = @(
         @{
@@ -1281,7 +1491,7 @@ public sealed class Gate8BlockingReadStream : Stream
         ) `
         -Name 'Firebase development inspection bills only the independently bound development project'
 
-    $stagingSelected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'staging'
+    $stagingSelected = $stagingSelection
     $stagingFirebaseBinding = @{
         application = 'gurbakir'
         profile = 'staging'
@@ -1391,8 +1601,8 @@ public sealed class Gate8BlockingReadStream : Stream
         }) }
     }
     Assert-True `
-        -Condition ((Get-OnboardingAssetLinksState $selected $matchingAssetLinksTransport).Classification -ceq 'PASS') `
-        -Name 'public association requires an enrolled Android package and valid fingerprint shape'
+        -Condition ((Get-OnboardingAssetLinksState $selected $matchingAssetLinksTransport).Classification -ceq 'PARTIAL') `
+        -Name 'one enrolled variant does not overstate full App Links coverage'
     $lowercaseAssetLinksTransport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         [pscustomobject]@{ StatusCode = 200; Data = @(@{
@@ -1401,8 +1611,54 @@ public sealed class Gate8BlockingReadStream : Stream
         }) }
     }
     Assert-True `
-        -Condition ((Get-OnboardingAssetLinksState $selected $lowercaseAssetLinksTransport).Classification -ceq 'PASS') `
-        -Name 'public association accepts lowercase hexadecimal certificate fingerprints'
+        -Condition ((Get-OnboardingAssetLinksState $selected $lowercaseAssetLinksTransport).Classification -ceq 'PARTIAL') `
+        -Name 'lowercase certificate syntax is normalized without overstating partial package coverage'
+
+    $allAssetLinksTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        [pscustomobject]@{ StatusCode = 200; Data = @(
+            @{
+                relation = @('delegate_permission/common.handle_all_urls')
+                target = @{ namespace = 'android_app'; package_name = 'com.gurbakir.mobile.dev.debug'; sha256_cert_fingerprints = @('AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA') }
+            },
+            @{
+                relation = @('delegate_permission/common.handle_all_urls')
+                target = @{ namespace = 'android_app'; package_name = 'com.gurbakir.mobile.dev'; sha256_cert_fingerprints = @('BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB') }
+            }
+        ) }
+    }
+    Assert-True `
+        -Condition ((Get-OnboardingAssetLinksState $selected $allAssetLinksTransport).Classification -ceq 'NOT_VERIFIED') `
+        -Name 'shape-valid complete App Links statements remain unverified without trusted signing fingerprints'
+    $trustedFingerprints = @{
+        'com.gurbakir.mobile.dev.debug' = @('AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA:AA')
+        'com.gurbakir.mobile.dev' = @('BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB:BB')
+    }
+    Assert-True `
+        -Condition ((Get-OnboardingAssetLinksState $selected $allAssetLinksTransport $trustedFingerprints).Classification -ceq 'PASS') `
+        -Name 'App Links PASS requires complete package coverage and exact trusted certificate fingerprints'
+
+    $multiHostSelected = Copy-TestValue $selected
+    $multiHostSelected.Application.identity.webRoles.productAppLink.origin = 'https://products.gurbakir.com'
+    $multiHostSelected.Application.identity.webRoles.orderAppLink.origin = 'https://orders.gurbakir.com'
+    $assetLinksHosts = [Collections.Generic.List[string]]::new()
+    $multiHostTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $assetLinksHosts.Add([string]$uri.Host)
+        & $allAssetLinksTransport $method $uri $headers $body $maximumBytes
+    }.GetNewClosure()
+    $multiHostState = Get-OnboardingAssetLinksState $multiHostSelected $multiHostTransport
+    Assert-True `
+        -Condition (
+            [string]$multiHostState.Classification -ceq 'NOT_VERIFIED' -and
+            (@($assetLinksHosts | Sort-Object -Unique) -join ',') -ceq 'gurbakir.com,orders.gurbakir.com,products.gurbakir.com'
+        ) `
+        -Name 'App Links inspection queries every distinct declared application-link host'
+
+    $disabledAssetLinksState = Get-OnboardingAssetLinksState $syntheticSelection { throw 'disabled App Links must not issue a request' }
+    Assert-True `
+        -Condition ([string]$disabledAssetLinksState.Classification -ceq 'NOT_APPLICABLE') `
+        -Name 'disabled App Links are not applicable and perform no public request'
     Assert-True -Condition ((Protect-OnboardingOutput 'failure fixture-secret' @('fixture-secret')) -ceq 'failure <redacted>') -Name 'loaded values are redacted before output'
 }
 
@@ -1424,10 +1680,12 @@ function Invoke-OperatorApplySuite {
     $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'
     $stagingBindingPath = Join-Path $repoRoot 'config\local\gurbakir\staging.providers.json'
     $localConfigurationPath = Join-Path $repoRoot 'config\local\gurbakir\development.properties'
+    $stagingLocalConfigurationPath = Join-Path $repoRoot 'config\local\gurbakir\staging.properties'
     $manualCheckpointPath = Join-Path $temporaryRoot 'manual-checkpoint.json'
     $bindingSnapshot = Get-TestFileSnapshot -Path $bindingPath
     $stagingBindingSnapshot = Get-TestFileSnapshot -Path $stagingBindingPath
     $localConfigurationSnapshot = Get-TestFileSnapshot -Path $localConfigurationPath
+    $stagingLocalConfigurationSnapshot = Get-TestFileSnapshot -Path $stagingLocalConfigurationPath
     [IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
     $bindingJson = '{"schemaVersion":1,"application":"gurbakir","profile":"development","approvedEvidenceRef":"owner-evidence:fixture-apply","shopify":{"adminShopDomain":"fixture-shop.myshopify.com","shopId":"1234567890"},"firebase":{"projectId":"fixture-project-123","projectNumber":"123456789012","androidAppIdsByVariant":{"developmentDebug":"1:123456789012:android:0123456789abcdef","developmentRelease":"1:123456789012:android:fedcba9876543210"}}}'
     $credentialName = 'MB_GURBAKIR_DEVELOPMENT_SHOPIFY_ADMIN_TOKEN'
@@ -1445,11 +1703,21 @@ function Invoke-OperatorApplySuite {
     })
     $script:writeCount = 0
     $script:lockObserved = $false
+    $clientValues=[ordered]@{
+        'shopify.storefrontPublicToken'='fixture-public-token';'shopify.customerAccountClientId'='fixture-client-id';
+        'shopify.customerAccountIssuer'='https://shopify.com/authentication/1234567890';
+        'shopify.customerAccountAuthorizationEndpoint'='https://shopify.com/auth';'shopify.customerAccountTokenEndpoint'='https://shopify.com/token';
+        'shopify.customerAccountLogoutEndpoint'='https://shopify.com/logout';'shopify.customerAccountGraphqlEndpoint'='https://shopify.com/customer-account/api/2026-07/graphql';
+        'shopify.customerAccountRedirectUri'='shop.1234567890.gurbakir://oauth/callback'
+    }
     $transport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         $request = $body | ConvertFrom-Json -AsHashtable
         if ($request.query -match 'Gate8VerifyShop') {
             return [pscustomobject]@{ StatusCode=200; Data=@{ data=@{ shop=@{ id='gid://shopify/Shop/1234567890'; myshopifyDomain='fixture-shop.myshopify.com' } } } }
+        }
+        if ($request.query -match 'Gate8VerifyStorefrontShop') {
+            return [pscustomobject]@{ StatusCode=200; Data=@{ data=@{ shop=@{ id='gid://shopify/Shop/1234567890'; primaryDomain=@{host='gurbakir.com'} } } } }
         }
         if ($request.query -match 'Gate8HomeDefinitions') {
             return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitions=@{nodes=@($script:createdDefinitions);pageInfo=@{hasNextPage=$false;endCursor=$null}}}}}
@@ -1482,6 +1750,12 @@ function Invoke-OperatorApplySuite {
     try {
         [IO.File]::WriteAllText($bindingPath, $bindingJson, [Text.UTF8Encoding]::new($false))
         [Environment]::SetEnvironmentVariable($credentialName, 'fixture-admin-token', 'Process')
+        $context = Get-OnboardingOperatorContext $repoRoot 'gurbakir' 'development'
+        Write-OnboardingPrivateProperties `
+            -RepositoryRoot $repoRoot `
+            -Destination $localConfigurationPath `
+            -Lines (Get-OnboardingValidatedClientConfigurationLines -Context $context -Values $clientValues) `
+            -RefuseOverwrite
         $outsideReceipt = Join-Path ([IO.Path]::GetTempPath()) ('gate8-outside-' + [guid]::NewGuid().ToString('N') + '.json')
         Assert-Throws `
             -Action { New-OnboardingPlan $repoRoot 'gurbakir' 'development' $outsideReceipt -Transport $transport } `
@@ -1547,6 +1821,9 @@ function Invoke-OperatorApplySuite {
             if ($request.query -match 'Gate8VerifyShop') {
                 return [pscustomobject]@{StatusCode=200;Data=@{data=@{shop=@{id='gid://shopify/Shop/1234567890';myshopifyDomain='fixture-shop.myshopify.com'}}}}
             }
+            if ($request.query -match 'Gate8VerifyStorefrontShop') {
+                return [pscustomobject]@{StatusCode=200;Data=@{data=@{shop=@{id='gid://shopify/Shop/1234567890';primaryDomain=@{host='gurbakir.com'}}}}}
+            }
             if ($request.query -match 'Gate8HomeDefinitions') {
                 return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitions=@{nodes=@($partialDefinition);pageInfo=@{hasNextPage=$false;endCursor=$null}}}}}
             }
@@ -1559,6 +1836,20 @@ function Invoke-OperatorApplySuite {
         $partialPlan = New-OnboardingPlan $repoRoot 'gurbakir' 'development' $partialPlanPath -Transport $partialTransport
         Assert-True -Condition ((@($partialPlan.actions | ForEach-Object { $_.resourceKey }) -join ',') -ceq 'mobile_home_featured_product,mobile_home') `
             -Name 'compatible partial Home state plans only missing definitions in dependency order'
+
+        $wrongStorefrontPlanPath = Join-Path $temporaryRoot 'wrong-storefront-plan.json'
+        $wrongStorefrontTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            $request = $body | ConvertFrom-Json -AsHashtable
+            if ($request.query -match 'Gate8VerifyStorefrontShop') {
+                return [pscustomobject]@{StatusCode=200;Data=@{data=@{shop=@{id='gid://shopify/Shop/9999999999';primaryDomain=@{host='gurbakir.com'}}}}}
+            }
+            & $transport $method $uri $headers $body $maximumBytes
+        }.GetNewClosure()
+        Assert-Throws `
+            -Action { New-OnboardingPlan $repoRoot 'gurbakir' 'development' $wrongStorefrontPlanPath -Transport $wrongStorefrontTransport } `
+            -Pattern 'SHOPIFY_STOREFRONT_IDENTITY_MISMATCH' `
+            -Name 'Plan fails before provider actions when Admin and mobile Storefront identities target different shops'
 
         $planPath=Join-Path $temporaryRoot 'plan.json';$resultPath=Join-Path $temporaryRoot 'result.json'
         [void](New-OnboardingPlan $repoRoot 'gurbakir' 'development' $planPath -IncludeAcceptanceProbe -Transport $transport)
@@ -1598,6 +1889,7 @@ function Invoke-OperatorApplySuite {
             param($method, $uri, $headers, $body, $maximumBytes)
             $request = $body | ConvertFrom-Json -AsHashtable
             if ($request.query -match 'Gate8VerifyShop') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{shop=@{id='gid://shopify/Shop/1234567890';myshopifyDomain='fixture-shop.myshopify.com'}}}} }
+            if ($request.query -match 'Gate8VerifyStorefrontShop') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{shop=@{id='gid://shopify/Shop/1234567890';primaryDomain=@{host='gurbakir.com'}}}}} }
             if ($request.query -match 'Gate8HomeDefinitions') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectDefinitions=@{nodes=@();pageInfo=@{hasNextPage=$false;endCursor=$null}}}}} }
             if ($request.query -match 'query Gate8Probe') { return [pscustomobject]@{StatusCode=200;Data=@{data=@{metaobjectByHandle=$null}}} }
             if ($request.query -match 'Gate8DefinitionCreate') { throw 'fixture ambiguous transport failure' }
@@ -1611,6 +1903,48 @@ function Invoke-OperatorApplySuite {
         Assert-True `
             -Condition ([string]$recoveryReceipt.kind -ceq 'RECOVERY' -and [string]$recoveryReceipt.overallStatus -ceq 'PARTIAL') `
             -Name 'ambiguous provider mutation persists a closed recovery receipt'
+
+        $finalDriftPlanPath = Join-Path $temporaryRoot 'final-drift-plan.json'
+        $finalDriftResultPath = Join-Path $temporaryRoot 'final-drift-result.json'
+        [void](New-OnboardingPlan $repoRoot 'gurbakir' 'development' $finalDriftPlanPath -Transport $transport)
+        $script:finalDriftHomeReads = 0
+        $finalDriftTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            $request = $body | ConvertFrom-Json -AsHashtable
+            $response = & $transport $method $uri $headers $body $maximumBytes
+            if ($request.query -match 'Gate8HomeDefinitions') {
+                $script:finalDriftHomeReads++
+                if ($script:finalDriftHomeReads -ge 8) {
+                    $nodes = @($response.Data.data.metaobjectDefinitions.nodes | ForEach-Object { Copy-TestValue $_ })
+                    $nodes[0].access.storefront = 'NONE'
+                    $response.Data.data.metaobjectDefinitions.nodes = $nodes
+                }
+            }
+            return $response
+        }.GetNewClosure()
+        Assert-Throws `
+            -Action {
+                Invoke-OnboardingApply `
+                    $repoRoot 'gurbakir' 'development' $finalDriftPlanPath 'gurbakir' 'development' `
+                    -ConfirmApply -OutputPath $finalDriftResultPath -Transport $finalDriftTransport
+            } `
+            -Pattern 'PARTIAL_APPLY' `
+            -Name 'Apply fails closed when final Home readback becomes incompatible after provider writes'
+        Assert-True `
+            -Condition (-not (Test-Path -LiteralPath $finalDriftResultPath)) `
+            -Name 'post-write final readback drift never produces a successful RESULT receipt'
+        $finalDriftRecovery = Import-OnboardingReceipt "$finalDriftPlanPath.recovery-final.json"
+        Assert-True `
+            -Condition (
+                [string]$finalDriftRecovery.kind -ceq 'RECOVERY' -and
+                [string]$finalDriftRecovery.overallStatus -ceq 'PARTIAL' -and
+                'READBACK_MISMATCH' -in @($finalDriftRecovery.diagnosticCodes)
+            ) `
+            -Name 'post-write final readback drift preserves explicit partial recovery evidence'
+
+        $script:createdDefinitions.Clear()
+        $script:definitionInputs.Clear()
+        $script:writeCount = 0
 
         [void](Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $planPath 'gurbakir' 'development' -ConfirmApply -IncludeAcceptanceProbe -OutputPath $resultPath -Transport $transport)
         Assert-True -Condition ($script:writeCount -eq 4) -Name 'Apply creates only three definitions and one DRAFT probe'
@@ -1632,6 +1966,61 @@ function Invoke-OperatorApplySuite {
             -Name 'Apply maps Gate 7 semantic intent to Shopify definition-create representation'
         Assert-True -Condition $script:lockObserved -Name 'Apply holds a verified-shop local operation lock while mutating'
         Assert-True -Condition ((Import-OnboardingReceipt $resultPath).kind -ceq 'RESULT') -Name 'Apply writes a closed redacted result receipt'
+
+        $emptyPlanPath = Join-Path $temporaryRoot 'empty-plan.json'
+        $emptyResultPath = Join-Path $temporaryRoot 'empty-result.json'
+        $emptyPlan = New-OnboardingPlan $repoRoot 'gurbakir' 'development' $emptyPlanPath -Transport $transport
+        Assert-True `
+            -Condition ($null -ne $emptyPlan.actions -and @($emptyPlan.actions).Count -eq 0) `
+            -Name 'Plan preserves a real empty actions array when Home is compatible and probe is not selected'
+        $writesBeforeEmptyApply = $script:writeCount
+        $emptyResult = Invoke-OnboardingApply `
+            $repoRoot 'gurbakir' 'development' $emptyPlanPath 'gurbakir' 'development' `
+            -ConfirmApply -OutputPath $emptyResultPath -Transport $transport
+        Assert-True `
+            -Condition (
+                [string]$emptyResult.kind -ceq 'RESULT' -and
+                [string]$emptyResult.overallStatus -ceq 'SUCCEEDED' -and
+                @($emptyResult.actions).Count -eq 0 -and
+                $script:writeCount -eq $writesBeforeEmptyApply
+            ) `
+            -Name 'zero-action Apply succeeds without probe opt-in and performs no provider writes'
+
+        $noWriteDriftPlanPath = Join-Path $temporaryRoot 'no-write-final-drift-plan.json'
+        $noWriteDriftResultPath = Join-Path $temporaryRoot 'no-write-final-drift-result.json'
+        [void](New-OnboardingPlan $repoRoot 'gurbakir' 'development' $noWriteDriftPlanPath -Transport $transport)
+        $script:noWriteDriftHomeReads = 0
+        $noWriteDriftTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            $request = $body | ConvertFrom-Json -AsHashtable
+            $response = & $transport $method $uri $headers $body $maximumBytes
+            if ($request.query -match 'Gate8HomeDefinitions') {
+                $script:noWriteDriftHomeReads++
+                if ($script:noWriteDriftHomeReads -ge 2) {
+                    $nodes = @($response.Data.data.metaobjectDefinitions.nodes | ForEach-Object { Copy-TestValue $_ })
+                    $nodes[0].access.storefront = 'NONE'
+                    $response.Data.data.metaobjectDefinitions.nodes = $nodes
+                }
+            }
+            return $response
+        }.GetNewClosure()
+        $writesBeforeNoWriteDrift = $script:writeCount
+        Assert-Throws `
+            -Action {
+                Invoke-OnboardingApply `
+                    $repoRoot 'gurbakir' 'development' $noWriteDriftPlanPath 'gurbakir' 'development' `
+                    -ConfirmApply -OutputPath $noWriteDriftResultPath -Transport $noWriteDriftTransport
+            } `
+            -Pattern 'READBACK_MISMATCH' `
+            -Name 'zero-action Apply fails without success evidence when final Home readback drifts'
+        Assert-True `
+            -Condition (
+                -not (Test-Path -LiteralPath $noWriteDriftResultPath) -and
+                -not (Test-Path -LiteralPath "$noWriteDriftPlanPath.recovery-final.json") -and
+                $script:writeCount -eq $writesBeforeNoWriteDrift
+            ) `
+            -Name 'pre-write final readback drift emits neither success nor misleading partial-write recovery evidence'
+
         $secondPlanPath = Join-Path $temporaryRoot 'second-plan.json'
         $secondResultPath = Join-Path $temporaryRoot 'second-result.json'
         Assert-Throws `
@@ -1645,6 +2034,34 @@ function Invoke-OperatorApplySuite {
             -Name 'receipt-bound matching DRAFT probe plans an attributed no-op'
         [void](Invoke-OnboardingApply $repoRoot 'gurbakir' 'development' $secondPlanPath 'gurbakir' 'development' -ConfirmApply -IncludeAcceptanceProbe -PriorReceipt $resultPath -OutputPath $secondResultPath -Transport $transport)
         Assert-True -Condition ($script:writeCount -eq 4) -Name 'second attributed Apply performs zero writes'
+
+        $predecessorReceiptPath = Join-Path $temporaryRoot 'pre-audit-operator-result.json'
+        $predecessorReceipt = Import-OnboardingReceipt $resultPath
+        $predecessorReceipt.digests.operatorSha256 = '0f3e05c72969a0cd47606537691724a417688afd0f8fe4d18b2b1ed0a59321e8'
+        Write-OnboardingReceipt $predecessorReceiptPath $predecessorReceipt
+        $predecessorPlanPath = Join-Path $temporaryRoot 'pre-audit-operator-plan.json'
+        $predecessorPlan = New-OnboardingPlan `
+            $repoRoot 'gurbakir' 'development' $predecessorPlanPath `
+            -IncludeAcceptanceProbe -PriorReceipt $predecessorReceiptPath -Transport $transport
+        Assert-True `
+            -Condition (
+                @($predecessorPlan.actions).Count -eq 1 -and
+                [string]$predecessorPlan.actions[0].intendedAction -ceq 'NONE'
+            ) `
+            -Name 'explicit one-generation operator digest transition preserves prior successful probe attribution'
+
+        $untrustedDigestReceiptPath = Join-Path $temporaryRoot 'untrusted-operator-result.json'
+        $untrustedDigestReceipt = Import-OnboardingReceipt $resultPath
+        $untrustedDigestReceipt.digests.operatorSha256 = ('9' * 64)
+        Write-OnboardingReceipt $untrustedDigestReceiptPath $untrustedDigestReceipt
+        Assert-Throws `
+            -Action {
+                New-OnboardingPlan `
+                    $repoRoot 'gurbakir' 'development' (Join-Path $temporaryRoot 'untrusted-operator-plan.json') `
+                    -IncludeAcceptanceProbe -PriorReceipt $untrustedDigestReceiptPath -Transport $transport
+            } `
+            -Pattern 'PROBE_COLLISION' `
+            -Name 'arbitrary stale operator digests remain unable to attribute an existing probe'
 
         $successfulProbe = Copy-TestValue $script:probe
         $script:probe = $null
@@ -1887,6 +2304,12 @@ function Invoke-OperatorApplySuite {
 
         $stagingBindingJson = $bindingJson.Replace('"profile":"development"','"profile":"staging"').Replace('"developmentDebug"','"stagingDebug"').Replace('"developmentRelease"','"stagingRelease"')
         [IO.File]::WriteAllText($stagingBindingPath, $stagingBindingJson, [Text.UTF8Encoding]::new($false))
+        $stagingContext = Get-OnboardingOperatorContext $repoRoot 'gurbakir' 'staging'
+        Write-OnboardingPrivateProperties `
+            -RepositoryRoot $repoRoot `
+            -Destination $stagingLocalConfigurationPath `
+            -Lines (Get-OnboardingValidatedClientConfigurationLines -Context $stagingContext -Values $clientValues) `
+            -RefuseOverwrite
         [Environment]::SetEnvironmentVariable($stagingCredentialName, 'fixture-admin-token', 'Process')
         $stagingPlanPath = Join-Path $temporaryRoot 'staging-plan.json'
         $stagingResultPath = Join-Path $temporaryRoot 'staging-result.json'
@@ -1908,13 +2331,6 @@ function Invoke-OperatorApplySuite {
             if ($uri.AbsolutePath -eq '/.well-known/assetlinks.json') { return [pscustomobject]@{StatusCode=403;Data=$null} }
             throw 'unexpected readback fixture operation'
         }.GetNewClosure()
-        $clientValues=[ordered]@{
-            'shopify.storefrontPublicToken'='fixture-public-token';'shopify.customerAccountClientId'='fixture-client-id';
-            'shopify.customerAccountIssuer'='https://shopify.com/authentication/1234567890';
-            'shopify.customerAccountAuthorizationEndpoint'='https://shopify.com/auth';'shopify.customerAccountTokenEndpoint'='https://shopify.com/token';
-            'shopify.customerAccountLogoutEndpoint'='https://shopify.com/logout';'shopify.customerAccountGraphqlEndpoint'='https://shopify.com/customer-account/api/2026-07/graphql';
-            'shopify.customerAccountRedirectUri'='shop.1234567890.gurbakir://oauth/callback'
-        }
         if (Test-Path -LiteralPath $localConfigurationPath) { Remove-Item -LiteralPath $localConfigurationPath -Force }
         $context = Get-OnboardingOperatorContext $repoRoot 'gurbakir' 'development'
         Write-OnboardingPrivateProperties `
@@ -1956,17 +2372,50 @@ function Invoke-OperatorApplySuite {
                 ([string]$manualCheckpoint.clientIdSha256 -cnotmatch 'fixture-client-id')
             ) `
             -Name 'manual checkpoint records only validated callback identity, an approved evidence reference, and a client ID digest'
+        Assert-Throws `
+            -Action { Write-OnboardingManualCheckpoint $repoRoot 'gurbakir' 'development' $manualCheckpointPath 'owner-evidence:fixture-002' } `
+            -Pattern 'MANUAL_CHECKPOINT_EXISTS' `
+            -Name 'manual registration evidence is immutable and cannot be overwritten in place'
         $script:readbackArguments=@();$script:readbackPrivileged=@()
-        $readbackRunner={param($arguments,$privilegedNames);$script:readbackArguments=@($arguments);$script:readbackPrivileged=@($privilegedNames);return 0}
-        $readback=Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner $readbackRunner -ClientValues $clientValues
+        $readbackRunner={
+            param($arguments,$privilegedNames)
+            $script:readbackArguments=@($arguments);$script:readbackPrivileged=@($privilegedNames)
+            return [pscustomobject]@{
+                ExitCode = 0
+                ExecutedProofs = @(
+                    'com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest'
+                    'com.gurbakir.storefront.OwnedHomeContentReadbackTest'
+                )
+            }
+        }
+        $readback=Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner $readbackRunner -ClientValues $clientValues -ManualCheckpointPath $manualCheckpointPath
         Assert-True -Condition ([string]$readback.storefrontMobileReadback -ceq 'PASS') -Name 'Readback executes the bounded Storefront Menu and Home proof lane'
         Assert-True `
-            -Condition ('com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest' -in $script:readbackArguments -and 'com.gurbakir.storefront.OwnedHomeContentReadbackTest' -in $script:readbackArguments -and $credentialName -in $script:readbackPrivileged) `
-            -Name 'Readback selects both proof classes and strips privileged provider credentials from Gradle'
+            -Condition ([string]$readback.customerDiscovery -ceq 'PASS' -and [string]$readback.customerRegistration -ceq 'PASS') `
+            -Name 'Readback distinguishes public Customer discovery from validated manual registration evidence'
+        Assert-True `
+            -Condition (
+                'com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest' -in $script:readbackArguments -and
+                'com.gurbakir.storefront.OwnedHomeContentReadbackTest' -in $script:readbackArguments -and
+                '--rerun-tasks' -in $script:readbackArguments -and
+                '--no-build-cache' -in $script:readbackArguments -and
+                '-PonboardingApplication=gurbakir' -in $script:readbackArguments -and
+                '-PonboardingProfile=development' -in $script:readbackArguments -and
+                $credentialName -in $script:readbackPrivileged
+            ) `
+            -Name 'Readback forces both profile-bound proof classes to execute fresh and strips privileged provider credentials from Gradle'
         Assert-Throws `
-            -Action { Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner { return 1 } -ClientValues $clientValues } `
+            -Action { Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner { return 1 } -ClientValues $clientValues -ManualCheckpointPath $manualCheckpointPath } `
             -Pattern 'MOBILE_READBACK_FAILURE' `
             -Name 'Readback reports a mobile-facing proof failure instead of Inspect success'
+        Assert-Throws `
+            -Action {
+                Invoke-OnboardingReadback $repoRoot 'gurbakir' 'development' -Transport $readbackTransport -ProcessRunner {
+                    [pscustomobject]@{ ExitCode = 0; ExecutedProofs = @('com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest') }
+                } -ClientValues $clientValues -ManualCheckpointPath $manualCheckpointPath
+            } `
+            -Pattern 'MOBILE_READBACK_PROOF_INCOMPLETE' `
+            -Name 'Readback rejects exit zero when an expected Storefront proof did not execute'
 
         $wrongIdentityTransport={
             param($method,$uri,$headers,$body,$maximumBytes)
@@ -1986,6 +2435,7 @@ function Invoke-OperatorApplySuite {
         Restore-TestFileSnapshot -Path $bindingPath -Snapshot $bindingSnapshot
         Restore-TestFileSnapshot -Path $stagingBindingPath -Snapshot $stagingBindingSnapshot
         Restore-TestFileSnapshot -Path $localConfigurationPath -Snapshot $localConfigurationSnapshot
+        Restore-TestFileSnapshot -Path $stagingLocalConfigurationPath -Snapshot $stagingLocalConfigurationSnapshot
         if(Test-Path $temporaryRoot){Remove-Item -LiteralPath $temporaryRoot -Recurse -Force}
     }
 }

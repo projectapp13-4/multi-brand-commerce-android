@@ -1,10 +1,33 @@
 # Brand Onboarding
 
-Status: **Canonical future real-brand onboarding contract after Gate 7 closure**
+Status: **Canonical future real-brand onboarding contract after Gate 8 closure**
 
-This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation, provider-isolation, bounded Categories-discovery and bounded Home-content gates. Gates 1–3 established reusable `:mobile-core`, bounded non-production `:synthetic` and application-owned fixed inputs. Gate 4 added validated capability presence and primary order. Gate 5 added application-owned Firebase/provider selection while keeping shared application behavior provider-neutral and strengthening the synthetic physical Firebase-absence boundary. Gate 6 added application-selected bounded Shopify Menu discovery for Categories. Gate 7 added application-selected bounded Shopify Home editorial content with finite native rendering, editorial-only LKG persistence and an explicitly remote-disabled synthetic composition. Gates 4–7 are closed after their required candidate/CI/review evidence, owner-authorized merge and post-merge `main` verification. No additional real merchant application exists.
+This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation, provider-isolation, bounded Categories-discovery, bounded Home-content, and provisioning/onboarding gates. Gates 1–7 established the application-module architecture and the current Menu/Home contracts. Gate 8 added the strict application/profile registry, deterministic non-secret projections, scoped ignored client configuration, independent provider bindings, explicit enrollment/CI coverage, and a bounded local operator with Inspect, Plan, guarded Apply, Readback, and recovery evidence. Gate 8 is technically closed for the current Gürbakır development/staging profiles. No additional real merchant application exists.
 
-This is an ownership and evidence contract, not authorization to create a real brand application, begin Gate 8 provisioning, mutate production state, or publish an application. Gate 8 and later work require separate planning/approval from the then-current source and provider state.
+This is an ownership and evidence contract, not authorization to create a second real application, begin the separate second-store pilot, mutate production state, start Gate 9/P3-16, or publish an application. Those later slices require their own current-source plan and authority.
+
+## Gate 8 enrollment and operator contract
+
+The tracked authority is `config/onboarding/application-registry.v1.json`. It explicitly enrolls modules, applications, profiles, variants, non-secret identities, capability assertions, provider modes, and CI lanes. `settings.gradle.kts` remains explicit; registry membership never auto-discovers or blesses a new module.
+
+For each real configured profile:
+
+- deterministic tracked projections contain only non-secret build/runtime inputs;
+- one ignored scoped properties file contains only the enabled public-client inputs;
+- one ignored provider binding contains independently approved non-secret Shopify/Firebase identities;
+- Firebase Android client files remain ignored at the exact registered variant paths;
+- privileged Shopify Admin and Firebase bearer credentials remain process-scoped and are never Gradle inputs;
+- disabled Customer Account, Firebase, or App Links capabilities require no dummy credential or provider request.
+
+Provider-changing work uses a fresh read-only Inspect, immutable redacted Plan, exact target confirmations, per-write reinspection, guarded Apply, and provider/mobile Readback. Receipts are write-once evidence. An empty valid action set is a normal no-op. Apply can report success only after final target and semantic readback succeed; a post-write mismatch produces partial recovery evidence instead. Admin and public Storefront identities must both match the independent shop binding before any Shopify write.
+
+The one Gate 8 acceptance probe is a receipt-attributed, unselected DRAFT resource. Existing selected Menu/Home content remains merchant-managed and validate-only. Operator-digest compatibility is explicit and bounded to reviewed transitions; unrelated stale evidence cannot attribute an existing resource.
+
+Readback forces the two selected profile Storefront proof classes to execute with `--rerun-tasks` and `--no-build-cache`, verifies their fresh JUnit results, and strips privileged provider credentials from the child process. Customer discovery and the sanitized manual registration checkpoint are separate classifications.
+
+The current HTTP transport performs one bounded attempt per request with a 30-second per-request deadline, redirects disabled, strict UTF-8, and bounded response bodies. It does not automatically retry reads or writes. A paginated inspection can therefore exceed 30 seconds overall; historical plan language about three attempts is a design ceiling, not the implemented command budget.
+
+Digital Asset Links inspection is informational while current manifests retain `autoVerify=false`. It queries every distinct declared App Link host. Structural package coverage is distinct from certificate verification: `PASS` requires every selected variant plus independently trusted signing fingerprints; shape-valid but untrusted fingerprints are `NOT_VERIFIED`.
 
 ## Repository and application model
 
@@ -154,7 +177,7 @@ Before calling a real brand onboarded, record evidence that:
 
 The exact verification lane belongs in the later brand/gate implementation plan, not here.
 
-Current applicability: use this contract only to plan a future real brand through a separately approved gate. Gates 2–7 establish bounded second-application, fixed-input, capability-composition, provider-isolation, Categories-discovery and Home-content boundaries, and Gate 7 is closed. They do not authorize Gate 8 provisioning, real-brand onboarding, production configuration, signing, publication, or release readiness.
+Current applicability: use this contract to plan the separately approved second real merchant/store pilot. Gates 2–8 establish the synthetic edge, fixed-input, capability-composition, provider-isolation, Categories/Home, enrollment, and bounded-operator boundaries. Gate 8 closure does not prove a second real application, production configuration, signing, publication, or release readiness. Gate 9 and P3-16 remain separate and unstarted.
 
 ## Related authority
 
@@ -168,3 +191,5 @@ Current applicability: use this contract only to plan a future real brand throug
 - [Gate 5 Completion Handoff](../multi-brand/GATE-5-COMPLETION-HANDOFF.md)
 - [Gate 6 Completion Handoff](../multi-brand/GATE-6-COMPLETION-HANDOFF.md)
 - [Gate 7 Completion Handoff](../multi-brand/GATE-7-COMPLETION-HANDOFF.md)
+- [Gate 8 approved plan](../multi-brand/plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md)
+- [Gate 8 pre-merge completion handoff](../multi-brand/GATE-8-COMPLETION-HANDOFF.md)
