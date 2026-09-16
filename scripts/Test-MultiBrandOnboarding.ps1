@@ -1915,13 +1915,20 @@ function Invoke-OperatorApplySuite {
             if ($request.query -match 'Gate8HomeDefinitions') {
                 $script:finalDriftHomeReads++
                 if ($script:finalDriftHomeReads -ge 8) {
-                    $nodes = @($response.Data.data.metaobjectDefinitions.nodes | ForEach-Object { Copy-TestValue $_ })
+                    $nodes = @(
+                        $response.Data.data.metaobjectDefinitions.nodes | ForEach-Object {
+                            (($_ | ConvertTo-Json -Depth 32 -Compress) | ConvertFrom-Json -AsHashtable -Depth 32)
+                        }
+                    )
                     $nodes[0].access.storefront = 'NONE'
                     $response.Data.data.metaobjectDefinitions.nodes = $nodes
                 }
             }
             return $response
         }.GetNewClosure()
+        Assert-True `
+            -Condition ($finalDriftTransport.ToString() -notmatch '\bCopy-TestValue\b') `
+            -Name 'module-invoked drift transport is self-contained across PowerShell session states'
         Assert-Throws `
             -Action {
                 Invoke-OnboardingApply `
@@ -1997,13 +2004,20 @@ function Invoke-OperatorApplySuite {
             if ($request.query -match 'Gate8HomeDefinitions') {
                 $script:noWriteDriftHomeReads++
                 if ($script:noWriteDriftHomeReads -ge 2) {
-                    $nodes = @($response.Data.data.metaobjectDefinitions.nodes | ForEach-Object { Copy-TestValue $_ })
+                    $nodes = @(
+                        $response.Data.data.metaobjectDefinitions.nodes | ForEach-Object {
+                            (($_ | ConvertTo-Json -Depth 32 -Compress) | ConvertFrom-Json -AsHashtable -Depth 32)
+                        }
+                    )
                     $nodes[0].access.storefront = 'NONE'
                     $response.Data.data.metaobjectDefinitions.nodes = $nodes
                 }
             }
             return $response
         }.GetNewClosure()
+        Assert-True `
+            -Condition ($noWriteDriftTransport.ToString() -notmatch '\bCopy-TestValue\b') `
+            -Name 'zero-write drift transport is self-contained across PowerShell session states'
         $writesBeforeNoWriteDrift = $script:writeCount
         Assert-Throws `
             -Action {
