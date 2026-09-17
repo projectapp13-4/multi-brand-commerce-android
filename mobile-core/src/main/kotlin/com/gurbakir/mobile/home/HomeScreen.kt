@@ -132,6 +132,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                             actions.onSetWishlist,
                             wishlist
                         )
+
+                        is HomeRenderedSection.Image, is HomeRenderedSection.Video -> Unit
                     }
                 }
             }

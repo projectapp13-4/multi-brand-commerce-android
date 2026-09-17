@@ -148,6 +148,7 @@ private fun HomeResourcesQuery.Node?.toHomeResourceMapping(
         val resource = when (requested.kind) {
             HomeResourceKind.COLLECTION -> onCollection?.toHomeCollectionResource(requested, mediaPolicy)
             HomeResourceKind.PRODUCT -> onProduct?.toHomeProductResource(requested, mediaPolicy)
+            HomeResourceKind.MEDIA_IMAGE, HomeResourceKind.VIDEO -> null
         }
         resource?.let { HomeResourceMapping.Accepted(HomeResourceResolution(requested, it)) }
             ?: HomeResourceMapping.Failure("HOME_RESOURCE_KIND_MISMATCH")

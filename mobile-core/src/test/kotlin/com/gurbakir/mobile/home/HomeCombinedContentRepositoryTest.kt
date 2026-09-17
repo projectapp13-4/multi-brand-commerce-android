@@ -372,6 +372,8 @@ class HomeCombinedContentRepositoryTest {
                 when (it) {
                     is RemoteHomeSection.CollectionGrid -> "grid"
                     is RemoteHomeSection.FeaturedProduct -> "featured"
+                    is RemoteHomeSection.Image -> "image"
+                    is RemoteHomeSection.Video -> "video"
                 }
             }
         }

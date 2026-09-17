@@ -56,8 +56,11 @@ constructor(
         if (rootResult is StorefrontResult.Success && rootResult.value != null) {
             val observation = requireNotNull(rootResult.value)
             val validation = validator.validate(remote.selector, observation, remote.contractId.contentVersion)
-            if (validation is HomeDocumentValidation.Accepted) {
-                return acceptRemote(token, validation.snapshot, observation, storedRead, now)
+            when (validation) {
+                is HomeDocumentValidation.Accepted ->
+                    return acceptRemote(token, validation.snapshot, observation, storedRead, now)
+
+                is HomeDocumentValidation.NoneRenderable, is HomeDocumentValidation.Rejected -> Unit
             }
             return resolveFailure(
                 token,
@@ -122,12 +125,18 @@ constructor(
 
                 HomeFailureAuthority.Superseded -> HomeLoadResult.Superseded
             }
-        val stored = HomeStoredSnapshot(partition, now, deadline, snapshot)
+        val storageVersion = if (snapshot.contentVersion == 2) {
+            HOME_CONTENT_STORAGE_VERSION_V2
+        } else {
+            HOME_CONTENT_STORAGE_VERSION
+        }
+        val stored = HomeStoredSnapshot(partition, now, deadline, snapshot, storageVersion)
         val existingMarker = (storedRead as? HomeStoreRead.Established)?.marker
         val marker = HomeEstablishmentRecord(
             partition = partition,
             firstEstablishedAtMillis = existingMarker?.firstEstablishedAtMillis ?: now,
-            lastAcceptedContentVersion = snapshot.contentVersion
+            lastAcceptedContentVersion = snapshot.contentVersion,
+            storageVersion = storageVersion
         )
         val presentation = render(
             snapshot,
@@ -184,8 +193,9 @@ constructor(
             is StorefrontResult.Failure -> HomeLoadResult.Failed(result.error.toHomeLoadFailure())
 
             is StorefrontResult.Success -> {
-                val resources = result.value.strictResources(keys)
-                    ?: return HomeLoadResult.Failed(rootFailure)
+                val resources =
+                    result.value.strictResources(keys, allowUnresolved = stored.snapshot.contentVersion == 2)
+                        ?: return HomeLoadResult.Failed(rootFailure)
                 HomeLoadResult.Accepted(
                     render(stored.snapshot, resources, HomeContentSource.LKG, stored.expiresAtMillis),
                     HomePersistenceStatus.NOT_APPLICABLE
@@ -268,7 +278,7 @@ constructor(
         source: HomeContentSource,
         expiresAtMillis: Long
     ): HomePresentation {
-        if (snapshot.sections.isEmpty()) {
+        if (snapshot.declaredSectionCount == 0) {
             return HomePresentation(
                 HomeEditorialState.IntentionalEmpty,
                 emptyList(),
@@ -329,11 +339,71 @@ constructor(
                         )
                     }
                 }
+
+                is RemoteHomeSection.Image -> {
+                    expectedCards += 1
+                    val resource = resolved[section.media] as? StorefrontHomeResource.MediaImage
+                    val media = (resource?.media as? HomeMediaObservation.Accepted)?.media
+                    if (media == null) {
+                        null
+                    } else {
+                        renderedCards += 1
+                        HomeRenderedSection.Image(
+                            stableId = section.sectionGid,
+                            title = HomeText.Remote(section.title),
+                            presentation = section.presentation,
+                            media = media,
+                            altText = section.altText,
+                            caption = section.caption,
+                            target = section.target,
+                            revisionKey = snapshot.sectionRevisionDigest
+                        )
+                    }
+                }
+
+                is RemoteHomeSection.Video -> {
+                    expectedCards += 1
+                    val resource = resolved[section.media] as? StorefrontHomeResource.Video
+                    val sources = resource?.sources.orEmpty().filter { source ->
+                        source.mimeType.equals("video/mp4", ignoreCase = true) &&
+                            source.format.equals("mp4", ignoreCase = true) &&
+                            source.width in 1..1280 &&
+                            source.height in 1..720
+                    }
+                    if (sources.isEmpty()) {
+                        null
+                    } else {
+                        val explicitPoster = section.poster?.let { key ->
+                            val posterResource = resolved[key] as? StorefrontHomeResource.MediaImage
+                            (posterResource?.media as? HomeMediaObservation.Accepted)
+                                ?.media
+                        }
+                        val preview = (resource?.preview as? HomeMediaObservation.Accepted)?.media
+                        renderedCards += 1
+                        HomeRenderedSection.Video(
+                            stableId = section.sectionGid,
+                            title = HomeText.Remote(section.title),
+                            sources = sources,
+                            poster = explicitPoster ?: preview,
+                            altText = section.altText,
+                            caption = section.caption,
+                            target = section.target,
+                            revisionKey = snapshot.sectionRevisionDigest
+                        )
+                    }
+                }
             }
         }
         val status = when {
+            renderedCards == 0 && snapshot.quality == HomeDocumentQuality.NON_PLAYABLE ->
+                HomeResourceStatus.NON_PLAYABLE
+
             renderedCards == 0 -> HomeResourceStatus.NONE_RENDERABLE
+
+            snapshot.quality == HomeDocumentQuality.PARTIAL -> HomeResourceStatus.PARTIAL
+
             renderedCards == expectedCards -> HomeResourceStatus.COMPLETE
+
             else -> HomeResourceStatus.PARTIAL
         }
         return HomePresentation(
@@ -349,28 +419,39 @@ constructor(
         sections?.references?.nodes.orEmpty().flatMap { node ->
             val section = node.section
             section?.collections?.references?.nodes.orEmpty().mapNotNull { it.resource } +
-                listOfNotNull(section?.product?.reference?.resource)
+                listOfNotNull(
+                    section?.product?.reference?.resource,
+                    section?.media?.reference?.resource,
+                    section?.poster?.reference?.resource
+                )
         }.associateBy { it.key }
 
     private fun RemoteHomeSnapshot.resourceKeys(): List<HomeResourceKey> = sections.flatMap { section ->
         when (section) {
             is RemoteHomeSection.CollectionGrid -> section.collections
             is RemoteHomeSection.FeaturedProduct -> listOf(section.product)
+            is RemoteHomeSection.Image -> listOf(section.media)
+            is RemoteHomeSection.Video -> listOfNotNull(section.media, section.poster)
         }
     }.distinct()
 
     private fun HomeResourceBatch.strictResources(
-        requested: List<HomeResourceKey>
+        requested: List<HomeResourceKey>,
+        allowUnresolved: Boolean = false
     ): Map<HomeResourceKey, StorefrontHomeResource>? {
         if (resolutions.size != requested.size) return null
         val mapped = linkedMapOf<HomeResourceKey, StorefrontHomeResource>()
         resolutions.forEachIndexed { index, resolution ->
             if (resolution.requested != requested[index]) return null
-            val resource = resolution.resource ?: return null
+            val resource = resolution.resource
+            if (resource == null && allowUnresolved) return@forEachIndexed
+            resource ?: return null
             if (resource.key != resolution.requested || mapped.put(resource.key, resource) != null) return null
             if (
                 (resource.key.kind == HomeResourceKind.COLLECTION && resource !is StorefrontHomeResource.Collection) ||
-                (resource.key.kind == HomeResourceKind.PRODUCT && resource !is StorefrontHomeResource.Product)
+                (resource.key.kind == HomeResourceKind.PRODUCT && resource !is StorefrontHomeResource.Product) ||
+                (resource.key.kind == HomeResourceKind.MEDIA_IMAGE && resource !is StorefrontHomeResource.MediaImage) ||
+                (resource.key.kind == HomeResourceKind.VIDEO && resource !is StorefrontHomeResource.Video)
             ) {
                 return null
             }
@@ -379,7 +460,9 @@ constructor(
     }
 
     private fun com.gurbakir.storefront.HomeDocumentSelector.isValid(): Boolean =
-        type == "mobile_home" && handle.length in 1..255 && handle.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*"))
+        type in com.gurbakir.storefront.HomeContentContractId.entries.map { it.rootType } &&
+            handle.length in 1..255 &&
+            handle.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*"))
 
     private fun configurationFailure(): HomeLoadResult.Failed = HomeLoadResult.Failed(
         HomeLoadFailure(HomeLoadFailureCategory.CONFIGURATION, retryable = false)
