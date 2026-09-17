@@ -1,0 +1,4 @@
+keystorePath=config/local/trial/nonproduction.keystore
+storePassword=
+keyAlias=
+keyPassword=

@@ -494,6 +494,12 @@ function Assert-OnboardingNativeCompositionCompatibility {
             customerAccount = 'DISABLED'
             primaryNavigation = @('SEARCH', 'HOME', 'CATEGORIES')
         }
+        trial = [ordered]@{
+            search = 'ENABLED'
+            wishlist = 'ENABLED'
+            customerAccount = 'ENABLED'
+            primaryNavigation = @('HOME', 'CATEGORIES', 'SEARCH', 'WISHLIST', 'ACCOUNT')
+        }
     }
     $applicationKey = [string]$Application.key
     if (-not $expectations.ContainsKey($applicationKey)) {

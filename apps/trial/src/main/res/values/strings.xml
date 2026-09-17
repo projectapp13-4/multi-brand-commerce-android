@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_product_range_title">Pilot koleksiyonu</string>
+    <string name="trial_home_pilot_collection">Pilot koleksiyonu</string>
+    <string name="trial_home_featured_product">Pilot ürün</string>
+    <string name="trial_legal_title">Yasal ve destek</string>
+    <string name="trial_legal_setup_required">Bu geliştirme mağazasının bağlantısı henüz doğrulanmadı. Kurulum tamamlanana kadar dış bağlantı açılmaz.</string>
+    <string name="trial_legal_support">Destek: kurulum gerekli</string>
+    <string name="trial_legal_privacy">Gizlilik: kurulum gerekli</string>
+    <string name="trial_legal_terms">Kullanım koşulları: kurulum gerekli</string>
+    <string name="trial_legal_shipping">Kargo: kurulum gerekli</string>
+    <string name="trial_legal_returns">İade: kurulum gerekli</string>
+    <string name="trial_legal_notice">Yasal bildirim: kurulum gerekli</string>
+    <string name="trial_back">Geri</string>
+</resources>

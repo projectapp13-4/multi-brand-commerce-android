@@ -138,11 +138,13 @@ function Invoke-PublicReadinessValidation {
         @((Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable).modules |
             ForEach-Object { [string]$_.gradleProject } | Sort-Object -Unique)
     } else {
-        @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic')
+        @(':account', ':app', ':checkout', ':firebase', ':foundation', ':mobile-core', ':storefront', ':synthetic', ':trial')
     }
     $moduleDifference = @(Compare-Object -ReferenceObject $expectedModules -DifferenceObject $actualModules)
-    $moduleGraphOk = $moduleDifference.Count -eq 0 -and $settings -match 'project\(":synthetic"\)\.projectDir\s*=\s*file\("apps/synthetic"\)'
-    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected explicitly enrolled modules and apps/synthetic mapping"))
+    $moduleGraphOk = $moduleDifference.Count -eq 0 -and
+        $settings -match 'project\(":synthetic"\)\.projectDir\s*=\s*file\("apps/synthetic"\)' -and
+        $settings -match 'project\(":trial"\)\.projectDir\s*=\s*file\("apps/trial"\)'
+    $results.Add((New-CheckResult "exact-module-graph" $moduleGraphOk "expected explicitly enrolled modules and physical synthetic/trial mappings"))
 
     $text = Get-TextContent -Root $rootPath -RelativePaths $normalizedFiles
     $publicText = Get-TextContent -Root $rootPath -RelativePaths @(
@@ -350,6 +352,7 @@ rootProject.name = "multi-brand-commerce-android"
 include(
     ":app",
     ":synthetic",
+    ":trial",
     ":mobile-core",
     ":foundation",
     ":storefront",
@@ -358,6 +361,7 @@ include(
     ":firebase"
 )
 project(":synthetic").projectDir = file("apps/synthetic")
+project(":trial").projectDir = file("apps/trial")
 '@
         ".github/workflows/android-foundation.yml" = @'
 name: Android foundation

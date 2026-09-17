@@ -150,6 +150,39 @@ function Invoke-RegistrySuite {
     Assert-True -Condition ($resolved.Application.identity.brandKey -eq 'gurbakir') `
         -Name 'Gurbakir runtime brand key remains exact'
 
+    $trial = Get-OnboardingApplicationProfile `
+        -Registry $registry `
+        -Application 'trial' `
+        -Profile 'development'
+    Assert-True `
+        -Condition (
+            [string]$trial.Application.module -ceq ':trial' -and
+            [string]$trial.Application.identity.brandKey -ceq 'multi-brand-trial' -and
+            [string]$trial.Profile.runtimeEnvironment -ceq 'DEVELOPMENT'
+        ) `
+        -Name 'Trial resolves as an independent development real-application profile'
+    Assert-True `
+        -Condition (
+            [string]$trial.Profile.storefront.domain -ceq 'multi-brand-trial-store.myshopify.com' -and
+            [string]$trial.Profile.storefront.apiVersion -ceq '2026-07' -and
+            [string]$trial.Profile.storefront.catalog.menuHandle -ceq 'main-menu' -and
+            [string]$trial.Profile.storefront.home.rootType -ceq 'mobile_home' -and
+            [long]$trial.Profile.storefront.home.contentSchemaVersion -eq 1 -and
+            [string]$trial.Profile.storefront.home.definitionContract -ceq 'gate7-v1'
+        ) `
+        -Name 'Trial remains on the exact Home v1 Storefront contract before the atomic v2 cutover'
+    Assert-True `
+        -Condition (
+            $null -ne $trial.Application.identity.webRoles.legalSupport -and
+            [string]$trial.Application.identity.webRoles.legalSupport.origin -ceq 'https://multi-brand-trial-store.myshopify.com' -and
+            @($trial.Application.identity.webRoles.legalSupport.paths.Keys).Count -eq 6 -and
+            @(
+                @($trial.Application.identity.webRoles.legalSupport.paths.Values) |
+                    Where-Object { -not ([string]$_).StartsWith('/setup-required/') }
+            ).Count -eq 0
+        ) `
+        -Name 'Trial registry owns a complete non-opening legal support placeholder contract'
+
     $sha = Get-OnboardingSha256 -Path $registryPath
     $lines = Get-OnboardingProjectionLines `
         -Registry $registry `
@@ -164,6 +197,37 @@ function Invoke-RegistrySuite {
     $projectionPath = Join-Path $repoRoot 'config\onboarding\generated\gurbakir\development.properties'
     Test-OnboardingProjection -Path $projectionPath -ExpectedLines $lines
     Add-TestResult -Name 'tracked development projection is byte exact' -Passed $true -Evidence 'matched'
+
+    $trialLines = Get-OnboardingProjectionLines `
+        -Registry $registry `
+        -ApplicationRecord $trial.Application `
+        -ProfileRecord $trial.Profile `
+        -RegistrySha256 $sha
+    foreach ($expectedTrialLine in @(
+        'app.brandKey=multi-brand-trial',
+        'app.databaseName=trial-store-local.db',
+        'android.applicationId.debug=com.projectapp134.multibrandtrial.dev.debug',
+        'android.applicationId.release=com.projectapp134.multibrandtrial.dev',
+        'shopify.storefrontDomain=multi-brand-trial-store.myshopify.com',
+        'shopify.storefrontApiVersion=2026-07',
+        'shopify.catalogMenuHandle=main-menu',
+        'shopify.homeRootType=mobile_home',
+        'shopify.homeContentSchemaVersion=1',
+        'web.legalSupportOrigin=https://multi-brand-trial-store.myshopify.com',
+        'web.legalSupportPath.support=/setup-required/support',
+        'web.legalSupportPath.privacy=/setup-required/privacy',
+        'web.legalSupportPath.terms=/setup-required/terms',
+        'web.legalSupportPath.shipping=/setup-required/shipping',
+        'web.legalSupportPath.returns=/setup-required/returns',
+        'web.legalSupportPath.legalNotice=/setup-required/legal-notice',
+        'firebase.ownershipKey=multi-brand-trial-development'
+    )) {
+        Assert-True -Condition ($trialLines -ccontains $expectedTrialLine) `
+            -Name "Trial projection owns $expectedTrialLine"
+    }
+    $trialProjectionPath = Join-Path $repoRoot 'config\onboarding\generated\trial\development.properties'
+    Test-OnboardingProjection -Path $trialProjectionPath -ExpectedLines $trialLines
+    Add-TestResult -Name 'tracked Trial development projection is byte exact' -Passed $true -Evidence 'matched'
 
     $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gate8-registry-' + [guid]::NewGuid().ToString('N'))
     [void](New-Item -ItemType Directory -Path $temporaryRoot)
@@ -347,8 +411,8 @@ function Invoke-RegistrySuite {
             -AllowFixtureRecords
         Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.key -ceq 'future-fixture' }).Count -eq 1) `
             -Name 'future real-brand fixture is accepted only in explicit fixture mode'
-        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 2) `
-            -Name 'fixture registry exercises two independently enrolled real application records'
+        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 3) `
+            -Name 'fixture registry preserves both enrolled real applications while adding an independent fixture record'
         $futureSelected = Get-OnboardingApplicationProfile `
             -Registry $acceptedFixture -Application 'future-fixture' -Profile 'conformance'
         Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force

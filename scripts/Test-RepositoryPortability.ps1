@@ -110,16 +110,19 @@ function Test-ApprovedTopology {
     $mappings = Get-ProjectDirectoryMappings -SettingsText $SettingsText
     $syntheticMappingCorrect = $mappings.ContainsKey(':synthetic') -and
         $mappings[':synthetic'] -eq 'apps/synthetic'
+    $trialMappingCorrect = $mappings.ContainsKey(':trial') -and
+        $mappings[':trial'] -eq 'apps/trial'
     $passed = $missingProjects.Count -eq 0 -and
         $unexpectedProjects.Count -eq 0 -and
         $includedProjects.Count -eq $expectedProjects.Count -and
         $unsupportedIncludes.Count -eq 0 -and
         ':apps' -notin $includedProjects -and
-        $syntheticMappingCorrect
+        $syntheticMappingCorrect -and
+        $trialMappingCorrect
     $evidence = if ($passed) {
-        "$($expectedProjects.Count) explicitly enrolled subprojects; :synthetic -> apps/synthetic; no :apps project"
+        "$($expectedProjects.Count) explicitly enrolled subprojects; physical synthetic/trial mappings; no :apps project"
     } else {
-        "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); synthetic mapping: $($mappings[':synthetic'])"
+        "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); synthetic mapping: $($mappings[':synthetic']); trial mapping: $($mappings[':trial'])"
     }
     return [pscustomobject]@{ Passed = $passed; Evidence = $evidence }
 }
@@ -769,8 +772,9 @@ function Invoke-PortabilitySelfTest {
         [void](New-Item -ItemType Directory -Path $fixtureRoot)
         $inventory = @(Get-ModuleInventory)
         $validSettings = @'
-include(":app", ":synthetic", ":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase")
+include(":app", ":synthetic", ":trial", ":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase")
 project(":synthetic").projectDir = file("apps/synthetic")
+project(":trial").projectDir = file("apps/trial")
 '@
         Add-SelfTestResult 'valid flat topology and mapping pass' (Test-ApprovedTopology $validSettings $inventory).Passed
         $hierarchicalSettings = $validSettings.Replace('":synthetic"', '":apps:synthetic"')
@@ -1170,8 +1174,10 @@ try {
         'config/onboarding/application-registry.v1.json',
         'config/onboarding/generated/gurbakir/development.properties',
         'config/onboarding/generated/gurbakir/staging.properties',
+        'config/onboarding/generated/trial/development.properties',
         'app/src/main/AndroidManifest.xml',
         'apps/synthetic/src/main/AndroidManifest.xml',
+        'apps/trial/src/main/AndroidManifest.xml',
         'mobile-core/consumer-rules.pro',
         'mobile-core/src/main/AndroidManifest.xml',
         'storefront/src/main/graphql/com/gurbakir/storefront/schema.graphqls',
@@ -1180,7 +1186,8 @@ try {
         'account/src/main/graphql/com/gurbakir/account/schema.graphqls',
         'docs/reference-model/COMMERCE-BEHAVIOR.md',
         'docs/reference-model/SYSTEM-BOUNDARIES-AND-LIMITATIONS.md',
-        'scripts/Test-Gate2SyntheticPackage.ps1'
+        'scripts/Test-Gate2SyntheticPackage.ps1',
+        'scripts/Test-TrialPackage.ps1'
     )
     $requiredFiles += @($modules | ForEach-Object { "$($_.Directory)/build.gradle.kts" })
     $requiredFiles += @($modules | ForEach-Object { "$($_.Directory)/gradle.lockfile" })
@@ -1208,7 +1215,7 @@ try {
     } else {
         Test-ApprovedTopology -SettingsText $settings -Inventory $modules
     }
-    Add-Check -Name 'Gradle topology is the approved flat eight-subproject set' -Passed $topology.Passed -Evidence $topology.Evidence
+    Add-Check -Name 'Gradle topology is the registry-approved flat subproject set' -Passed $topology.Passed -Evidence $topology.Evidence
 
     $gradleWrapper = Join-Path $repoRoot $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
     $gradleProjectOutput = & $gradleWrapper projects --console=plain 2>&1 | Out-String
@@ -1224,11 +1231,13 @@ try {
         $evaluatedProjects | Where-Object { $_ -notin $expectedEvaluatedProjects }
     )
     $evaluatedSyntheticMapping = $gradleProjectOutput -match "(?m)^project ':synthetic' - [\\/]apps[\\/]synthetic\s*$"
+    $evaluatedTrialMapping = $gradleProjectOutput -match "(?m)^project ':trial' - [\\/]apps[\\/]trial\s*$"
     $evaluatedTopologyCorrect = $gradleProjectExit -eq 0 -and
         $evaluatedProjects.Count -eq $expectedEvaluatedProjects.Count -and
         $evaluatedProjectDiff.Count -eq 0 -and
-        $evaluatedSyntheticMapping
-    Add-Check -Name 'Gradle-evaluated project model matches the approved topology and mapping' -Passed $evaluatedTopologyCorrect -Evidence "Gradle exit $gradleProjectExit; projects $($evaluatedProjects.Count); synthetic mapping $evaluatedSyntheticMapping"
+        $evaluatedSyntheticMapping -and
+        $evaluatedTrialMapping
+    Add-Check -Name 'Gradle-evaluated project model matches the approved topology and mapping' -Passed $evaluatedTopologyCorrect -Evidence "Gradle exit $gradleProjectExit; projects $($evaluatedProjects.Count); synthetic mapping $evaluatedSyntheticMapping; trial mapping $evaluatedTrialMapping"
 
     $wrapperProperties = Read-Text 'gradle/wrapper/gradle-wrapper.properties'
     $wrapperJarPath = Join-Path $repoRoot 'gradle/wrapper/gradle-wrapper.jar'
@@ -1245,7 +1254,8 @@ try {
 
     $projectionFiles = @(
         'config/onboarding/generated/gurbakir/development.properties',
-        'config/onboarding/generated/gurbakir/staging.properties'
+        'config/onboarding/generated/gurbakir/staging.properties',
+        'config/onboarding/generated/trial/development.properties'
     )
     $projectionsContainNoClientValues = $projectionFiles | ForEach-Object { Read-Text $_ } | Where-Object {
         $_ -match '(?m)^shopify\.storefrontPublicToken=' -or $_ -match '(?m)^shopify\.customerAccountClientId='
@@ -1255,10 +1265,10 @@ try {
         -Evidence 'profile projections contain selectors and identities but no Storefront token or Customer client ID'
 
     $providerControlRecords = @(
-        foreach ($relativeRoot in @('foundation/src', 'app/src', 'apps/synthetic/src')) {
+        foreach ($relativeRoot in @('foundation/src', 'app/src', 'apps/synthetic/src', 'apps/trial/src')) {
             Get-ProductionSourceRecords $repoRoot $relativeRoot
         }
-        foreach ($relativePath in @('app/build.gradle.kts', 'config/onboarding/application-registry.v1.json')) {
+        foreach ($relativePath in @('app/build.gradle.kts', 'apps/trial/build.gradle.kts', 'config/onboarding/application-registry.v1.json')) {
             $text = Read-Text $relativePath
             if ($null -ne $text) {
                 [pscustomobject]@{ path = $relativePath; text = $text }

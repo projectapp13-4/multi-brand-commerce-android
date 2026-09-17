@@ -110,6 +110,19 @@
         "api30": [":synthetic:ciApi30DebugAndroidTest"],
         "api23": [":synthetic:ciApi23DebugAndroidTest"]
       }
+    },
+    {
+      "key": "trial",
+      "gradleProject": ":trial",
+      "directory": "apps/trial",
+      "role": "real-brand-application",
+      "allowedDirectProjects": [":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase"],
+      "ciTasks": {
+        "unit": [":trial:testDevelopmentDebugUnitTest"],
+        "assemble": [":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest"],
+        "api30": [":trial:ciApi30DevelopmentDebugAndroidTest"],
+        "api23": [":trial:ciApi23DevelopmentDebugAndroidTest"]
+      }
     }
   ],
   "applications": [
@@ -406,12 +419,144 @@
           }
         }
       ]
+    },
+    {
+      "key": "trial",
+      "module": ":trial",
+      "role": "real-brand-application",
+      "fixtureOnly": false,
+      "releaseBoundary": "nonproduction-only",
+      "providerModules": [":firebase"],
+      "configurationProjection": "config/onboarding/generated/trial",
+      "identity": {
+        "displayName": "Multi Brand Trial",
+        "analyticsNamespace": "multi_brand_trial",
+        "compositionSource": "apps/trial/src/main/kotlin/com/projectapp134/multibrandtrial/config/TrialConfiguration.kt",
+        "brandKey": "multi-brand-trial",
+        "defaultLocale": "tr",
+        "supportedLocales": ["tr", "en"],
+        "market": {
+          "id": "TR",
+          "countryCode": "TR",
+          "currencyCode": "TRY"
+        },
+        "supportedTerritory": "TR",
+        "searchNormalizationLocale": "tr-TR",
+        "databaseName": "trial-store-local.db",
+        "customerAccount": {
+          "mode": "enabled",
+          "userAgent": "MultiBrandTrial-Android",
+          "callbackSchemeSuffix": "multibrandtrial",
+          "callbackHost": "oauth",
+          "callbackPath": "/callback",
+          "scopes": ["openid", "email", "customer-account-api:full"]
+        },
+        "webRoles": {
+          "collectionAppLink": {
+            "origin": "https://multi-brand-trial-store.myshopify.com",
+            "pathPrefix": "/collections/"
+          },
+          "productAppLink": {
+            "origin": "https://multi-brand-trial-store.myshopify.com",
+            "pathPrefix": "/products/"
+          },
+          "orderAppLink": {
+            "origin": "https://multi-brand-trial-store.myshopify.com",
+            "pathPrefix": "/apps/mobile/orders/"
+          },
+          "legalSupport": {
+            "origin": "https://multi-brand-trial-store.myshopify.com",
+            "paths": {
+              "support": "/setup-required/support",
+              "privacy": "/setup-required/privacy",
+              "terms": "/setup-required/terms",
+              "shipping": "/setup-required/shipping",
+              "returns": "/setup-required/returns",
+              "legalNotice": "/setup-required/legal-notice"
+            }
+          },
+          "checkout": {
+            "hostPolicy": "storefront-origin-only"
+          },
+          "assetLinks": {
+            "mode": "validate-only",
+            "manifestAutoVerify": false
+          }
+        },
+        "nativeCompositionAssertions": {
+          "search": "ENABLED",
+          "wishlist": "ENABLED",
+          "customerAccount": "ENABLED",
+          "primaryNavigation": ["HOME", "CATEGORIES", "SEARCH", "WISHLIST", "ACCOUNT"]
+        }
+      },
+      "profiles": [
+        {
+          "key": "development",
+          "runtimeEnvironment": "DEVELOPMENT",
+          "displayName": "Multi Brand Trial",
+          "localConfiguration": "config/local/trial/development.properties",
+          "providerBindingFile": "config/local/trial/development.providers.json",
+          "variants": [
+            {
+              "name": "developmentDebug",
+              "buildType": "debug",
+              "applicationId": "com.projectapp134.multibrandtrial.dev.debug",
+              "firebaseConfig": "apps/trial/src/developmentDebug/google-services.json"
+            },
+            {
+              "name": "developmentRelease",
+              "buildType": "release",
+              "applicationId": "com.projectapp134.multibrandtrial.dev",
+              "firebaseConfig": "apps/trial/src/developmentRelease/google-services.json"
+            }
+          ],
+          "storefront": {
+            "mode": "enabled",
+            "domain": "multi-brand-trial-store.myshopify.com",
+            "apiVersion": "2026-07",
+            "publicTokenLocalKey": "shopify.storefrontPublicToken",
+            "mediaOrigins": ["multi-brand-trial-store.myshopify.com"],
+            "sharedResourceGroup": "multi-brand-trial-store",
+            "catalog": {
+              "menuHandle": "main-menu",
+              "managementMode": "validate-only"
+            },
+            "home": {
+              "rootType": "mobile_home",
+              "rootHandle": "primary",
+              "contentSchemaVersion": 1,
+              "definitionContract": "gate7-v1",
+              "definitionManagementMode": "create-if-missing",
+              "entryManagementMode": "validate-only",
+              "sourceMode": "shopify-metaobject"
+            }
+          },
+          "customerAccount": {
+            "mode": "enabled-manual-registration",
+            "discoveryOrigin": "https://multi-brand-trial-store.myshopify.com",
+            "clientIdLocalKey": "shopify.customerAccountClientId"
+          },
+          "firebase": {
+            "mode": "firebase-or-local-default",
+            "ownershipKey": "multi-brand-trial-development",
+            "registrationManagementMode": "validate-only",
+            "projectIdentitySource": "provider-binding"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "trial_secure_cart_development",
+            "cartKeyAlias": "trial.cart.development.v1",
+            "customerPreferences": "trial_secure_customer_session_development",
+            "customerKeyAlias": "trial.customer.session.development.v1"
+          }
+        }
+      ]
     }
   ],
   "ciLanes": {
-    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest"],
-    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest"],
-    "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest"],
-    "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest"]
+    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest", ":trial:testDevelopmentDebugUnitTest"],
+    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest", ":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest"],
+    "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest", ":trial:ciApi30DevelopmentDebugAndroidTest"],
+    "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest", ":trial:ciApi23DevelopmentDebugAndroidTest"]
   }
 }

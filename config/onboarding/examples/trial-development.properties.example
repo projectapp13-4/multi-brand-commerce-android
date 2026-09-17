@@ -1,0 +1,8 @@
+shopify.storefrontPublicToken=
+shopify.customerAccountClientId=
+shopify.customerAccountIssuer=
+shopify.customerAccountAuthorizationEndpoint=
+shopify.customerAccountTokenEndpoint=
+shopify.customerAccountLogoutEndpoint=
+shopify.customerAccountGraphqlEndpoint=
+shopify.customerAccountRedirectUri=shop.61252272257.multibrandtrial://oauth/callback

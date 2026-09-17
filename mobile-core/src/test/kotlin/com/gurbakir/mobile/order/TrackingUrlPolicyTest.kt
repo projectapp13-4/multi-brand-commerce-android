@@ -31,4 +31,12 @@ class TrackingUrlPolicyTest {
         assertFalse(policy.isAllowed("https://tracking.example/TRACK-1"))
         assertFalse(policy.isAllowed("https://www.shipping.example/takip?code=${"x".repeat(2100)}"))
     }
+
+    @Test
+    fun `deny all policy rejects otherwise valid carrier URLs`() {
+        val denyAll = TrackingUrlPolicy.denyAll()
+
+        assertFalse(denyAll.isAllowed("https://carrier.example/tracking/AA123"))
+        assertFalse(denyAll.isAllowed("https://sub.carrier.example/tracking/AA123"))
+    }
 }

@@ -20,6 +20,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 include(
     ":app",
     ":synthetic",
+    ":trial",
     ":mobile-core",
     ":foundation",
     ":storefront",
@@ -29,3 +30,4 @@ include(
 )
 
 project(":synthetic").projectDir = file("apps/synthetic")
+project(":trial").projectDir = file("apps/trial")
