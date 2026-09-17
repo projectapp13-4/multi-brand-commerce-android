@@ -43,7 +43,8 @@
                 "poster": null,
                 "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "First revision" },
                 "caption": null,
-                "target": null
+                "productTarget": null,
+                "collectionTarget": null
               }
             ],
             "pageInfo": { "hasNextPage": false }
@@ -96,7 +97,8 @@
                 "poster": null,
                 "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Second revision" },
                 "caption": null,
-                "target": null
+                "productTarget": null,
+                "collectionTarget": null
               }
             ],
             "pageInfo": { "hasNextPage": false }

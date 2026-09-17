@@ -45,7 +45,8 @@
               "poster": null,
               "altText": null,
               "caption": null,
-              "target": null
+              "productTarget": null,
+              "collectionTarget": null
             }
           ],
           "pageInfo": { "hasNextPage": false }

@@ -82,10 +82,16 @@
           "validations": {}
         },
         {
-          "key": "target",
-          "type": "mixed_reference",
+          "key": "product_target",
+          "type": "product_reference",
           "required": false,
-          "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] }
+          "validations": {}
+        },
+        {
+          "key": "collection_target",
+          "type": "collection_reference",
+          "required": false,
+          "validations": {}
         }
       ]
     },
@@ -124,10 +130,16 @@
           "validations": {}
         },
         {
-          "key": "target",
-          "type": "mixed_reference",
+          "key": "product_target",
+          "type": "product_reference",
           "required": false,
-          "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] }
+          "validations": {}
+        },
+        {
+          "key": "collection_target",
+          "type": "collection_reference",
+          "required": false,
+          "validations": {}
         }
       ]
     },

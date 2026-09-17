@@ -44,7 +44,8 @@
                 "poster": null,
                 "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Before" },
                 "caption": null,
-                "target": null
+                "productTarget": null,
+                "collectionTarget": null
               }
             ],
             "pageInfo": { "hasNextPage": false }
@@ -97,7 +98,8 @@
                 "poster": null,
                 "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "After" },
                 "caption": null,
-                "target": null
+                "productTarget": null,
+                "collectionTarget": null
               }
             ],
             "pageInfo": { "hasNextPage": false }

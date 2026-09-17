@@ -42,7 +42,18 @@
               "poster": null,
               "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "A shared meal" },
               "caption": null,
-              "target": null
+              "productTarget": null,
+              "collectionTarget": {
+                "key": "collection_target",
+                "type": "collection_reference",
+                "value": "gid://shopify/Collection/706",
+                "reference": {
+                  "__typename": "Collection",
+                  "id": "gid://shopify/Collection/706",
+                  "handle": "tableware",
+                  "title": "Tableware"
+                }
+              }
             },
             {
               "__typename": "Metaobject",
@@ -73,7 +84,8 @@
               "poster": null,
               "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Not a video" },
               "caption": null,
-              "target": null
+              "productTarget": null,
+              "collectionTarget": null
             }
           ],
           "pageInfo": { "hasNextPage": false }

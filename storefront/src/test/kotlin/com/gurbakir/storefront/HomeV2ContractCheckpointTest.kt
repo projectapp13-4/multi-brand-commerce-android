@@ -11,7 +11,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -63,7 +65,8 @@ class HomeV2ContractCheckpointTest {
                         { "key": "media", "type": "file_reference", "required": true, "validations": { "fileTypes": ["IMAGE"] } },
                         { "key": "alt_text", "type": "single_line_text_field", "required": true, "validations": {} },
                         { "key": "caption", "type": "multi_line_text_field", "required": false, "validations": {} },
-                        { "key": "target", "type": "mixed_reference", "required": false, "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] } }
+                        { "key": "product_target", "type": "product_reference", "required": false, "validations": {} },
+                        { "key": "collection_target", "type": "collection_reference", "required": false, "validations": {} }
                       ]
                     },
                     {
@@ -75,7 +78,8 @@ class HomeV2ContractCheckpointTest {
                         { "key": "poster", "type": "file_reference", "required": false, "validations": { "fileTypes": ["IMAGE"] } },
                         { "key": "alt_text", "type": "single_line_text_field", "required": true, "validations": {} },
                         { "key": "caption", "type": "multi_line_text_field", "required": false, "validations": {} },
-                        { "key": "target", "type": "mixed_reference", "required": false, "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] } }
+                        { "key": "product_target", "type": "product_reference", "required": false, "validations": {} },
+                        { "key": "collection_target", "type": "collection_reference", "required": false, "validations": {} }
                       ]
                     },
                     {
@@ -119,9 +123,19 @@ class HomeV2ContractCheckpointTest {
                 "... on Metaobject {\n            id\n            handle\n            type\n            updatedAt"
             )
         )
-        listOf("title", "presentation", "media", "poster", "alt_text", "caption", "target").forEach { key ->
+        listOf(
+            "title",
+            "presentation",
+            "media",
+            "poster",
+            "alt_text",
+            "caption",
+            "product_target",
+            "collection_target"
+        ).forEach { key ->
             assertTrue(operation.contains("field(key: \"$key\")"), "root operation must request $key")
         }
+        assertFalse(operation.contains("field(key: \"target\")"))
         assertTrue(operation.contains("... on MediaImage"))
         assertTrue(operation.contains("... on Video"))
         assertTrue(operation.contains("sources {"))
@@ -142,6 +156,7 @@ class HomeV2ContractCheckpointTest {
     fun `fixture drift cannot erase the hand derived result matrix`() {
         val expected =
             linkedMapOf(
+                "both-targets-populated.json" to "NONE_RENDERABLE",
                 "intentional-empty.json" to "INTENTIONAL_EMPTY",
                 "none-renderable.json" to "NONE_RENDERABLE",
                 "optional-unresolved-target.json" to "ACCEPTED",
@@ -202,11 +217,7 @@ class HomeV2ContractCheckpointTest {
     fun `manifest rejects missing extra or modified checkpoint files`() {
         val manifest = readJson(MANIFEST)
         val files = manifest.arrayAt("checkpointFiles")
-        val entries =
-            files.associate { entry ->
-                val value = entry.jsonObject
-                value.stringAt("path") to value.stringAt("sha256")
-            }
+        val entries = checkpointEntries(files)
         val expectedPaths =
             buildSet {
                 add("config/onboarding/shopify-home-schema.v2.json")
@@ -222,6 +233,19 @@ class HomeV2ContractCheckpointTest {
         assertEquals("pilot-media-v2", manifest.objectAt("contract").stringAt("id"))
         assertEquals("2026-07", manifest.stringAt("storefrontApiVersion"))
         assertEquals(14, manifest.objectAt("contract").intAt("resourceHydrationMaximumUniqueIds"))
+    }
+
+    @Test
+    fun `manifest duplicate checkpoint paths cannot collapse before hash checks`() {
+        val files = readJson(MANIFEST).arrayAt("checkpointFiles")
+        val duplicate = JsonArray(files + files.first() + files[1])
+
+        val failure =
+            assertThrows(IllegalStateException::class.java) {
+                checkpointEntries(duplicate)
+            }
+
+        assertTrue(failure.message.orEmpty().contains("Duplicate checkpoint path"))
     }
 
     @Test
@@ -301,14 +325,16 @@ class HomeV2ContractCheckpointTest {
                 ) &&
                 fieldIsPresent(section, "media", "media", "file_reference") &&
                 fieldIsPresent(section, "altText", "alt_text", "single_line_text_field") &&
-                referenceHasType(section.objectAt("media"), "MediaImage")
+                referenceHasType(section.objectAt("media"), "MediaImage") &&
+                optionalTargetsAreValid(section)
 
         "mobile_home_video_v1" ->
             fieldIsPresent(section, "title", "title", "single_line_text_field") &&
                 fieldIsPresent(section, "media", "media", "file_reference") &&
                 fieldIsPresent(section, "altText", "alt_text", "single_line_text_field") &&
                 referenceHasType(section.objectAt("media"), "Video") &&
-                optionalReferenceHasType(section["poster"], "MediaImage")
+                optionalReferenceHasType(section["poster"], "MediaImage") &&
+                optionalTargetsAreValid(section)
 
         else -> false
     }
@@ -351,6 +377,34 @@ class HomeV2ContractCheckpointTest {
         return reference.stringAt("__typename") == expectedType
     }
 
+    private fun optionalTargetsAreValid(section: JsonObject): Boolean {
+        val productTarget = section["productTarget"]
+        val collectionTarget = section["collectionTarget"]
+        if (!optionalTargetIsValid(productTarget, "product_target", "product_reference", "Product")) return false
+        if (!optionalTargetIsValid(collectionTarget, "collection_target", "collection_reference", "Collection")) {
+            return false
+        }
+        return !(optionalTargetIsPopulated(productTarget) && optionalTargetIsPopulated(collectionTarget))
+    }
+
+    private fun optionalTargetIsValid(
+        element: JsonElement?,
+        expectedKey: String,
+        expectedFieldType: String,
+        expectedRuntimeType: String
+    ): Boolean {
+        if (element == null) return false
+        if (element is JsonNull) return true
+        val field = element.jsonObject
+        if (field.stringAt("key") != expectedKey || field.stringAt("type") != expectedFieldType) return false
+        if (field.stringAt("value").isBlank()) return false
+        val reference = field.nullableObjectAt("reference") ?: return true
+        return reference.stringAt("__typename") == expectedRuntimeType
+    }
+
+    private fun optionalTargetIsPopulated(element: JsonElement?): Boolean =
+        element != null && element !is JsonNull && element.jsonObject.stringAt("value").isNotBlank()
+
     private fun firstChild(root: JsonObject): JsonObject =
         root.objectAt("sections").objectAt("references").arrayAt("nodes").single().jsonObject
 
@@ -358,6 +412,18 @@ class HomeV2ContractCheckpointTest {
         val media = firstChild(root).objectAt("media").objectAt("reference")
         val image = media.objectAt("image")
         return media.stringAt("id") to image.stringAt("url")
+    }
+
+    private fun checkpointEntries(files: JsonArray): Map<String, String> {
+        val entries =
+            files.map { entry ->
+                val value = entry.jsonObject
+                value.stringAt("path") to value.stringAt("sha256")
+            }
+        val duplicatePath = entries.groupingBy { it.first }.eachCount().entries.firstOrNull { it.value > 1 }?.key
+        check(duplicatePath == null) { "Duplicate checkpoint path: $duplicatePath" }
+        check(entries.map { it.first }.toSet().size == entries.size) { "Checkpoint paths must be unique" }
+        return entries.associate { it }
     }
 
     private fun readJson(relativePath: String): JsonObject = json.parseToJsonElement(readText(relativePath)).jsonObject

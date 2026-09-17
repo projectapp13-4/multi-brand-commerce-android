@@ -42,12 +42,13 @@
               "poster": null,
               "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Copper cookware on a linen table" },
               "caption": { "key": "caption", "type": "multi_line_text_field", "value": "Built for long dinners." },
-              "target": {
-                "key": "target",
-                "type": "mixed_reference",
+              "productTarget": {
+                "key": "product_target",
+                "type": "product_reference",
                 "value": "gid://shopify/Product/701",
                 "reference": null
-              }
+              },
+              "collectionTarget": null
             }
           ],
           "pageInfo": { "hasNextPage": false }

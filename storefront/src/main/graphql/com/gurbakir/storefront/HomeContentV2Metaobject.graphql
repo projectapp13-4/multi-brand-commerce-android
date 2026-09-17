@@ -168,18 +168,26 @@ query HomeContentV2Metaobject($handle: MetaobjectHandleInput!) {
               type
               value
             }
-            target: field(key: "target") {
+            productTarget: field(key: "product_target") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on Product {
+                  id
+                  handle
+                  title
+                }
+              }
+            }
+            collectionTarget: field(key: "collection_target") {
               key
               type
               value
               reference {
                 __typename
                 ... on Collection {
-                  id
-                  handle
-                  title
-                }
-                ... on Product {
                   id
                   handle
                   title
