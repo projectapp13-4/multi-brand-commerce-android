@@ -403,11 +403,14 @@ function Assert-OnboardingProfile {
                     throw (New-OnboardingContractError -Code 'MISSING_FIELD' -Field "$field.storefront.home.$required")
                 }
             }
-            if ([string]$Profile.storefront.home.rootType -cne 'mobile_home' -or
+            $homeRootType = [string]$Profile.storefront.home.rootType
+            $homeContentSchemaVersion = Assert-OnboardingJsonInteger `
+                -Value $Profile.storefront.home.contentSchemaVersion `
+                -Field "$field.storefront.home.contentSchemaVersion"
+            $homeDefinitionContract = [string]$Profile.storefront.home.definitionContract
+            $homeTuple = "$homeRootType|$homeContentSchemaVersion|$homeDefinitionContract"
+            if ($homeTuple -cnotin @('mobile_home|1|gate7-v1', 'mobile_home_v2|2|pilot-media-v2') -or
                 [string]$Profile.storefront.home.rootHandle -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$' -or
-                (Assert-OnboardingJsonInteger -Value $Profile.storefront.home.contentSchemaVersion -Field "$field.storefront.home.contentSchemaVersion") -ne
-                    (Assert-OnboardingJsonInteger -Value $ProviderContracts.gate7HomeContentSchemaVersion -Field 'providerContracts.gate7HomeContentSchemaVersion') -or
-                [string]$Profile.storefront.home.definitionContract -cne 'gate7-v1' -or
                 [string]$Profile.storefront.home.definitionManagementMode -cne 'create-if-missing' -or
                 [string]$Profile.storefront.home.entryManagementMode -cne 'validate-only' -or
                 [string]$Profile.storefront.home.sourceMode -cne 'shopify-metaobject') {
@@ -1057,6 +1060,7 @@ function Get-OnboardingProjectionLines {
         Add-OnboardingProjectionLine $lines 'shopify.homeRootType' ([string]$profile.storefront.home.rootType)
         Add-OnboardingProjectionLine $lines 'shopify.homeRootHandle' ([string]$profile.storefront.home.rootHandle)
         Add-OnboardingProjectionLine $lines 'shopify.homeContentSchemaVersion' ([string]$profile.storefront.home.contentSchemaVersion)
+        Add-OnboardingProjectionLine $lines 'shopify.homeDefinitionContract' ([string]$profile.storefront.home.definitionContract)
     }
     Add-OnboardingProjectionLine $lines 'firebase.mode' ([string]$profile.firebase.mode)
     if ([string]$profile.firebase.mode -cne 'disabled') {

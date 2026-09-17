@@ -670,7 +670,10 @@ function Test-CatalogDiscoveryOwnership {
         @($expectedHomePairs | ForEach-Object { ($_ -split '\|', 2)[1] } | Where-Object {
             $HomeResourceText -notmatch [regex]::Escape($_)
         }).Count -eq 0
-    $homeRemoteOwnership = $HomeConfigurationText -match '(?s)BuildConfig\.HOME_CONTENT_ROOT_HANDLE\.takeIf\(String::isNotBlank\)\?\.let\s*\{\s*handle\s*->\s*HomeRemoteSource\.ShopifyMetaobject\s*\(\s*HomeDocumentSelector\("mobile_home",\s*handle\)\s*\)\s*\}\s*\?:\s*HomeRemoteSource\.Disabled\b' -and
+    $homeRemoteOwnership = $HomeConfigurationText -match 'BuildConfig\.HOME_CONTENT_ROOT_HANDLE\.takeIf\(String::isNotBlank\)' -and
+        $HomeConfigurationText -match '(?s)HomeContentContractId\.fromTuple\s*\(\s*BuildConfig\.HOME_CONTENT_ROOT_TYPE\s*,\s*BuildConfig\.HOME_CONTENT_SCHEMA_VERSION\s*,\s*BuildConfig\.HOME_DEFINITION_CONTRACT\s*\)' -and
+        $HomeConfigurationText -match '(?s)HomeRemoteSource\.ShopifyMetaobject\s*\(\s*HomeDocumentSelector\(BuildConfig\.HOME_CONTENT_ROOT_TYPE,\s*handle\)\s*,\s*contractId\s*\)' -and
+        $HomeConfigurationText -match '\?:\s*HomeRemoteSource\.Disabled\b' -and
         $HomeConfigurationText -match 'HomePackagedFallback'
 
     return $catalogContract -and
@@ -890,7 +893,15 @@ fragment CatalogDiscoveryLevel3 on MenuItem { ...CatalogDiscoveryItemFields item
             ImageFragmentText = 'fragment HomeImageFields on Image { url altText width height }'
             HomeConfigurationText = @'
 val source = BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
-  HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", handle))
+  val contractId = HomeContentContractId.fromTuple(
+    BuildConfig.HOME_CONTENT_ROOT_TYPE,
+    BuildConfig.HOME_CONTENT_SCHEMA_VERSION,
+    BuildConfig.HOME_DEFINITION_CONTRACT
+  )
+  HomeRemoteSource.ShopifyMetaobject(
+    HomeDocumentSelector(BuildConfig.HOME_CONTENT_ROOT_TYPE, handle),
+    contractId
+  )
 } ?: HomeRemoteSource.Disabled
 val fallback = HomePackagedFallback(
 HomeCollectionSource("HOME_RANGE_DRINKWARE", "bardaklar", R.string.home_collection_drinkware)

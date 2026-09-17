@@ -5,6 +5,7 @@ import com.gurbakir.foundation.config.CustomerAccountCapability
 import com.gurbakir.foundation.config.MarketConfiguration
 import com.gurbakir.foundation.config.PrimaryNavigationDestination
 import com.gurbakir.mobile.home.HomeRemoteSource
+import com.gurbakir.storefront.HomeContentContractId
 import com.projectapp134.multibrandtrial.config.TrialConfiguration
 import com.projectapp134.multibrandtrial.legal.TrialLegalRole
 import com.projectapp134.multibrandtrial.legal.TrialLegalState
@@ -67,12 +68,12 @@ class TrialConfigurationTest {
     }
 
     @Test
-    fun `Trial keeps Home v1 and owns only pilot fallbacks`() {
+    fun `Trial selects Home v2 and owns only pilot fallbacks`() {
         val home = TrialConfiguration.home
         val remote = assertInstanceOf(HomeRemoteSource.ShopifyMetaobject::class.java, home.remoteSource)
 
-        assertEquals("mobile_home", remote.selector.type)
-        assertEquals(1, remote.supportedContentVersion)
+        assertEquals("mobile_home_v2", remote.selector.type)
+        assertEquals(HomeContentContractId.PILOT_MEDIA_V2, remote.contractId)
         assertEquals(listOf("pilot-koleksiyonu"), home.packagedFallback.productRange.sources.map { it.handle })
         assertEquals("pilot-urun", home.packagedFallback.featuredProduct.handle)
         assertEquals("main-menu", TrialConfiguration.catalog.menuHandle)

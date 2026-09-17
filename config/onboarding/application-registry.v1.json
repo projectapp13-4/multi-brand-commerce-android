@@ -523,10 +523,10 @@
               "managementMode": "validate-only"
             },
             "home": {
-              "rootType": "mobile_home",
+              "rootType": "mobile_home_v2",
               "rootHandle": "primary",
-              "contentSchemaVersion": 1,
-              "definitionContract": "gate7-v1",
+              "contentSchemaVersion": 2,
+              "definitionContract": "pilot-media-v2",
               "definitionManagementMode": "create-if-missing",
               "entryManagementMode": "validate-only",
               "sourceMode": "shopify-metaobject"

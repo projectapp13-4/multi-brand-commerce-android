@@ -2,6 +2,7 @@ package com.gurbakir.mobile.home
 
 import com.gurbakir.mobile.BuildConfig
 import com.gurbakir.mobile.R
+import com.gurbakir.storefront.HomeContentContractId
 import com.gurbakir.storefront.HomeDocumentSelector
 
 internal object GurbakirHomeConfiguration {
@@ -9,7 +10,16 @@ internal object GurbakirHomeConfiguration {
         HomeConfiguration(
             remoteSource =
                 BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
-                    HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", handle))
+                    val contractId =
+                        HomeContentContractId.fromTuple(
+                            BuildConfig.HOME_CONTENT_ROOT_TYPE,
+                            BuildConfig.HOME_CONTENT_SCHEMA_VERSION,
+                            BuildConfig.HOME_DEFINITION_CONTRACT
+                        )
+                    HomeRemoteSource.ShopifyMetaobject(
+                        HomeDocumentSelector(BuildConfig.HOME_CONTENT_ROOT_TYPE, handle),
+                        contractId
+                    )
                 } ?: HomeRemoteSource.Disabled,
             packagedFallback =
                 HomePackagedFallback(

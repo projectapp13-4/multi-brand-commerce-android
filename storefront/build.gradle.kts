@@ -105,6 +105,7 @@ val projectionKeyInventory = setOf(
     "web.checkoutHostPolicy", "web.assetLinksMode", "web.manifestAutoVerify", "shopify.storefrontMode",
     "shopify.storefrontDomain", "shopify.storefrontApiVersion", "shopify.storefrontMediaOrigins",
     "shopify.catalogMenuHandle", "shopify.homeRootType", "shopify.homeRootHandle", "shopify.homeContentSchemaVersion",
+    "shopify.homeDefinitionContract",
     "firebase.mode", "firebase.ownershipKey", "firebase.configPath.debug", "firebase.configPath.release"
 )
 fun readCanonicalUtf8(path: String, allowedKeys: Set<String>, allowAbsent: Boolean = false): Properties {
@@ -161,6 +162,21 @@ val storefrontDomain = selectedProjection?.getProperty("shopify.storefrontDomain
 val storefrontApiVersion = selectedProjection?.getProperty("shopify.storefrontApiVersion", "")?.trim().orEmpty()
 val storefrontPublicToken = selectedLocal?.getProperty("shopify.storefrontPublicToken", "")?.trim().orEmpty()
 if (selectedProjection != null) {
+    val homeContractTuple =
+        Triple(
+            selectedProjection.getProperty("shopify.homeRootType"),
+            selectedProjection.getProperty("shopify.homeContentSchemaVersion"),
+            selectedProjection.getProperty("shopify.homeDefinitionContract")
+        )
+    check(
+        homeContractTuple in
+            setOf(
+                Triple("mobile_home", "1", "gate7-v1"),
+                Triple("mobile_home_v2", "2", "pilot-media-v2")
+            )
+    ) {
+        "HOME_CONTRACT_MISMATCH"
+    }
     check(
         selectedProjection.getProperty("onboarding.schemaVersion") == "1" &&
             selectedProjection.getProperty("onboarding.sourceRegistrySha256") == registryDigest &&

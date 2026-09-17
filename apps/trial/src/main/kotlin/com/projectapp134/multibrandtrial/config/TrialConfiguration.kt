@@ -29,6 +29,7 @@ import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.search.SearchHistoryNormalizationPolicy
 import com.gurbakir.mobile.search.SearchHistoryPartition
 import com.gurbakir.mobile.wishlist.WishlistPartition
+import com.gurbakir.storefront.HomeContentContractId
 import com.gurbakir.storefront.HomeDocumentSelector
 import com.projectapp134.multibrandtrial.BuildConfig
 import com.projectapp134.multibrandtrial.R
@@ -112,8 +113,17 @@ internal object TrialConfiguration {
         HomeConfiguration(
             remoteSource =
                 HomeRemoteSource.ShopifyMetaobject(
-                    selector = HomeDocumentSelector("mobile_home", BuildConfig.HOME_CONTENT_ROOT_HANDLE),
-                    supportedContentVersion = 1
+                    selector =
+                        HomeDocumentSelector(
+                            BuildConfig.HOME_CONTENT_ROOT_TYPE,
+                            BuildConfig.HOME_CONTENT_ROOT_HANDLE
+                        ),
+                    contractId =
+                        HomeContentContractId.fromTuple(
+                            BuildConfig.HOME_CONTENT_ROOT_TYPE,
+                            BuildConfig.HOME_CONTENT_SCHEMA_VERSION,
+                            BuildConfig.HOME_DEFINITION_CONTRACT
+                        )
                 ),
             packagedFallback =
                 HomePackagedFallback(

@@ -25,6 +25,7 @@ class OwnedOnboardingConfigurationTest {
             assertEquals("future.invalid", configuration.storefront.domain)
             assertEquals("future-menu", configuration.menuHandle)
             assertEquals("future-home", configuration.homeHandle)
+            assertEquals(HomeContentContractId.GATE7_V1, configuration.homeContractId)
         }
     }
 
@@ -77,6 +78,8 @@ class OwnedOnboardingConfigurationTest {
         shopify.catalogMenuHandle=future-menu
         shopify.homeRootType=mobile_home
         shopify.homeRootHandle=future-home
+        shopify.homeContentSchemaVersion=1
+        shopify.homeDefinitionContract=gate7-v1
         """.trimIndent() + "\n"
 
     private fun withOnboardingProperties(projection: File, local: File, block: () -> Unit) {

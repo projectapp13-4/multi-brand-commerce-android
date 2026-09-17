@@ -12,7 +12,8 @@ internal data class OwnedOnboardingConfiguration(
     val storefront: StorefrontConfiguration,
     val menuHandle: String,
     val homeType: String,
-    val homeHandle: String
+    val homeHandle: String,
+    val homeContractId: HomeContentContractId
 )
 
 private val projectionKeys =
@@ -70,6 +71,7 @@ private val projectionKeys =
         "shopify.homeRootType",
         "shopify.homeRootHandle",
         "shopify.homeContentSchemaVersion",
+        "shopify.homeDefinitionContract",
         "firebase.mode",
         "firebase.ownershipKey",
         "firebase.configPath.debug",
@@ -164,6 +166,16 @@ internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
     )
     require(projection["onboarding.application"] == application)
     require(projection["onboarding.profile"] == profile)
+    val homeType = projection.getValue("shopify.homeRootType")
+    val homeContentVersion =
+        projection.getValue("shopify.homeContentSchemaVersion").toIntOrNull()
+            ?: throw IllegalArgumentException("HOME_CONTRACT_MISMATCH")
+    val homeContractId =
+        HomeContentContractId.fromTuple(
+            homeType,
+            homeContentVersion,
+            projection.getValue("shopify.homeDefinitionContract")
+        )
     return OwnedOnboardingConfiguration(
         storefront = StorefrontConfiguration(
             domain = projection.getValue("shopify.storefrontDomain"),
@@ -171,7 +183,8 @@ internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
             publicToken = ControlledPublicToken.from(local["shopify.storefrontPublicToken"].orEmpty())
         ),
         menuHandle = projection.getValue("shopify.catalogMenuHandle"),
-        homeType = projection.getValue("shopify.homeRootType"),
-        homeHandle = projection.getValue("shopify.homeRootHandle")
+        homeType = homeType,
+        homeHandle = projection.getValue("shopify.homeRootHandle"),
+        homeContractId = homeContractId
     )
 }

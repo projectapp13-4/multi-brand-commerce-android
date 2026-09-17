@@ -2,6 +2,20 @@ package com.gurbakir.storefront
 
 data class HomeDocumentSelector(val type: String, val handle: String)
 
+enum class HomeContentContractId(val rootType: String, val contentVersion: Int, val wireId: String) {
+    GATE7_V1("mobile_home", 1, "gate7-v1"),
+    PILOT_MEDIA_V2("mobile_home_v2", 2, "pilot-media-v2");
+
+    fun accepts(selector: HomeDocumentSelector): Boolean = selector.type == rootType
+
+    companion object {
+        fun fromTuple(rootType: String, contentVersion: Int, wireId: String): HomeContentContractId =
+            entries.singleOrNull {
+                it.rootType == rootType && it.contentVersion == contentVersion && it.wireId == wireId
+            } ?: throw IllegalArgumentException("HOME_CONTRACT_MISMATCH")
+    }
+}
+
 enum class HomeResourceKind {
     COLLECTION,
     PRODUCT

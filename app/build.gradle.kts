@@ -78,6 +78,7 @@ val projectionKeys =
         "shopify.homeRootType",
         "shopify.homeRootHandle",
         "shopify.homeContentSchemaVersion",
+        "shopify.homeDefinitionContract",
         "firebase.mode",
         "firebase.ownershipKey",
         "firebase.configPath.debug",
@@ -214,6 +215,15 @@ fun ApplicationProductFlavor.configureOnboarding(profile: OnboardingProfileInput
     }
     applicationId = releaseApplicationId
     fun field(name: String, value: String) = buildConfigField("String", name, value.asBuildConfigString())
+    check(
+        Triple(
+            profile.projectionValue("shopify.homeRootType"),
+            profile.projectionValue("shopify.homeContentSchemaVersion"),
+            profile.projectionValue("shopify.homeDefinitionContract")
+        ) == Triple("mobile_home", "1", "gate7-v1")
+    ) {
+        "HOME_CONTRACT_MISMATCH"
+    }
     field("ENVIRONMENT_ID", profile.projectionValue("app.environmentId"))
     field("BRAND_KEY", profile.projectionValue("app.brandKey"))
     field("BRAND_DISPLAY_NAME", profile.projectionValue("app.brandDisplayName"))
@@ -234,7 +244,14 @@ fun ApplicationProductFlavor.configureOnboarding(profile: OnboardingProfileInput
     field("STOREFRONT_API_VERSION", profile.projectionValue("shopify.storefrontApiVersion"))
     field("STOREFRONT_PUBLIC_TOKEN", profile.localValue("shopify.storefrontPublicToken"))
     field("CATALOG_MENU_HANDLE", profile.projectionValue("shopify.catalogMenuHandle"))
+    field("HOME_CONTENT_ROOT_TYPE", profile.projectionValue("shopify.homeRootType"))
     field("HOME_CONTENT_ROOT_HANDLE", profile.projectionValue("shopify.homeRootHandle"))
+    buildConfigField(
+        "int",
+        "HOME_CONTENT_SCHEMA_VERSION",
+        profile.projectionValue("shopify.homeContentSchemaVersion")
+    )
+    field("HOME_DEFINITION_CONTRACT", profile.projectionValue("shopify.homeDefinitionContract"))
     field("CUSTOMER_ACCOUNT_CLIENT_ID", profile.localValue("shopify.customerAccountClientId"))
     field("CUSTOMER_ACCOUNT_ISSUER", profile.localValue("shopify.customerAccountIssuer"))
     field("CUSTOMER_ACCOUNT_AUTH_ENDPOINT", profile.localValue("shopify.customerAccountAuthorizationEndpoint"))

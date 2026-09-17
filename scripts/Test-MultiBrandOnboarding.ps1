@@ -166,11 +166,11 @@ function Invoke-RegistrySuite {
             [string]$trial.Profile.storefront.domain -ceq 'multi-brand-trial-store.myshopify.com' -and
             [string]$trial.Profile.storefront.apiVersion -ceq '2026-07' -and
             [string]$trial.Profile.storefront.catalog.menuHandle -ceq 'main-menu' -and
-            [string]$trial.Profile.storefront.home.rootType -ceq 'mobile_home' -and
-            [long]$trial.Profile.storefront.home.contentSchemaVersion -eq 1 -and
-            [string]$trial.Profile.storefront.home.definitionContract -ceq 'gate7-v1'
+            [string]$trial.Profile.storefront.home.rootType -ceq 'mobile_home_v2' -and
+            [long]$trial.Profile.storefront.home.contentSchemaVersion -eq 2 -and
+            [string]$trial.Profile.storefront.home.definitionContract -ceq 'pilot-media-v2'
         ) `
-        -Name 'Trial remains on the exact Home v1 Storefront contract before the atomic v2 cutover'
+        -Name 'Trial selects the exact Home v2 Storefront contract after the atomic cutover'
     Assert-True `
         -Condition (
             $null -ne $trial.Application.identity.webRoles.legalSupport -and
@@ -195,6 +195,8 @@ function Invoke-RegistrySuite {
         -Name 'projection begins with schema version'
     Assert-True -Condition ($lines -contains 'app.brandDisplayName=Gürbakır') `
         -Name 'projection preserves UTF-8 display identity'
+    Assert-True -Condition ($lines -ccontains 'shopify.homeDefinitionContract=gate7-v1') `
+        -Name 'Gurbakir projection preserves the exact Gate 7 Home contract id'
 
     $projectionPath = Join-Path $repoRoot 'config\onboarding\generated\gurbakir\development.properties'
     Test-OnboardingProjection -Path $projectionPath -ExpectedLines $lines
@@ -213,8 +215,9 @@ function Invoke-RegistrySuite {
         'shopify.storefrontDomain=multi-brand-trial-store.myshopify.com',
         'shopify.storefrontApiVersion=2026-07',
         'shopify.catalogMenuHandle=main-menu',
-        'shopify.homeRootType=mobile_home',
-        'shopify.homeContentSchemaVersion=1',
+        'shopify.homeRootType=mobile_home_v2',
+        'shopify.homeContentSchemaVersion=2',
+        'shopify.homeDefinitionContract=pilot-media-v2',
         'web.legalSupportOrigin=https://multi-brand-trial-store.myshopify.com',
         'web.legalSupportPath.support=/pages/trial-destek',
         'web.legalSupportPath.privacy=/pages/trial-gizlilik',
@@ -468,7 +471,36 @@ function Invoke-RegistrySuite {
         Assert-Throws `
             -Action { Import-OnboardingRegistry -Path $wrongHomePath -RepositoryRoot $repoRoot } `
             -Pattern 'HOME_CONTRACT_MISMATCH' `
-            -Name 'enabled Home profile cannot redefine the closed Gate 7 root type'
+            -Name 'enabled Home profile cannot redefine a closed Home contract tuple'
+
+        foreach ($invalidHomeMutation in @(
+            @{
+                Name = 'v1 type with v2 contract is rejected'
+                Old = '"definitionContract": "gate7-v1"'
+                New = '"definitionContract": "pilot-media-v2"'
+            },
+            @{
+                Name = 'v2 type with v1 schema version is rejected'
+                Old = '"contentSchemaVersion": 2'
+                New = '"contentSchemaVersion": 1'
+            },
+            @{
+                Name = 'unknown Home definition contract is rejected'
+                Old = '"definitionContract": "pilot-media-v2"'
+                New = '"definitionContract": "pilot-media-v3"'
+            }
+        )) {
+            $invalidHomePath = Join-Path $temporaryRoot (([string]$invalidHomeMutation.Name -replace '[^a-z0-9]+', '-') + '.json')
+            [System.IO.File]::WriteAllText(
+                $invalidHomePath,
+                $raw.Replace([string]$invalidHomeMutation.Old, [string]$invalidHomeMutation.New),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Assert-Throws `
+                -Action { Import-OnboardingRegistry -Path $invalidHomePath -RepositoryRoot $repoRoot } `
+                -Pattern 'HOME_CONTRACT_MISMATCH' `
+                -Name ([string]$invalidHomeMutation.Name)
+        }
 
         $unsafeBoundaryPath = Join-Path $temporaryRoot 'unsafe-boundary.json'
         [System.IO.File]::WriteAllText(
@@ -754,6 +786,14 @@ function Invoke-ConfigurationSuite {
         (Join-Path $repoRoot 'storefront\build.gradle.kts'),
         [System.Text.Encoding]::UTF8
     )
+    $trialBuild = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'apps\trial\build.gradle.kts'),
+        [System.Text.Encoding]::UTF8
+    )
+    $ownedConfiguration = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'storefront\src\test\kotlin\com\gurbakir\storefront\OwnedOnboardingConfiguration.kt'),
+        [System.Text.Encoding]::UTF8
+    )
     $manifest = [System.IO.File]::ReadAllText(
         (Join-Path $repoRoot 'app\src\main\AndroidManifest.xml'),
         [System.Text.Encoding]::UTF8
@@ -767,6 +807,24 @@ function Invoke-ConfigurationSuite {
         -Name 'app build reads deterministic profile projections'
     Assert-True -Condition ($appBuild.Contains('config/local/gurbakir')) `
         -Name 'app build scopes controlled client values by application and profile'
+    foreach ($reader in @(
+        @{ Name = 'Gurbakir Gradle reader'; Source = $appBuild },
+        @{ Name = 'Trial Gradle reader'; Source = $trialBuild },
+        @{ Name = 'Storefront Gradle reader'; Source = $storefrontBuild },
+        @{ Name = 'owned Storefront proof reader'; Source = $ownedConfiguration }
+    )) {
+        Assert-True `
+            -Condition ([string]$reader.Source).Contains('shopify.homeDefinitionContract') `
+            -Name "$($reader.Name) consumes the strict Home definition contract projection"
+    }
+    Assert-True `
+        -Condition (
+            $appBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
+            $trialBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")') -and
+            $storefrontBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
+            $storefrontBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")')
+        ) `
+        -Name 'all Gradle readers keep the two Home contract tuples closed and exact'
     Assert-True `
         -Condition (
             -not $appBuild.Contains('check(selectedApplication == "gurbakir")') -and

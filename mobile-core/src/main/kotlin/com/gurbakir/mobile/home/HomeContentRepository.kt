@@ -44,18 +44,18 @@ constructor(
         val remote = configuration.remoteSource
         if (remote is HomeRemoteSource.Disabled) return loadPackagedFallback()
         remote as HomeRemoteSource.ShopifyMetaobject
-        if (!remote.selector.isValid()) {
+        if (!remote.selector.isValid() || !remote.contractId.accepts(remote.selector)) {
             return configurationFailure()
         }
 
         val token = coordinator.begin()
         val now = clock.nowMillis()
-        val storedRead = store.read(partition, remote.supportedContentVersion, now)
+        val storedRead = store.read(partition, remote.contractId.contentVersion, now)
         val rootResult = gateway.loadHomeDocument(remote.selector)
 
         if (rootResult is StorefrontResult.Success && rootResult.value != null) {
             val observation = requireNotNull(rootResult.value)
-            val validation = validator.validate(remote.selector, observation, remote.supportedContentVersion)
+            val validation = validator.validate(remote.selector, observation, remote.contractId.contentVersion)
             if (validation is HomeDocumentValidation.Accepted) {
                 return acceptRemote(token, validation.snapshot, observation, storedRead, now)
             }
@@ -85,7 +85,7 @@ constructor(
         val authority = coordinator.resolveFailure(
             token,
             partition,
-            source.supportedContentVersion,
+            source.contractId.contentVersion,
             now
         )
     ) {
@@ -160,7 +160,7 @@ constructor(
         val candidate = sessionSnapshot ?: (storedRead as? HomeStoreRead.Established)?.snapshot
         if (
             candidate != null &&
-            candidate.snapshot.contentVersion == source.supportedContentVersion &&
+            candidate.snapshot.contentVersion == source.contractId.contentVersion &&
             HomeEditorialClockPolicy.freshness(candidate.acceptedAtMillis, candidate.expiresAtMillis, now) ==
             HomeEditorialFreshness.FRESH
         ) {
