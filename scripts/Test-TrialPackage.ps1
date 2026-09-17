@@ -201,7 +201,7 @@ function Test-VariantPackage {
 
     $badging = Invoke-NativeCapture $Aapt @('dump', 'badging', $apk)
     $badgingExact = $badging.ExitCode -eq 0 -and
-        $badging.Output -match "package: name='$([regex]::Escape($expectedId))' versionCode='1' versionName='0\.1\.0-trial-v1'" -and
+        $badging.Output -match "package: name='$([regex]::Escape($expectedId))' versionCode='2' versionName='0\.2\.0-trial-v2'" -and
         $badging.Output -match "compileSdkVersion='36'" -and
         $badging.Output -match "sdkVersion:'23'" -and
         $badging.Output -match "targetSdkVersion:'36'" -and
