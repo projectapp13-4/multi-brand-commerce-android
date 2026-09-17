@@ -10,6 +10,7 @@ import java.util.TreeSet
 
 internal data class OwnedOnboardingConfiguration(
     val storefront: StorefrontConfiguration,
+    val marketCurrencyCode: String,
     val menuHandle: String,
     val homeType: String,
     val homeHandle: String,
@@ -182,6 +183,7 @@ internal fun loadOwnedOnboardingConfiguration(): OwnedOnboardingConfiguration {
             apiVersion = projection.getValue("shopify.storefrontApiVersion"),
             publicToken = ControlledPublicToken.from(local["shopify.storefrontPublicToken"].orEmpty())
         ),
+        marketCurrencyCode = projection.getValue("app.marketCurrencyCode"),
         menuHandle = projection.getValue("shopify.catalogMenuHandle"),
         homeType = homeType,
         homeHandle = projection.getValue("shopify.homeRootHandle"),

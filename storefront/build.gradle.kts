@@ -190,8 +190,18 @@ if (selectedProjection != null) {
 val storefrontSchemaFile = file("src/main/graphql/com/gurbakir/storefront/schema.graphqls")
 val runOwnedStorefrontProof =
     providers.gradleProperty("gurbakirRunOwnedStorefrontProof").orNull?.toBooleanStrictOrNull() ?: false
-val runOwnedCartProof =
-    providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull() ?: false
+val requestedOwnedCartProof =
+    providers.gradleProperty("onboardingRunOwnedStorefrontCartProof").orNull?.toBooleanStrictOrNull()
+val requestedLegacyOwnedCartProof =
+    providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull()
+check(
+    requestedOwnedCartProof == null ||
+        requestedLegacyOwnedCartProof == null ||
+        requestedOwnedCartProof == requestedLegacyOwnedCartProof
+) {
+    "Conflicting owned Storefront cart proof switches."
+}
+val runOwnedCartProof = requestedOwnedCartProof ?: requestedLegacyOwnedCartProof ?: false
 val runOwnedHomeReadback =
     providers.gradleProperty("onboardingRunOwnedHomeReadback").orNull?.toBooleanStrictOrNull() ?: false
 val runOwnedHomeV2Readback =
@@ -273,6 +283,7 @@ android {
                 it.systemProperty("onboarding.registrySha256", registryDigest)
                 it.systemProperty("gurbakir.runOwnedStorefrontProof", runOwnedStorefrontProof.toString())
                 it.systemProperty("gurbakir.runOwnedCartProof", runOwnedCartProof.toString())
+                it.systemProperty("onboarding.runOwnedStorefrontCartProof", runOwnedCartProof.toString())
                 it.systemProperty("onboarding.runOwnedHomeReadback", runOwnedHomeReadback.toString())
                 it.systemProperty("onboarding.runOwnedHomeV2Readback", runOwnedHomeV2Readback.toString())
                 it.systemProperty("onboarding.application", selectedApplication.orEmpty())

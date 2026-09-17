@@ -13,25 +13,42 @@ import org.junit.jupiter.api.Test
 class OwnedStorefrontCartProofTest {
     @Test
     fun `owned non production store supports a bounded synthetic cart lifecycle`() {
-        assumeTrue(System.getProperty("gurbakir.runOwnedCartProof") == "true")
-        val configuration = loadOwnedOnboardingConfiguration().storefront
-        assertEquals("gurbakir.com", configuration.domain)
+        assumeTrue(System.getProperty("onboarding.runOwnedStorefrontCartProof") == "true")
+        val owned = loadOwnedOnboardingConfiguration()
+        val configuration = owned.storefront
+        val expectedCurrency = owned.marketCurrencyCode
+        assertTrue(expectedCurrency.matches(Regex("^[A-Z]{3}$")))
         assertEquals("2026-07", configuration.apiVersion)
         assertTrue(configuration.validationIssues().isEmpty())
 
         val client = StorefrontApolloClientFactory.createClient(configuration)
         val gateway = ApolloStorefrontGateway(client, StorefrontMediaPolicy(configuration.domain))
-        var activeCart: CartReference? = null
         try {
             val variant = runBlocking { firstAvailableVariant(gateway) }
+            assertTrue(variant.availableForSale)
+            exerciseCartLifecycle(gateway, variant, configuration.domain, expectedCurrency)
+        } finally {
+            client.close()
+        }
+    }
+
+    private fun exerciseCartLifecycle(
+        gateway: ApolloStorefrontGateway,
+        variant: ProductVariantSummary,
+        storefrontDomain: String,
+        expectedCurrency: String
+    ) {
+        var activeCart: CartReference? = null
+        try {
             val created = runBlocking {
                 gateway.createCart(listOf(CartLineInput(variant.id, quantity = 1)))
             }.requireCart("create")
             activeCart = created
             assertEquals(1, created.totalQuantity)
             assertFalse(created.lines.isEmpty())
-            assertEquals(configuration.domain, created.checkoutUrl.use { it.host })
+            assertEquals(storefrontDomain, created.checkoutUrl.use { it.host })
             assertFalse(created.toString().contains("?key="))
+            assertCartMarket(created, expectedCurrency, requireLines = true)
 
             val emptied = runBlocking {
                 gateway.removeCartLines(created.id, created.lines.map(CartLineSummary::id))
@@ -44,6 +61,7 @@ class OwnedStorefrontCartProofTest {
             }.requireCart("add")
             activeCart = added
             assertEquals(1, added.totalQuantity)
+            assertCartMarket(added, expectedCurrency, requireLines = true)
 
             val lineToUpdate = added.lines.first()
             val updated = runBlocking {
@@ -54,10 +72,12 @@ class OwnedStorefrontCartProofTest {
             }.requireCart("update")
             activeCart = updated
             assertTrue(updated.totalQuantity >= added.totalQuantity)
+            assertCartMarket(updated, expectedCurrency, requireLines = true)
 
             val restored = runBlocking { gateway.loadCart(updated.id) }.requireCart("restore")
             activeCart = restored
             assertEquals(updated.totalQuantity, restored.totalQuantity)
+            assertCartMarket(restored, expectedCurrency, requireLines = true)
 
             val removed = runBlocking {
                 gateway.removeCartLines(restored.id, restored.lines.map(CartLineSummary::id))
@@ -65,6 +85,7 @@ class OwnedStorefrontCartProofTest {
             activeCart = removed
             assertEquals(0, removed.totalQuantity)
             assertTrue(removed.lines.isEmpty())
+            assertCartMarket(removed, expectedCurrency, requireLines = false)
         } finally {
             activeCart?.takeIf { it.lines.isNotEmpty() }?.let { cart ->
                 runBlocking {
@@ -74,7 +95,20 @@ class OwnedStorefrontCartProofTest {
                     )
                 }
             }
-            client.close()
+        }
+    }
+
+    private fun assertCartMarket(cart: CartReference, expectedCurrency: String, requireLines: Boolean) {
+        if (requireLines) {
+            assertFalse(cart.lines.isEmpty())
+        }
+        listOfNotNull(cart.subtotal, cart.total).forEach { money ->
+            assertEquals(expectedCurrency, money.currencyCode)
+        }
+        cart.lines.forEach { line ->
+            assertTrue(line.availableForSale)
+            assertEquals(expectedCurrency, requireNotNull(line.unitPrice).currencyCode)
+            assertEquals(expectedCurrency, requireNotNull(line.totalPrice).currencyCode)
         }
     }
 
