@@ -18,6 +18,27 @@ $script:ProbeAttributionPredecessorOperatorSha256 = '0f3e05c72969a0cd47606537691
 
 function Get-OnboardingCredentialName { param([string]$Application,[string]$Profile,[string]$Suffix) ('MB_{0}_{1}_{2}' -f $Application.Replace('-','_'),$Profile.Replace('-','_'),$Suffix).ToUpperInvariant() }
 function Get-OnboardingCredential { param([string]$Name) [Environment]::GetEnvironmentVariable($Name, 'Process') }
+function Get-OnboardingHomeOperatorContract {
+    param([Parameter(Mandatory)]$Context)
+    $contractId = [string]$Context.Selected.Profile.storefront.home.definitionContract
+    switch -CaseSensitive ($contractId) {
+        'gate7-v1' {
+            return [pscustomobject]@{
+                ContractId = $contractId
+                OperationContractVersion = 'gate8-v1'
+                SchemaRelativePath = 'config/onboarding/shopify-home-schema.v1.json'
+            }
+        }
+        'pilot-media-v2' {
+            return [pscustomobject]@{
+                ContractId = $contractId
+                OperationContractVersion = 'gate9-v2'
+                SchemaRelativePath = 'config/onboarding/shopify-home-schema.v2.json'
+            }
+        }
+        default { throw 'HOME_CONTRACT_MISMATCH' }
+    }
+}
 function Get-ObjectSha { param($Value) $json = Get-OnboardingCanonicalJson $Value; [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($json))).ToLowerInvariant() }
 function New-ReceiptAction {
     param([int]$Ordinal,[string]$Kind,[string]$Key,[string]$Mode,[string]$Before,[string]$Action,[string]$Fingerprint)
@@ -99,7 +120,13 @@ function New-OnboardingExpectedActions {
     if ([string]$HomeState.Classification -eq 'INCOMPATIBLE') { throw 'INCOMPATIBLE_HOME_DEFINITIONS' }
     $actions = [Collections.Generic.List[object]]::new()
     $ordinal = 1
-    foreach ($type in @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')) {
+    $managedTypes = if ($null -ne $HomeState.PSObject.Properties['ManagedTypes'] -and
+        @($HomeState.ManagedTypes).Count -gt 0) {
+        @($HomeState.ManagedTypes | ForEach-Object { [string]$_ })
+    } else {
+        @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    }
+    foreach ($type in $managedTypes) {
         if ($type -in @($HomeState.MissingTypes)) {
             $actions.Add((New-ReceiptAction $ordinal 'SHOPIFY_HOME_DEFINITION' $type 'CREATE_IF_MISSING' 'ABSENT' 'CREATE' $HomeState.Fingerprint))
             $ordinal++
@@ -460,6 +487,7 @@ function Invoke-OnboardingInspect {
         [AllowEmptyString()][string]$ManualCheckpointPath = ''
     )
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $homeContract=Get-OnboardingHomeOperatorContract $context
     $values = Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
     $result=[ordered]@{application=$Application;profile=$Profile;runtimeEnvironment=[string]$context.Selected.Profile.runtimeEnvironment;shopId=[string]$context.Binding.shopify.shopId}
     if ([string]$context.Selected.Profile.storefront.mode -ceq 'enabled') {
@@ -469,7 +497,8 @@ function Invoke-OnboardingInspect {
         else {
             $result.shopifyTarget=(Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport).Classification
             $menu=Get-ShopifyMenuState $context.Binding $admin ([string]$context.Selected.Profile.storefront.catalog.menuHandle) $Transport
-            $homeState=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+            $homeState=Get-ShopifyHomeDefinitionState `
+                $context.Binding $admin $Transport -ContractId $homeContract.ContractId
             $probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
             $result.menu=$menu.Classification;$result.homeDefinitions=$homeState.Classification;$result.acceptanceProbe=$probe.Classification
         }
@@ -534,6 +563,7 @@ function Invoke-OnboardingReadback {
         [AllowEmptyString()][string]$ManualCheckpointPath = ''
     )
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $homeContract=Get-OnboardingHomeOperatorContract $context
     $values=Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
     $inspection=Invoke-OnboardingInspect `
         -RepositoryRoot $RepositoryRoot -Application $Application -Profile $Profile `
@@ -542,20 +572,29 @@ function Invoke-OnboardingReadback {
         $result=[ordered]@{};foreach($property in $inspection.PSObject.Properties){$result[$property.Name]=$property.Value};$result.storefrontMobileReadback='NOT_APPLICABLE'
         return [pscustomobject]$result
     }
-    $expectedProofs = @(
-        'com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest',
-        'com.gurbakir.storefront.OwnedHomeContentReadbackTest'
-    )
-    $arguments=@(
-        ':storefront:testDebugUnitTest','--tests','com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest',
-        '--tests','com.gurbakir.storefront.OwnedHomeContentReadbackTest',
-        '--rerun-tasks','--no-build-cache','--console=plain',
-        '-PgurbakirRunOwnedStorefrontProof=true','-PonboardingRunOwnedHomeReadback=true',
-        "-PonboardingApplication=$Application","-PonboardingProfile=$Profile"
-    )
+    $expectedProofs = if ([string]$homeContract.ContractId -ceq 'pilot-media-v2') {
+        @('com.gurbakir.storefront.OwnedHomeV2ReadProofTest')
+    } else {
+        @(
+            'com.gurbakir.storefront.OwnedCatalogDiscoveryProofTest',
+            'com.gurbakir.storefront.OwnedHomeContentReadbackTest'
+        )
+    }
+    $arguments=[Collections.Generic.List[string]]::new()
+    $arguments.Add(':storefront:testDebugUnitTest')
+    foreach($proof in $expectedProofs){$arguments.Add('--tests');$arguments.Add($proof)}
+    foreach($argument in @('--rerun-tasks','--no-build-cache','--console=plain')){$arguments.Add($argument)}
+    if ([string]$homeContract.ContractId -ceq 'pilot-media-v2') {
+        $arguments.Add('-PonboardingRunOwnedHomeV2Readback=true')
+    } else {
+        $arguments.Add('-PgurbakirRunOwnedStorefrontProof=true')
+        $arguments.Add('-PonboardingRunOwnedHomeReadback=true')
+    }
+    $arguments.Add("-PonboardingApplication=$Application")
+    $arguments.Add("-PonboardingProfile=$Profile")
     $privilegedNames=@([Environment]::GetEnvironmentVariables('Process').Keys|Where-Object{[string]$_ -match '^MB_[A-Z0-9_]+_(SHOPIFY_ADMIN_TOKEN|FIREBASE_ACCESS_TOKEN)$'}|ForEach-Object{[string]$_})
     if($null-ne$ProcessRunner){
-        $runnerResult = & $ProcessRunner $arguments $privilegedNames
+        $runnerResult = & $ProcessRunner @($arguments) $privilegedNames
         if ($runnerResult -is [int]) {
             $exitCode = [int]$runnerResult
             $executedProofs = @()
@@ -570,7 +609,7 @@ function Invoke-OnboardingReadback {
         }
         $executable=if($IsWindows){Join-Path $RepositoryRoot 'gradlew.bat'}else{Join-Path $RepositoryRoot 'gradlew'}
         $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$executable;$start.WorkingDirectory=$RepositoryRoot;$start.UseShellExecute=$false;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-        foreach($argument in $arguments){[void]$start.ArgumentList.Add($argument)}
+        foreach($argument in @($arguments)){[void]$start.ArgumentList.Add($argument)}
         foreach($name in $privilegedNames){[void]$start.Environment.Remove($name)}
         $process=[Diagnostics.Process]::new();$process.StartInfo=$start
         try{[void]$process.Start();$stdout=$process.StandardOutput.ReadToEndAsync();$stderr=$process.StandardError.ReadToEndAsync();$process.WaitForExit();[void]$stdout.GetAwaiter().GetResult();[void]$stderr.GetAwaiter().GetResult();$exitCode=$process.ExitCode}finally{$process.Dispose()}
@@ -607,19 +646,22 @@ function New-OnboardingPlan {
     $OutputPath=Resolve-OnboardingEvidencePath $RepositoryRoot $OutputPath 'OutputPath'
     if(-not[string]::IsNullOrWhiteSpace($PriorReceipt)){$PriorReceipt=Resolve-OnboardingEvidencePath $RepositoryRoot $PriorReceipt 'PriorReceipt'}
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $homeContract=Get-OnboardingHomeOperatorContract $context
     if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only') { throw 'UNSAFE_RELEASE_BOUNDARY' }
     if ([string]$context.Selected.Profile.storefront.mode -cne 'enabled') { throw 'SHOPIFY_STOREFRONT_DISABLED' }
+    if ($IncludeAcceptanceProbe -and [string]$homeContract.ContractId -cne 'gate7-v1') { throw 'PROBE_NOT_SUPPORTED_FOR_HOME_CONTRACT' }
     $values=Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
     $admin=Get-OnboardingCredential (Get-OnboardingCredentialName $Application $Profile 'SHOPIFY_ADMIN_TOKEN')
     [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
     [void](Get-ShopifyStorefrontTargetState $context.Selected $context.Binding ([string]$values['shopify.storefrontPublicToken']) $Transport)
-    $homeState=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+    $homeState=Get-ShopifyHomeDefinitionState `
+        $context.Binding $admin $Transport -ContractId $homeContract.ContractId
     $probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
-    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $homeSchema=Join-Path $RepositoryRoot $homeContract.SchemaRelativePath
     $digests=[ordered]@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingOperatorDigest $RepositoryRoot}
     $probeIsAttributed=Test-OnboardingProbeAttribution -ReceiptPath $PriorReceipt -Context $context -ProbeState $probe -CurrentDigests $digests
     $actions=New-OnboardingExpectedActions -HomeState $homeState -ProbeState $probe -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -ProbeIsAttributed:$probeIsAttributed
-    $receipt=[ordered]@{receiptSchemaVersion=1;operationContractVersion='gate8-v1';kind='PLAN';application=$Application;profile=$Profile;runtimeEnvironment=[string]$context.Selected.Profile.runtimeEnvironment;releaseBoundary=[string]$context.Selected.Application.releaseBoundary;createdAtUtc=$created;expiresAtUtc=$expires;verifiedTarget=[ordered]@{shopId=[string]$context.Binding.shopify.shopId;adminShopDomain=[string]$context.Binding.shopify.adminShopDomain;firebaseProjectId=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectId}else{$null};firebaseProjectNumber=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectNumber}else{$null}};digests=$digests;stateFingerprint=Get-ObjectSha ([ordered]@{home=$homeState.Fingerprint;probe=$probe.Fingerprint});actions=$actions;overallStatus='PLANNED';diagnosticCodes=@();readback=@();recovery=@()}
+    $receipt=[ordered]@{receiptSchemaVersion=1;operationContractVersion=[string]$homeContract.OperationContractVersion;kind='PLAN';application=$Application;profile=$Profile;runtimeEnvironment=[string]$context.Selected.Profile.runtimeEnvironment;releaseBoundary=[string]$context.Selected.Application.releaseBoundary;createdAtUtc=$created;expiresAtUtc=$expires;verifiedTarget=[ordered]@{shopId=[string]$context.Binding.shopify.shopId;adminShopDomain=[string]$context.Binding.shopify.adminShopDomain;firebaseProjectId=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectId}else{$null};firebaseProjectNumber=if($null-ne$context.Binding.firebase){[string]$context.Binding.firebase.projectNumber}else{$null}};digests=$digests;stateFingerprint=Get-ObjectSha ([ordered]@{home=$homeState.Fingerprint;probe=$probe.Fingerprint});actions=$actions;overallStatus='PLANNED';diagnosticCodes=@();readback=@();recovery=@()}
     Write-OnboardingReceipt $OutputPath $receipt -NoOverwrite;return $receipt
 }
 function Invoke-OnboardingApply {
@@ -632,14 +674,17 @@ function Invoke-OnboardingApply {
     if([string]$plan.kind -cne 'PLAN' -or [string]$plan.application -cne $Application -or [string]$plan.profile -cne $Profile){throw 'PLAN_TARGET_MISMATCH'}
     if([DateTimeOffset]::Parse([string]$plan.expiresAtUtc) -lt [DateTimeOffset]::UtcNow){throw 'PLAN_EXPIRED'}
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $homeContract=Get-OnboardingHomeOperatorContract $context
+    if ([string]$plan.operationContractVersion -cne [string]$homeContract.OperationContractVersion) { throw 'PLAN_CONTRACT_DRIFT' }
     if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only' -or
         [string]$plan.releaseBoundary -cne [string]$context.Selected.Application.releaseBoundary -or
         [string]$plan.runtimeEnvironment -cne [string]$context.Selected.Profile.runtimeEnvironment) {
         throw 'UNSAFE_RELEASE_BOUNDARY'
     }
     if ([string]$context.Selected.Profile.storefront.mode -cne 'enabled') { throw 'SHOPIFY_STOREFRONT_DISABLED' }
+    if ($IncludeAcceptanceProbe -and [string]$homeContract.ContractId -cne 'gate7-v1') { throw 'PROBE_NOT_SUPPORTED_FOR_HOME_CONTRACT' }
     $values=Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
-    $homeSchema=Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $homeSchema=Join-Path $RepositoryRoot $homeContract.SchemaRelativePath
     $currentDigests=@{registrySha256=Get-OnboardingSha256 $context.RegistryPath;providerBindingSha256=Get-OnboardingSha256 $context.BindingPath;homeSchemaSha256=Get-OnboardingSha256 $homeSchema;operatorSha256=Get-OnboardingOperatorDigest $RepositoryRoot}
     foreach($key in $currentDigests.Keys){if([string]$plan.digests[$key] -cne [string]$currentDigests[$key]){throw 'PLAN_CONTRACT_DRIFT'}}
     if([string]$plan.verifiedTarget.shopId -cne [string]$context.Binding.shopify.shopId -or [string]$plan.verifiedTarget.adminShopDomain -cne [string]$context.Binding.shopify.adminShopDomain){throw 'PLAN_TARGET_DRIFT'}
@@ -652,18 +697,21 @@ function Invoke-OnboardingApply {
         $admin=Get-OnboardingCredential (Get-OnboardingCredentialName $Application $Profile 'SHOPIFY_ADMIN_TOKEN')
         [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
         [void](Get-ShopifyStorefrontTargetState $context.Selected $context.Binding ([string]$values['shopify.storefrontPublicToken']) $Transport)
-        $homeState=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport;$probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
+        $homeState=Get-ShopifyHomeDefinitionState `
+            $context.Binding $admin $Transport -ContractId $homeContract.ContractId
+        $probe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
         $fingerprint=Get-ObjectSha ([ordered]@{home=$homeState.Fingerprint;probe=$probe.Fingerprint})
         if($fingerprint -cne [string]$plan.stateFingerprint){throw 'PLAN_STATE_DRIFT'}
         $probeIsAttributed=Test-OnboardingProbeAttribution -ReceiptPath $PriorReceipt -Context $context -ProbeState $probe -CurrentDigests $currentDigests
         $expectedActions=New-OnboardingExpectedActions -HomeState $homeState -ProbeState $probe -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -ProbeIsAttributed:$probeIsAttributed
         if((Get-OnboardingCanonicalJson (Get-OnboardingActionContractView $expectedActions)) -cne (Get-OnboardingCanonicalJson (Get-OnboardingActionContractView @($plan.actions)))){throw 'PLAN_ACTION_DRIFT'}
         $actions=@($plan.actions);$createdIds=@{}
-        foreach($type in @('mobile_home_collection_grid','mobile_home_featured_product','mobile_home')){$existing=@($homeState.Definitions[$type]);if($existing.Count-eq 1){$createdIds[$type]=[string]$existing[0].id}}
+        foreach($type in @($homeState.ManagedTypes)){$existing=@($homeState.Definitions[$type]);if($existing.Count-eq 1){$createdIds[$type]=[string]$existing[0].id}}
         foreach($action in $actions|Sort-Object ordinal){
             if([string]$action.intendedAction -ceq 'NONE'){continue}
             if([string]$action.resourceKind -ceq 'SHOPIFY_HOME_DEFINITION'){
-                $fresh=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+                $fresh=Get-ShopifyHomeDefinitionState `
+                    $context.Binding $admin $Transport -ContractId $homeContract.ContractId
                 if(@($fresh.Definitions[[string]$action.resourceKey]).Count -ne 0){throw 'LATER_STEP_DRIFT'}
                 if([string]$fresh.Classification -eq 'INCOMPATIBLE'){throw 'LATER_STEP_DRIFT'}
                 foreach($existingType in @($fresh.Definitions.Keys|Where-Object{@($fresh.Definitions[$_]).Count -eq 1})){
@@ -671,7 +719,7 @@ function Invoke-OnboardingApply {
                     if($createdIds.ContainsKey([string]$existingType)-and[string]$createdIds[[string]$existingType]-cne$existingId){throw 'LATER_STEP_DRIFT'}
                     $createdIds[[string]$existingType]=$existingId
                 }
-                $schema=Import-ShopifyHomeSchemaContract
+                $schema=Import-ShopifyHomeSchemaContract -ContractId $homeContract.ContractId
                 $contract=@($schema.definitions|Where-Object{[string]$_.type -ceq [string]$action.resourceKey})[0]
                 # Shopify owns the Admin access value for merchant-owned definitions. Gate 8
                 # maps its semantic contract to Shopify's mutation representation, requests
@@ -682,7 +730,8 @@ function Invoke-OnboardingApply {
                     $created=New-ShopifyHomeDefinition $context.Binding $admin $definition $Transport
                     if([string]$created.id -cnotmatch '^gid://shopify/MetaobjectDefinition/[0-9]+$'){throw 'SHOPIFY_DEFINITION_READBACK_FAILED'}
                     $createdIds[[string]$action.resourceKey]=[string]$created.id
-                    $readback=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+                    $readback=Get-ShopifyHomeDefinitionState `
+                        $context.Binding $admin $Transport -ContractId $homeContract.ContractId
                     if([string]$readback.Classification -eq 'INCOMPATIBLE'-or@($readback.Definitions[[string]$action.resourceKey]).Count-ne 1){throw 'SHOPIFY_DEFINITION_READBACK_FAILED'}
                     $action.providerResourceId=[string]$created.id;$action.status='SUCCEEDED';$action.afterClassification='CORRECT';$action.afterFingerprint=[string]$readback.Fingerprint
                 } catch {
@@ -706,7 +755,8 @@ function Invoke-OnboardingApply {
         try {
             [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
             [void](Get-ShopifyStorefrontTargetState $context.Selected $context.Binding ([string]$values['shopify.storefrontPublicToken']) $Transport)
-            $finalHome=Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+            $finalHome=Get-ShopifyHomeDefinitionState `
+                $context.Binding $admin $Transport -ContractId $homeContract.ContractId
             $finalProbe=Get-ShopifyAcceptanceProbeState $context.Binding $admin $Transport
             $homeCompatible = [string]$finalHome.Classification -ceq 'COMPATIBLE' -and @($finalHome.MissingTypes).Count -eq 0
             $probeAction = @($actions | Where-Object { [string]$_.resourceKind -ceq 'SHOPIFY_HOME_ACCEPTANCE_PROBE' } | Select-Object -First 1)
@@ -810,8 +860,13 @@ function Invoke-OnboardingProbeRecovery {
     $plan = Import-OnboardingReceipt -Path $PlanReceipt
     $recovery = Import-OnboardingReceipt -Path $RecoveryReceipt
     $context = Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
+    $homeContract = Get-OnboardingHomeOperatorContract $context
     if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only') {
         throw 'UNSAFE_RELEASE_BOUNDARY'
+    }
+    if ([string]$homeContract.ContractId -cne 'gate7-v1' -or
+        [string]$plan.operationContractVersion -cne 'gate8-v1') {
+        throw 'PROBE_RECOVERY_CONTRACT_MISMATCH'
     }
     $values = Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
 
@@ -836,7 +891,7 @@ function Invoke-OnboardingProbeRecovery {
         throw 'PROBE_RECOVERY_TARGET_MISMATCH'
     }
 
-    $homeSchema = Join-Path $RepositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $homeSchema = Join-Path $RepositoryRoot $homeContract.SchemaRelativePath
     $currentDigests = [ordered]@{
         registrySha256 = Get-OnboardingSha256 $context.RegistryPath
         providerBindingSha256 = Get-OnboardingSha256 $context.BindingPath
@@ -896,7 +951,8 @@ function Invoke-OnboardingProbeRecovery {
     $admin = Get-OnboardingCredential (Get-OnboardingCredentialName $Application $Profile 'SHOPIFY_ADMIN_TOKEN')
     [void](Get-ShopifyVerifiedTargetState $context.Binding $admin $Transport)
     [void](Get-ShopifyStorefrontTargetState $context.Selected $context.Binding ([string]$values['shopify.storefrontPublicToken']) $Transport)
-    $homeState = Get-ShopifyHomeDefinitionState $context.Binding $admin $Transport
+    $homeState = Get-ShopifyHomeDefinitionState `
+        $context.Binding $admin $Transport -ContractId $homeContract.ContractId
     $menuState = Get-ShopifyMenuState `
         $context.Binding `
         $admin `

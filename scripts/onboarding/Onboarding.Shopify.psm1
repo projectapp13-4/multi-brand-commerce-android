@@ -38,11 +38,31 @@ function Invoke-ShopifyStorefrontOperation {
 
 function Import-ShopifyHomeSchemaContract {
     [CmdletBinding()]
-    param()
+    param(
+        [ValidateSet('gate7-v1', 'pilot-media-v2')]
+        [string]$ContractId = 'gate7-v1'
+    )
 
     $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $path = Join-Path $repositoryRoot 'config\onboarding\shopify-home-schema.v1.json'
+    $path = Join-Path $repositoryRoot $(if ($ContractId -ceq 'gate7-v1') {
+        'config\onboarding\shopify-home-schema.v1.json'
+    } else {
+        'config\onboarding\shopify-home-schema.v2.json'
+    })
     $schema = Read-OnboardingStrictJson -Path $path -MaximumBytes 65536
+    if ($ContractId -ceq 'pilot-media-v2') {
+        # Gate 9 deliberately pins the provider operator to the exact reviewed
+        # contract checkpoint. A schema edit must update this digest and its
+        # manifest in the same reviewed source change; unknown fields cannot be
+        # silently accepted by a permissive runtime parser.
+        if ((Get-OnboardingSha256 $path) -cne '782cbf8f21275f7f7d6a46c29bdbf3c0976eeb723d8c8681cfb0832f839d06b7' -or
+            [long]$schema.schemaVersion -ne 2 -or
+            [string]$schema.contract -cne 'pilot-media-v2' -or
+            [string]$schema.adminApiVersion -cne '2026-07') {
+            throw 'UNSUPPORTED_HOME_SCHEMA_CONTRACT'
+        }
+        return $schema
+    }
     $expected = [ordered]@{
         schemaVersion = 1
         contract = 'gate7-v1'
@@ -116,6 +136,64 @@ function ConvertFrom-ShopifyDefinitionIdsValidation {
     }
 }
 
+function ConvertFrom-ShopifyStringListValidation {
+    param([Parameter(Mandatory)][string]$Value)
+
+    $document = $null
+    try {
+        $options = [System.Text.Json.JsonDocumentOptions]::new()
+        $options.AllowTrailingCommas = $false
+        $options.CommentHandling = [System.Text.Json.JsonCommentHandling]::Disallow
+        $options.MaxDepth = 3
+        $document = [System.Text.Json.JsonDocument]::Parse($Value, $options)
+        if ($document.RootElement.ValueKind -ne [System.Text.Json.JsonValueKind]::Array) {
+            throw 'SHOPIFY_STRING_LIST_VALIDATION_INVALID'
+        }
+        $values = [System.Collections.Generic.List[string]]::new()
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($element in $document.RootElement.EnumerateArray()) {
+            if ($element.ValueKind -ne [System.Text.Json.JsonValueKind]::String) {
+                throw 'SHOPIFY_STRING_LIST_VALIDATION_INVALID'
+            }
+            $value = [string]$element.GetString()
+            if ([string]::IsNullOrWhiteSpace($value) -or -not $seen.Add($value)) {
+                throw 'SHOPIFY_STRING_LIST_VALIDATION_INVALID'
+            }
+            $values.Add($value)
+        }
+        if ($values.Count -eq 0) { throw 'SHOPIFY_STRING_LIST_VALIDATION_INVALID' }
+        return [string[]]@($values | Sort-Object -CaseSensitive)
+    } catch {
+        throw 'SHOPIFY_STRING_LIST_VALIDATION_INVALID'
+    } finally {
+        if ($null -ne $document) { $document.Dispose() }
+    }
+}
+
+function ConvertTo-ShopifyProviderFileType {
+    param([Parameter(Mandatory)][string]$SemanticValue)
+    switch -CaseSensitive ($SemanticValue) {
+        'IMAGE' { return 'Image' }
+        'VIDEO' { return 'Video' }
+        'GENERIC_FILE' { return 'GenericFile' }
+        'MODEL_3D' { return 'Model3d' }
+        'MODEL_3D_ENVIRONMENT_IMAGE' { return 'Model3dEnvironmentImage' }
+        default { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+    }
+}
+
+function ConvertFrom-ShopifyProviderFileType {
+    param([Parameter(Mandatory)][string]$ProviderValue)
+    switch -CaseSensitive ($ProviderValue) {
+        'Image' { return 'IMAGE' }
+        'Video' { return 'VIDEO' }
+        'GenericFile' { return 'GENERIC_FILE' }
+        'Model3d' { return 'MODEL_3D' }
+        'Model3dEnvironmentImage' { return 'MODEL_3D_ENVIRONMENT_IMAGE' }
+        default { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+    }
+}
+
 function Get-ShopifyExpectedHomeValidationTokens {
     param(
         [Parameter(Mandatory)]$FieldContract,
@@ -135,6 +213,12 @@ function Get-ShopifyExpectedHomeValidationTokens {
                 $ids.Add([string]$children[0].id)
             }
             $tokens.Add(('definitionTypes={0}' -f (@($ids | Sort-Object -CaseSensitive) -join ',')))
+        } elseif ([string]$entry.Key -cin @('choices', 'fileTypes')) {
+            $values = [string[]]@($entry.Value | ForEach-Object { [string]$_ } | Sort-Object -CaseSensitive)
+            if ($values.Count -eq 0 -or @($values | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+                throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+            }
+            $tokens.Add(('{0}={1}' -f [string]$entry.Key, (ConvertTo-Json -InputObject $values -Compress)))
         } else {
             $tokens.Add(('{0}={1}' -f [string]$entry.Key, [string]$entry.Value))
         }
@@ -172,6 +256,18 @@ function Get-ShopifyReadbackHomeValidationTokens {
                 throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
             }
             $tokens.Add(('definitionTypes={0}' -f $value))
+        } elseif ($name -ceq 'choices') {
+            if ($fieldType -cne 'single_line_text_field') { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+            $values = [string[]]@(ConvertFrom-ShopifyStringListValidation -Value $value)
+            $tokens.Add(('choices={0}' -f (ConvertTo-Json -InputObject $values -Compress)))
+        } elseif ($name -ceq 'file_type_options') {
+            if ($fieldType -cne 'file_reference') { throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID' }
+            $values = [string[]]@(
+                ConvertFrom-ShopifyStringListValidation -Value $value |
+                    ForEach-Object { ConvertFrom-ShopifyProviderFileType -ProviderValue $_ } |
+                    Sort-Object -CaseSensitive
+            )
+            $tokens.Add(('fileTypes={0}' -f (ConvertTo-Json -InputObject $values -Compress)))
         } else {
             throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
         }
@@ -182,7 +278,7 @@ function Get-ShopifyReadbackHomeValidationTokens {
 function Test-ShopifyHomeUsesProviderNullDisplayName {
     param([Parameter(Mandatory)]$Contract)
 
-    if ([string]$Contract.type -cne 'mobile_home' -or
+    if ([string]$Contract.type -cnotin @('mobile_home', 'mobile_home_v2') -or
         [string]$Contract.displayNameKey -cne 'schema_version') {
         return $false
     }
@@ -237,6 +333,22 @@ function ConvertTo-ShopifyHomeDefinitionCreateInput {
                     } else {
                         throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
                     }
+                } elseif ($semanticName -cin @('choices', 'fileTypes')) {
+                    $values = [string[]]@($entry.Value | ForEach-Object { [string]$_ })
+                    if ($values.Count -eq 0 -or @($values | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+                        throw 'SHOPIFY_DEFINITION_VALIDATION_INVALID'
+                    }
+                    [string[]]$providerValues = if ($semanticName -ceq 'fileTypes') {
+                        @($values | ForEach-Object {
+                            ConvertTo-ShopifyProviderFileType -SemanticValue $_
+                        })
+                    } else {
+                        $values
+                    }
+                    $validations.Add(@{
+                        name = if ($semanticName -ceq 'fileTypes') { 'file_type_options' } else { 'choices' }
+                        value = ConvertTo-Json -InputObject $providerValues -Compress
+                    })
                 } else {
                     $providerName = if (
                         [string]$fieldContract.type -clike 'list.*' -and
@@ -398,8 +510,14 @@ function Get-ShopifyStorefrontTargetState {
 
 function Get-ShopifyHomeDefinitionState {
     [CmdletBinding()]
-    param($Binding, [string]$Token, [scriptblock]$Transport)
-    $schema = Import-ShopifyHomeSchemaContract
+    param(
+        $Binding,
+        [string]$Token,
+        [scriptblock]$Transport,
+        [ValidateSet('gate7-v1', 'pilot-media-v2')]
+        [string]$ContractId = 'gate7-v1'
+    )
+    $schema = Import-ShopifyHomeSchemaContract -ContractId $ContractId
     $query = 'query Gate8HomeDefinitions($first:Int!,$after:String){metaobjectDefinitions(first:$first,after:$after){nodes{id type name displayNameKey fieldDefinitions{key name type{name} required validations{name value}} capabilities{publishable{enabled}} access{admin storefront}} pageInfo{hasNextPage endCursor}}}'
     $nodes = [System.Collections.Generic.List[object]]::new()
     $after = $null
@@ -411,7 +529,7 @@ function Get-ShopifyHomeDefinitionState {
         if ([string]::IsNullOrWhiteSpace($next) -or $next -ceq $after -or $page -eq 5) { throw 'SHOPIFY_PAGINATION_INCOMPLETE' }
         $after = $next
     }
-    $managedTypes = @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    $managedTypes = @($schema.definitions | ForEach-Object { [string]$_.type })
     $selected = @($nodes | Where-Object { [string]$_.type -cin $managedTypes })
     $byType = @{}
     foreach ($type in $managedTypes) { $byType[$type] = @($selected | Where-Object { [string]$_.type -ceq $type }) }
@@ -427,7 +545,14 @@ function Get-ShopifyHomeDefinitionState {
     $classification = if ($selected.Count -eq 0) { 'ABSENT' } elseif ($compatible) { 'COMPATIBLE' } else { 'INCOMPATIBLE' }
     $missingTypes = @($managedTypes | Where-Object { @($byType[$_]).Count -eq 0 })
     $hash = Get-ShopifyHomeDefinitionFingerprint -Definitions $selected
-    [pscustomobject]@{ Classification = $classification; Fingerprint = $hash; Definitions = $byType; MissingTypes = $missingTypes }
+    [pscustomobject]@{
+        Classification = $classification
+        Fingerprint = $hash
+        Definitions = $byType
+        MissingTypes = $missingTypes
+        ManagedTypes = $managedTypes
+        ContractId = $ContractId
+    }
 }
 
 function Get-ShopifyMenuState {

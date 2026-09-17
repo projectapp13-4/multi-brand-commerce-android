@@ -116,7 +116,20 @@
   },
   "actualPublicClientReadback": {
     "acceptance": "A6",
-    "status": "NOT_RUN",
-    "reason": "Requires the later authorized Trial public-client execution."
+    "status": "PASS",
+    "verifiedAtUtc": "2026-09-17T09:31:25.728Z",
+    "application": "trial",
+    "profile": "development",
+    "shopDomain": "multi-brand-trial-store.myshopify.com",
+    "shopGid": "gid://shopify/Shop/61252272257",
+    "rootId": "gid://shopify/Metaobject/79655141505",
+    "sectionRevisionDigest": "9b2d6637c9f5fc0ee7e8d166eb0bc12e16f7921912bd4a39d06c464969c284f7",
+    "command": ".\\gradlew.bat :storefront:generateStorefrontApolloSources :storefront:testDebugUnitTest --tests \"com.gurbakir.storefront.OwnedHomeV2ReadProofTest\" -PonboardingApplication=trial -PonboardingProfile=development -PonboardingRunOwnedHomeV2Readback=true --rerun-tasks --no-build-cache",
+    "junit": {
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
   }
 }

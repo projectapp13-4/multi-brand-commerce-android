@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://projectapp13-4.invalid/schemas/operator-receipt.schema.v1.json",
-  "title": "Gate 8 operator receipt",
+  "title": "Multi-brand operator receipt",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -25,7 +25,7 @@
   ],
   "properties": {
     "receiptSchemaVersion": { "const": 1 },
-    "operationContractVersion": { "const": "gate8-v1" },
+    "operationContractVersion": { "enum": ["gate8-v1", "gate9-v2"] },
     "kind": { "enum": ["PLAN", "RESULT", "RECOVERY"] },
     "application": { "type": "string" },
     "profile": { "type": "string" },

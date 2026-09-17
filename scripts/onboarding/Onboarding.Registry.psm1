@@ -799,7 +799,7 @@ function Import-OnboardingReceipt {
     )
     Assert-OnboardingObjectFields -Object $receipt -Allowed $topFields -Required $topFields -Field '$'
     if ((Assert-OnboardingJsonInteger -Value $receipt.receiptSchemaVersion -Field '$.receiptSchemaVersion') -ne 1 -or
-        [string]$receipt.operationContractVersion -cne 'gate8-v1') {
+        [string]$receipt.operationContractVersion -cnotin @('gate8-v1', 'gate9-v2')) {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_RECEIPT_VERSION' -Field '$')
     }
     Assert-OnboardingEnum -Value ([string]$receipt.kind) -Allowed @('PLAN', 'RESULT', 'RECOVERY') -Field '$.kind'

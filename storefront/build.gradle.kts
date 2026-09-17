@@ -194,8 +194,22 @@ val runOwnedCartProof =
     providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull() ?: false
 val runOwnedHomeReadback =
     providers.gradleProperty("onboardingRunOwnedHomeReadback").orNull?.toBooleanStrictOrNull() ?: false
-check(!(runOwnedStorefrontProof || runOwnedCartProof || runOwnedHomeReadback) || selectedApplication != null) {
+val runOwnedHomeV2Readback =
+    providers.gradleProperty("onboardingRunOwnedHomeV2Readback").orNull?.toBooleanStrictOrNull() ?: false
+check(
+    !(runOwnedStorefrontProof || runOwnedCartProof || runOwnedHomeReadback || runOwnedHomeV2Readback) ||
+        selectedApplication != null
+) {
     "Opted-in Storefront proofs require explicit onboardingApplication and onboardingProfile."
+}
+if (runOwnedHomeV2Readback) {
+    check(
+        selectedProjection?.getProperty("shopify.homeRootType") == "mobile_home_v2" &&
+            selectedProjection.getProperty("shopify.homeContentSchemaVersion") == "2" &&
+            selectedProjection.getProperty("shopify.homeDefinitionContract") == "pilot-media-v2"
+    ) {
+        "Owned Home v2 proof requires the exact pilot-media-v2 contract."
+    }
 }
 
 val validateOnboardingProjections by tasks.registering(Exec::class) {
@@ -260,6 +274,7 @@ android {
                 it.systemProperty("gurbakir.runOwnedStorefrontProof", runOwnedStorefrontProof.toString())
                 it.systemProperty("gurbakir.runOwnedCartProof", runOwnedCartProof.toString())
                 it.systemProperty("onboarding.runOwnedHomeReadback", runOwnedHomeReadback.toString())
+                it.systemProperty("onboarding.runOwnedHomeV2Readback", runOwnedHomeV2Readback.toString())
                 it.systemProperty("onboarding.application", selectedApplication.orEmpty())
                 it.systemProperty("onboarding.profile", selectedProfile.orEmpty())
             }

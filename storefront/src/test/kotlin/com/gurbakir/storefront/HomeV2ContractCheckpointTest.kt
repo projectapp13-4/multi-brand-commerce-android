@@ -250,15 +250,23 @@ class HomeV2ContractCheckpointTest {
     }
 
     @Test
-    fun `schema validation evidence cannot impersonate a live public client readback`() {
+    fun `schema validation and live public client readback remain distinct evidence`() {
         val manifest = readJson(MANIFEST)
         val validation = manifest.objectAt("schemaValidation")
+        val readback = manifest.objectAt("actualPublicClientReadback")
 
         assertEquals("PASS", validation.stringAt("status"))
         assertEquals("shopify-storefront-graphql@1.9.1", validation.stringAt("tool"))
         assertEquals(2, validation.arrayAt("operations").size)
-        assertEquals("NOT_RUN", manifest.objectAt("actualPublicClientReadback").stringAt("status"))
-        assertEquals("A6", manifest.objectAt("actualPublicClientReadback").stringAt("acceptance"))
+        assertEquals("PASS", readback.stringAt("status"))
+        assertEquals("A6", readback.stringAt("acceptance"))
+        assertEquals("trial", readback.stringAt("application"))
+        assertEquals("development", readback.stringAt("profile"))
+        assertEquals("gid://shopify/Metaobject/79655141505", readback.stringAt("rootId"))
+        assertEquals(1, readback.objectAt("junit").intAt("tests"))
+        assertEquals(0, readback.objectAt("junit").intAt("skipped"))
+        assertEquals(0, readback.objectAt("junit").intAt("failures"))
+        assertEquals(0, readback.objectAt("junit").intAt("errors"))
     }
 
     @Suppress("CyclomaticComplexMethod", "ReturnCount") // Each exit is a distinct contract classification boundary.

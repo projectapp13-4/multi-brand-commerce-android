@@ -693,6 +693,25 @@ function Invoke-RegistrySuite {
         $receipt = Import-OnboardingReceipt -Path $receiptPath
         Assert-True -Condition ($receipt.operationContractVersion -ceq 'gate8-v1') `
             -Name 'closed Plan receipt is accepted'
+        $gate9ReceiptPath = Join-Path $temporaryRoot 'gate9-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $gate9ReceiptPath,
+            $receiptJson.Replace('"operationContractVersion": "gate8-v1"', '"operationContractVersion": "gate9-v2"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $gate9Receipt = Import-OnboardingReceipt -Path $gate9ReceiptPath
+        Assert-True -Condition ($gate9Receipt.operationContractVersion -ceq 'gate9-v2') `
+            -Name 'closed Gate 9 Plan receipt version is accepted without widening unknown versions'
+        $unknownReceiptPath = Join-Path $temporaryRoot 'unknown-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $unknownReceiptPath,
+            $receiptJson.Replace('"operationContractVersion": "gate8-v1"', '"operationContractVersion": "future-v3"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingReceipt -Path $unknownReceiptPath } `
+            -Pattern 'UNSUPPORTED_RECEIPT_VERSION' `
+            -Name 'unknown operator receipt versions remain rejected'
 
         $stringReceiptSchemaPath = Join-Path $temporaryRoot 'string-receipt-schema.json'
         [System.IO.File]::WriteAllText(
@@ -1179,8 +1198,26 @@ public sealed class Gate8BlockingReadStream : Stream
     $registry = Import-OnboardingRegistry -Path (Join-Path $repoRoot 'config\onboarding\application-registry.v1.json') -RepositoryRoot $repoRoot
     $selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'development'
     $stagingSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'staging'
+    $trialSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'trial' -Profile 'development'
     $syntheticSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'synthetic' -Profile 'conformance'
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    $gurbakirHomeOperatorContract = & (Get-Module Onboarding.Operator) {
+        param($Selected)
+        Get-OnboardingHomeOperatorContract ([pscustomobject]@{ Selected = $Selected })
+    } $selected
+    $trialHomeOperatorContract = & (Get-Module Onboarding.Operator) {
+        param($Selected)
+        Get-OnboardingHomeOperatorContract ([pscustomobject]@{ Selected = $Selected })
+    } $trialSelection
+    Assert-True `
+        -Condition (
+            [string]$gurbakirHomeOperatorContract.ContractId -ceq 'gate7-v1' -and
+            [string]$gurbakirHomeOperatorContract.OperationContractVersion -ceq 'gate8-v1' -and
+            [string]$trialHomeOperatorContract.ContractId -ceq 'pilot-media-v2' -and
+            [string]$trialHomeOperatorContract.OperationContractVersion -ceq 'gate9-v2' -and
+            [string]$trialHomeOperatorContract.SchemaRelativePath -ceq 'config/onboarding/shopify-home-schema.v2.json'
+        ) `
+        -Name 'operator dispatches Gürbakır v1 and Trial v2 from the closed profile contract tuple'
     $disabledFirebaseState = & (Get-Module Onboarding.Operator) {
         param($Context)
         Get-OnboardingFirebaseInspectionState `
@@ -1401,6 +1438,103 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition ((& $getHomeState $missingChildDisplayName).Classification -ceq 'INCOMPATIBLE') `
         -Name 'nullable display-name equivalence is not applied to title-based child definitions'
+
+    $v2Schema = Import-ShopifyHomeSchemaContract -ContractId 'pilot-media-v2'
+    $v2DefinitionIds = @{
+        mobile_home_collection_grid = 'gid://shopify/MetaobjectDefinition/11'
+        mobile_home_featured_product = 'gid://shopify/MetaobjectDefinition/12'
+        mobile_home_image_v1 = 'gid://shopify/MetaobjectDefinition/13'
+        mobile_home_video_v1 = 'gid://shopify/MetaobjectDefinition/14'
+        mobile_home_v2 = 'gid://shopify/MetaobjectDefinition/15'
+    }
+    $liveV2CompatibleDefinitions = @(
+        foreach ($contract in @($v2Schema.definitions)) {
+            $input = ConvertTo-ShopifyHomeDefinitionCreateInput `
+                -Contract $contract `
+                -DefinitionIdsByType $v2DefinitionIds
+            @{
+                id = [string]$v2DefinitionIds[[string]$contract.type]
+                type = [string]$contract.type
+                name = [string]$input.name
+                displayNameKey = if ($input.ContainsKey('displayNameKey')) { [string]$input.displayNameKey } else { $null }
+                fieldDefinitions = @(
+                    foreach ($field in @($input.fieldDefinitions)) {
+                        @{
+                            key = [string]$field.key
+                            name = [string]$field.name
+                            type = @{ name = [string]$field.type }
+                            required = [bool]$field.required
+                            validations = @($field.validations)
+                        }
+                    }
+                )
+                capabilities = @{ publishable = @{ enabled = $true } }
+                access = @{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
+            }
+        }
+    )
+    $getV2HomeState = {
+        param($definitions)
+        $fixtureTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectDefinitions = @{
+                nodes = $definitions
+                pageInfo = @{ hasNextPage = $false; endCursor = $null }
+            } } } }
+        }.GetNewClosure()
+        Get-ShopifyHomeDefinitionState `
+            $binding 'fixture-admin-token' $fixtureTransport `
+            -ContractId 'pilot-media-v2'
+    }.GetNewClosure()
+    $v2HomeState = & $getV2HomeState $liveV2CompatibleDefinitions
+    Assert-True `
+        -Condition (
+            [string]$v2HomeState.Classification -ceq 'COMPATIBLE' -and
+            (@($v2HomeState.ManagedTypes) -join ',') -ceq 'mobile_home_collection_grid,mobile_home_featured_product,mobile_home_image_v1,mobile_home_video_v1,mobile_home_v2'
+        ) `
+        -Name 'Home v2 provider definitions map to the exact pilot-media-v2 contract'
+    $imageInput = @(
+        $liveV2CompatibleDefinitions | Where-Object { [string]$_.type -ceq 'mobile_home_image_v1' }
+    )[0]
+    $presentationValidation = @(
+        $imageInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'presentation' }
+    )[0].validations
+    $imageFileValidation = @(
+        $imageInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'media' }
+    )[0].validations
+    Assert-True `
+        -Condition (
+            @($presentationValidation).Count -eq 1 -and
+            [string]$presentationValidation[0].name -ceq 'choices' -and
+            [string]$presentationValidation[0].value -ceq '["banner","photo"]' -and
+            @($imageFileValidation).Count -eq 1 -and
+            [string]$imageFileValidation[0].name -ceq 'file_type_options' -and
+            [string]$imageFileValidation[0].value -ceq '["Image"]'
+        ) `
+        -Name 'Home v2 semantic media validations compile to documented Shopify provider names'
+    $wrongV2FileType = Copy-TestValue $liveV2CompatibleDefinitions
+    $wrongV2FileTypeField = @(
+        ($wrongV2FileType | Where-Object { [string]$_.type -ceq 'mobile_home_video_v1' }).fieldDefinitions |
+            Where-Object { [string]$_.key -ceq 'media' }
+    )[0]
+    $wrongV2FileTypeField.validations[0].value = '["IMAGE"]'
+    Assert-True `
+        -Condition ((& $getV2HomeState $wrongV2FileType).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'Home v2 rejects a provider media definition with the wrong file type'
+    $v2Actions = & (Get-Module Onboarding.Operator) {
+        param($HomeState)
+        New-OnboardingExpectedActions `
+            -HomeState $HomeState `
+            -ProbeState ([pscustomobject]@{ Classification = 'ABSENT'; Fingerprint = ('0' * 64) })
+    } ([pscustomobject]@{
+        Classification = 'ABSENT'
+        Fingerprint = ('1' * 64)
+        MissingTypes = @($v2Schema.definitions.type)
+        ManagedTypes = @($v2Schema.definitions.type)
+    })
+    Assert-True `
+        -Condition ((@($v2Actions | ForEach-Object { [string]$_.resourceKey }) -join ',') -ceq (@($v2Schema.definitions.type) -join ',')) `
+        -Name 'Home v2 definition plan preserves dependency order and keeps the root last'
 
     $compatibleProbe = @{
         id = 'gid://shopify/Metaobject/99'
