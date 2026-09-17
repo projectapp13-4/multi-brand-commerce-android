@@ -1,5 +1,7 @@
 @file:Suppress("FunctionNaming", "LongMethod")
-@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+@file:androidx.annotation.OptIn(
+    markerClass = [androidx.media3.common.util.UnstableApi::class, androidx.media3.common.util.ExperimentalApi::class]
+)
 
 package com.gurbakir.mobile.home
 
@@ -9,11 +11,13 @@ import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -44,6 +48,8 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.ui.compose.material3.Player as Media3Player
+import androidx.media3.ui.compose.material3.PlayerDefaults
+import androidx.media3.ui.compose.material3.buttons.MuteButton
 import com.gurbakir.mobile.core.R
 import kotlinx.coroutines.delay
 
@@ -120,7 +126,10 @@ internal fun HomeVideoPlayer(
                             }
                         },
                         onTerminal = { reason ->
-                            terminalReason = reason
+                            terminalReason = reason.takeUnless {
+                                it == HomePlaybackTerminalReason.COMPLETED ||
+                                    it == HomePlaybackTerminalReason.NAVIGATION
+                            }
                             rendition = null
                         }
                     )
@@ -234,11 +243,25 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
     }
 
     Box(
-        modifier = Modifier.fillMaxWidth().heightIn(min = HOME_VIDEO_MIN_HEIGHT)
+        modifier = Modifier.fillMaxWidth()
+            .aspectRatio(request.rendition.width.toFloat() / request.rendition.height)
             .testTag(HomeTestTags.VIDEO_PLAYER),
         contentAlignment = Alignment.Center
     ) {
-        Media3Player(player = player, modifier = Modifier.fillMaxSize())
+        Media3Player(
+            player = player,
+            modifier = Modifier.fillMaxSize(),
+            showControls = true,
+            topControls = { controlledPlayer, visible ->
+                PlayerDefaults.TopControls(controlledPlayer, visible, Modifier.fillMaxWidth()) {
+                    MuteButton(
+                        it,
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        colors = IconButtonDefaults.filledIconButtonColors()
+                    )
+                }
+            }
+        )
         if (buffering) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter))
     }
 }
