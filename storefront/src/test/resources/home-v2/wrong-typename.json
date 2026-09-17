@@ -1,0 +1,41 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/204",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:04:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/304\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/304",
+              "handle": "wrong-media-kind",
+              "type": "mobile_home_image_v1",
+              "updatedAt": "2026-09-17T07:57:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Wrong media kind" },
+              "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "photo" },
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/GenericFile/801",
+                "reference": { "__typename": "GenericFile", "id": "gid://shopify/GenericFile/801" }
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "A rejected generic file" },
+              "caption": null,
+              "target": null
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

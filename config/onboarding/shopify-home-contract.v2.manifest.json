@@ -1,0 +1,115 @@
+{
+  "manifestVersion": 1,
+  "contract": {
+    "id": "pilot-media-v2",
+    "schemaVersion": 2,
+    "rootType": "mobile_home_v2",
+    "resourceHydrationMaximumUniqueIds": 14
+  },
+  "storefrontApiVersion": "2026-07",
+  "checkpointFiles": [
+    {
+      "path": "config/onboarding/shopify-home-schema.v2.json",
+      "sha256": "929514036ce21958e63a5920a156b7e9402f0bd8373ffcd964f022ee44d64234"
+    },
+    {
+      "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeContentV2Metaobject.graphql",
+      "sha256": "60476ee3af23f995fe4b7bf2c77c87086674c104eeb1554495140cec39e27143"
+    },
+    {
+      "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeV2Resources.graphql",
+      "sha256": "26cdbc0aa6846564eaf8fec6dea5d57260fe24982d287dae194444a280a7b78e"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/intentional-empty.json",
+      "sha256": "4f094150739da1dd70510dfb4a5c55ae9e71f1c62239d398f3749656cd6419b3"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/new-file-gid-refresh.json",
+      "sha256": "0bc65840040b047b6ecb4d83627a0573923b85ef2f01b167061c4c9cc8391ec1"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/none-renderable.json",
+      "sha256": "0b00081107a7c3e175b9c164b4f96d8c59046077d6cec3d212395a9a6b8c6a20"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/optional-unresolved-target.json",
+      "sha256": "3d22f595393fe028902e708ca128c1859a39b9e8d78dde4cb1ec40479349a83b"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/parent-unchanged-child-changed.json",
+      "sha256": "06070a9255fc72e6a25bf1b0c8a2b86807ba4ea2cac1dd4bc90629a14474682b"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/partial.json",
+      "sha256": "8ed1e60572e966bd6be0a5a390c99db8d5c71a8033b6daec1c35f5ee728d6867"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/same-id-url-freshness-unsupported.json",
+      "sha256": "2774cc848b04a731b95ac7b23fddf1c9656be2ca94cbd8c04fca0692e7f66001"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/transient-unresolved-media.json",
+      "sha256": "18bfd2b4b4d3cd2d55beb342b317bc86d528b933615cf969494dc2ecd77e3e23"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/transient-unresolved-reference.json",
+      "sha256": "8aa878b3a41a0d3e59d4781ea7c1c69688e83c01e49fc91cf75c89a690b7943f"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-count.json",
+      "sha256": "106aa9f9ed28a8b6d311b2ae977a08b42b7dcdbfe2e93d8db60306237d5b89b8"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-order.json",
+      "sha256": "40d72a0d7077c7bc5b76a0a9ae0d63424747a7d99e556b3b6d8e43a093a55099"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-root-type.json",
+      "sha256": "74a51f4010634301696e124609d9daa0ca763a3626bd7c06b182eca940fcaf47"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-schema-version.json",
+      "sha256": "3c6a86b18ee76a233442ebf39d844bbc7a32622dd155a4f003f22c99d7eb3be0"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-typename.json",
+      "sha256": "7509dde6522817539a93b613fe3ea670ce75ac848680f5c6f35ec078620dcbbe"
+    }
+  ],
+  "schemaValidation": {
+    "status": "PASS",
+    "tool": "shopify-storefront-graphql@1.9.1",
+    "model": "gpt-6-astra",
+    "clientName": "codex-app",
+    "clientVersion": "2026-09-17",
+    "documentation": [
+      "https://shopify.dev/docs/api/storefront/2026-07/objects/MediaImage",
+      "https://shopify.dev/docs/api/storefront/2026-07/objects/Video",
+      "https://shopify.dev/docs/api/storefront/2026-07/unions/MetafieldReference"
+    ],
+    "operations": [
+      {
+        "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeContentV2Metaobject.graphql",
+        "artifactId": "gate9-home-v2-root-a41f7c2e",
+        "attempts": [
+          { "revision": 1, "status": "INVALID", "detail": "Unknown shared HomeImageFields fragment in standalone validation." },
+          { "revision": 2, "status": "VALID" }
+        ]
+      },
+      {
+        "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeV2Resources.graphql",
+        "artifactId": "gate9-home-v2-resources-b72cd913",
+        "attempts": [
+          { "revision": 1, "status": "INVALID", "detail": "Unknown shared HomeImageFields fragment in standalone validation." },
+          { "revision": 2, "status": "VALID" }
+        ]
+      }
+    ]
+  },
+  "actualPublicClientReadback": {
+    "acceptance": "A6",
+    "status": "NOT_RUN",
+    "reason": "Requires the later authorized Trial public-client execution."
+  }
+}

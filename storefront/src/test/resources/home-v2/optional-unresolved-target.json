@@ -1,0 +1,58 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/201",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:01:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/301\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/301",
+              "handle": "autumn-banner",
+              "type": "mobile_home_image_v1",
+              "updatedAt": "2026-09-17T07:55:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Autumn arrivals" },
+              "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "banner" },
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/MediaImage/501",
+                "reference": {
+                  "__typename": "MediaImage",
+                  "id": "gid://shopify/MediaImage/501",
+                  "alt": "Copper cookware on a linen table",
+                  "mediaContentType": "IMAGE",
+                  "image": {
+                    "id": "gid://shopify/ImageSource/501",
+                    "altText": "Copper cookware on a linen table",
+                    "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/autumn-banner.jpg",
+                    "width": 1600,
+                    "height": 900
+                  }
+                }
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Copper cookware on a linen table" },
+              "caption": { "key": "caption", "type": "multi_line_text_field", "value": "Built for long dinners." },
+              "target": {
+                "key": "target",
+                "type": "mixed_reference",
+                "value": "gid://shopify/Product/701",
+                "reference": null
+              }
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

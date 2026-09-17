@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 2,
+  "contract": "pilot-media-v2",
+  "adminApiVersion": "2026-07",
+  "access": { "admin": "PUBLIC_READ_WRITE", "storefront": "PUBLIC_READ" },
+  "capabilities": { "publishable": true },
+  "rootSectionTypeLimits": {
+    "mobile_home_collection_grid": 1,
+    "mobile_home_featured_product": 1,
+    "mobile_home_image_v1": 2,
+    "mobile_home_video_v1": 1
+  },
+  "definitions": [
+    {
+      "type": "mobile_home_collection_grid",
+      "displayNameKey": "title",
+      "fields": [
+        {
+          "key": "title",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": { "min": 1, "max": 80 }
+        },
+        {
+          "key": "collections",
+          "type": "list.collection_reference",
+          "required": true,
+          "validations": { "min": 1, "max": 6 }
+        }
+      ]
+    },
+    {
+      "type": "mobile_home_featured_product",
+      "displayNameKey": "title",
+      "fields": [
+        {
+          "key": "title",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": { "min": 1, "max": 80 }
+        },
+        {
+          "key": "product",
+          "type": "product_reference",
+          "required": true,
+          "validations": {}
+        }
+      ]
+    },
+    {
+      "type": "mobile_home_image_v1",
+      "displayNameKey": "title",
+      "fields": [
+        {
+          "key": "title",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": { "min": 1, "max": 80 }
+        },
+        {
+          "key": "presentation",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": { "choices": ["banner", "photo"] }
+        },
+        {
+          "key": "media",
+          "type": "file_reference",
+          "required": true,
+          "validations": { "fileTypes": ["IMAGE"] }
+        },
+        {
+          "key": "alt_text",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": {}
+        },
+        {
+          "key": "caption",
+          "type": "multi_line_text_field",
+          "required": false,
+          "validations": {}
+        },
+        {
+          "key": "target",
+          "type": "mixed_reference",
+          "required": false,
+          "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] }
+        }
+      ]
+    },
+    {
+      "type": "mobile_home_video_v1",
+      "displayNameKey": "title",
+      "fields": [
+        {
+          "key": "title",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": { "min": 1, "max": 80 }
+        },
+        {
+          "key": "media",
+          "type": "file_reference",
+          "required": true,
+          "validations": { "fileTypes": ["VIDEO"] }
+        },
+        {
+          "key": "poster",
+          "type": "file_reference",
+          "required": false,
+          "validations": { "fileTypes": ["IMAGE"] }
+        },
+        {
+          "key": "alt_text",
+          "type": "single_line_text_field",
+          "required": true,
+          "validations": {}
+        },
+        {
+          "key": "caption",
+          "type": "multi_line_text_field",
+          "required": false,
+          "validations": {}
+        },
+        {
+          "key": "target",
+          "type": "mixed_reference",
+          "required": false,
+          "validations": { "resourceTypes": ["COLLECTION", "PRODUCT"] }
+        }
+      ]
+    },
+    {
+      "type": "mobile_home_v2",
+      "displayNameKey": "schema_version",
+      "fields": [
+        {
+          "key": "schema_version",
+          "type": "number_integer",
+          "required": true,
+          "validations": { "min": 2, "max": 2 }
+        },
+        {
+          "key": "declared_section_count",
+          "type": "number_integer",
+          "required": true,
+          "validations": { "min": 0, "max": 5 }
+        },
+        {
+          "key": "sections",
+          "type": "list.mixed_reference",
+          "required": false,
+          "validations": {
+            "max": 5,
+            "definitionTypes": [
+              "mobile_home_collection_grid",
+              "mobile_home_featured_product",
+              "mobile_home_image_v1",
+              "mobile_home_video_v1"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

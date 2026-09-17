@@ -1,0 +1,56 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/205",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:05:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/305\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/305",
+              "handle": "missing-alt-text",
+              "type": "mobile_home_video_v1",
+              "updatedAt": "2026-09-17T07:58:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Missing accessibility contract" },
+              "presentation": null,
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/Video/602",
+                "reference": {
+                  "__typename": "Video",
+                  "id": "gid://shopify/Video/602",
+                  "alt": null,
+                  "mediaContentType": "VIDEO",
+                  "previewImage": null,
+                  "sources": [
+                    {
+                      "format": "mp4",
+                      "height": 720,
+                      "mimeType": "video/mp4",
+                      "url": "https://cdn.shopify.com/videos/c/o/v/missing-alt.mp4",
+                      "width": 1280
+                    }
+                  ]
+                }
+              },
+              "poster": null,
+              "altText": null,
+              "caption": null,
+              "target": null
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

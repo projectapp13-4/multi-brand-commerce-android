@@ -1,0 +1,109 @@
+{
+  "expectedRefreshPolicy": "UNSUPPORTED_WITHOUT_SEPARATE_FRESHNESS_PROOF",
+  "before": {
+    "data": {
+      "metaobject": {
+        "id": "gid://shopify/Metaobject/211",
+        "handle": "primary",
+        "type": "mobile_home_v2",
+        "updatedAt": "2026-09-17T08:11:00Z",
+        "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+        "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+        "sections": {
+          "key": "sections",
+          "type": "list.mixed_reference",
+          "value": "[\"gid://shopify/Metaobject/311\"]",
+          "references": {
+            "nodes": [
+              {
+                "__typename": "Metaobject",
+                "id": "gid://shopify/Metaobject/311",
+                "handle": "same-file-refresh",
+                "type": "mobile_home_image_v1",
+                "updatedAt": "2026-09-17T08:00:00Z",
+                "title": { "key": "title", "type": "single_line_text_field", "value": "Before" },
+                "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "photo" },
+                "media": {
+                  "key": "media",
+                  "type": "file_reference",
+                  "value": "gid://shopify/MediaImage/512",
+                  "reference": {
+                    "__typename": "MediaImage",
+                    "id": "gid://shopify/MediaImage/512",
+                    "alt": "Before",
+                    "mediaContentType": "IMAGE",
+                    "image": {
+                      "id": "gid://shopify/ImageSource/512",
+                      "altText": "Before",
+                      "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/stable-url.jpg",
+                      "width": 1200,
+                      "height": 800
+                    }
+                  }
+                },
+                "poster": null,
+                "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Before" },
+                "caption": null,
+                "target": null
+              }
+            ],
+            "pageInfo": { "hasNextPage": false }
+          }
+        }
+      }
+    }
+  },
+  "after": {
+    "data": {
+      "metaobject": {
+        "id": "gid://shopify/Metaobject/211",
+        "handle": "primary",
+        "type": "mobile_home_v2",
+        "updatedAt": "2026-09-17T08:11:00Z",
+        "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+        "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+        "sections": {
+          "key": "sections",
+          "type": "list.mixed_reference",
+          "value": "[\"gid://shopify/Metaobject/311\"]",
+          "references": {
+            "nodes": [
+              {
+                "__typename": "Metaobject",
+                "id": "gid://shopify/Metaobject/311",
+                "handle": "same-file-refresh",
+                "type": "mobile_home_image_v1",
+                "updatedAt": "2026-09-17T08:10:00Z",
+                "title": { "key": "title", "type": "single_line_text_field", "value": "After" },
+                "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "photo" },
+                "media": {
+                  "key": "media",
+                  "type": "file_reference",
+                  "value": "gid://shopify/MediaImage/512",
+                  "reference": {
+                    "__typename": "MediaImage",
+                    "id": "gid://shopify/MediaImage/512",
+                    "alt": "After",
+                    "mediaContentType": "IMAGE",
+                    "image": {
+                      "id": "gid://shopify/ImageSource/512",
+                      "altText": "After",
+                      "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/stable-url.jpg",
+                      "width": 1200,
+                      "height": 800
+                    }
+                  }
+                },
+                "poster": null,
+                "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "After" },
+                "caption": null,
+                "target": null
+              }
+            ],
+            "pageInfo": { "hasNextPage": false }
+          }
+        }
+      }
+    }
+  }
+}

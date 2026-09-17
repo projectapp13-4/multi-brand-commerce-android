@@ -297,6 +297,7 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.serialization.json)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.apollo.testing)
 
