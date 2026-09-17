@@ -1,11 +1,12 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–8 technically closed; Multi-Brand work remains unfinished**
+Status: **Gates 0–8 technically closed; Gate 9 implementation candidate açık**
 
 ## Purpose
 
 This directory preserves accepted architecture reasoning, approved execution
-plans, and Gate 1–8 implementation/evidence records for evolving the Gürbakır
+plans, Gate 1–8 implementation/evidence records, and the open Gate 9 candidate
+for evolving the Gürbakır
 application into a multi-brand Android monorepo. It is a navigation and status
 index, not a duplicate architecture specification.
 
@@ -18,6 +19,7 @@ durable rationale -> ../decisions/*
 investigation/history -> research/*
 approved gate execution -> plans/* or recorded owner-approved scope
 historical gate outcome -> GATE-1 through GATE-8 completion handoffs
+current Gate 9 candidate -> GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md
 current lifecycle status -> this index and ../README.md
 product/release boundary -> ../phase3/*
 ```
@@ -63,6 +65,7 @@ architecture.
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 | 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
+| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: implementation candidate; A4 FAIL/setup required; ADB/provider/CI rows pending |
 
 ## Gate 6 closure evidence
 
@@ -169,7 +172,10 @@ editorial-only Home LKG persistence; current commerce truth remains live Storefr
 synthetic Home remote source disabled and credential-free
 explicit application/profile enrollment and scoped nonproduction configuration
 bounded read-only/provider-write operator with receipt-bound recovery
-no second real merchant application
+development-only Trial second real application/store pilot
+Trial v1 provider checkpoint followed by bounded Home v2 image/video contract
+isolated Trial Shopify, Customer Account, Firebase, persistence and signing inputs
+bounded playback attempt, HTTP budget, lifecycle/audio cancellation and v2 cache
 no runtime merchant switch
 no normative brand flavor dimension
 ```
@@ -180,16 +186,17 @@ Closing Gate 8 does not finish Multi-Brand work. Future slices must be separatel
 planned from current source and architecture. They must preserve:
 
 - Gürbakır `:app` as the first real application and validation brand;
-- the eight-module dependency graph and application-owned composition model;
+- the nine-module dependency graph and application-owned composition model;
 - migration-sensitive application, persistence, provider, OAuth, App Link, and
   Firebase identities;
 - the `:synthetic` isolation/conformance role;
 - bounded merchant-content authority with native executable behavior retained by Android; and
 - honest separation between reusable contracts and concrete brand behavior.
 
-The second real merchant/store pilot is the next separate Multi-Brand slice.
-Gate 9 cumulative conformance, production onboarding/configuration/signing/
-publication, and P3-16 remain unstarted or separately governed unless later
-evidence and approval establish otherwise.
+The second merchant/store implementation now exists as a development-only Gate 9
+candidate, but Gate 9 cumulative conformance is not closed. Trial cart scope/setup,
+ADB-dependent player/two-app/update/performance acceptance, provider rollback
+rehearsal, PR-head CI, owner merge and merged-main CI remain open. Production
+onboarding/configuration/signing/publication and P3-16 remain separately governed.
 
 The repository-wide authority map remains [docs/README.md](../README.md).

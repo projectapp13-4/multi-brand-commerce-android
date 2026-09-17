@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-16
+Status date: 2026-09-17
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -40,11 +40,14 @@ history, protected bootstrap, and historical-archive cutover evidence.
   DRAFT/unselected acceptance probe, and repeated zero-write idempotence.
   [`multi-brand/GATE-8-COMPLETION-HANDOFF.md`](multi-brand/GATE-8-COMPLETION-HANDOFF.md)
   remains the historical pre-merge record rather than the closure authority.
-- The Multi-Brand migration remains unfinished. Gürbakır `:app` is the first
-  real brand application; `:synthetic` is not a merchant application; no second
-  real brand application exists. The second real merchant/store pilot is the
-  next separate slice. Gate 9, P3-16, and production onboarding remain
-  unstarted or separately governed.
+- The Gate 9 implementation candidate adds development-only `:trial` as the
+  second real application/store pilot and bounded Home v2 image/video support.
+  Real Trial v1/v2 provider checkpoints and local source/artifact validation
+  exist, but Trial cart acceptance currently fails because the Storefront cart
+  write scope is not effective, and ADB-dependent acceptance is not run. Gate 9
+  therefore remains open; see
+  [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
+  Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
   through **P3-15**. Account-deletion merchant acknowledgement,
   retention/SLA execution, and actual remote deletion remain externally
@@ -82,6 +85,8 @@ scope. They do not override current source or later accepted decisions.
 | [`architecture`](architecture) | Accepted Multi-Brand target, brand boundaries, onboarding, and migration-sensitive identities |
 | [`decisions`](decisions) | Accepted platform, navigation, SDK, and Multi-Brand ADRs |
 | [`multi-brand/README.md`](multi-brand/README.md) | Current Gate index and unfinished continuation point |
+| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Gate 9 implementation candidate, A1–A14 evidence and open blockers |
+| [`operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md`](operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Turkish Shopify/Firebase/content/release owner operations and rollback guide |
 | [`PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md`](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) | Fresh-history public bootstrap, rights, protection, CI, and authority-cutover evidence |
 | [`phase3/README.md`](phase3/README.md) | Current functional status index |
 | [`phase3/PHASE-3-PRODUCT-DECISIONS.md`](phase3/PHASE-3-PRODUCT-DECISIONS.md) | Final product decisions |
@@ -115,7 +120,8 @@ archive and is not required for normal development.
 ## Historical Multi-Brand evidence
 
 The [`multi-brand`](multi-brand) directory retains accepted research and plans
-plus the individual Gate 1–7 completion handoffs. Handoffs preserve the
+plus Gate 1–8 historical completion handoffs and the open Gate 9 candidate
+handoff. Handoffs preserve the
 evidence and lifecycle wording of their checkpoint; current closure status is
 recorded only in the current indexes.
 
