@@ -44,7 +44,9 @@ history, protected bootstrap, and historical-archive cutover evidence.
   second real application/store pilot and bounded Home v2 image/video support.
   Real Trial v1/v2 provider checkpoints and local source/artifact validation
   exist, but Trial cart acceptance currently fails because the Storefront cart
-  write scope is not effective, and ADB-dependent acceptance is not run. Gate 9
+  write scope is not effective. Samsung API33 bounded update/player/measurement
+  evidence and Trial publish/change/remove/rollback rehearsal now exist; complete
+  player and two-app commerce/session acceptance remain partial. Gate 9
   therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.

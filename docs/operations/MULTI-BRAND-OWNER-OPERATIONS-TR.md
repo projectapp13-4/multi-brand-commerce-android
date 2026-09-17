@@ -18,9 +18,12 @@ brand flavor veya marka adına göre shared-code dalı yoktur.
 
 Trial bugün ürün/koleksiyon/Menu, Home v1 geçmiş checkpoint'i, Home v2 image/video,
 Account bileşimi, legal/support sayfaları ve bağımsız Firebase yapılandırmasını taşır.
-Home v2 kaynak, validator, cache ve player sözleşmeleri uygulanmıştır. Fiziksel cihaz
-üzerindeki tam player/iki-app/update/performance kabulü ADB bağlantısı geri gelene
-kadar `NOT RUN` durumundadır.
+Home v2 kaynak, validator, cache ve player sözleşmeleri uygulanmıştır. Samsung
+`SM_A225F` / API33 (`R68RC006LPE`) üzerinde veri silmeden minified update, ayrı
+yerel geçmiş, bounded player ve beşer cold/warm ölçüm kanıtı vardır. Tam player
+ve iki-app cart/session/logout kabulü hâlâ `PARTIAL`dır. Trial Home refresh sonrası
+beş section ve product/collection CTA'ları ayrıca doğrulandı. Ayrıntılı sınırlar
+ve tarihsel ilk test flake'i Gate 9 handoff'unda korunur.
 
 ## Üç Shopify API'sinin görev ayrımı
 
@@ -55,7 +58,11 @@ okuması geçti, fakat `cartCreate` `ACCESS_DENIED` döndürdü. Güncel Shopify
 sözleşmesinde Cart için `unauthenticated_write_checkouts` gerekir. Bu bir production
 veya dış iş kararı değil, giderilebilir development kurulumu eksikliğidir.
 
-Shopify bağlantısı yeniden yetkilendirildikten sonra:
+Task 8'de aynı onaylı Headless configuration hash'iyle tekrar yürütülen test de
+`executed=1`, `skipped=0`, `failures=1` ve `graphql:ACCESS_DENIED` verdi. Admin CLI
+content erişiminin çalışması bu token'ın cart yetkisi olduğunu kanıtlamaz. Testi
+geçirmek için Shopify-CLI-owned başka bir public token/client oluşturma veya
+yerine koyma. Yetkili Headless operator'ü onaylı client üzerinde:
 
 1. Headless Storefront API izinlerinde `unauthenticated_write_checkouts` kapsamını
    Trial public client için etkinleştir ve değişikliği Shopify'dan readback et.
@@ -156,6 +163,32 @@ Kod rollback'i için Git revert cihazı kendiliğinden geri döndürmez. Aynı p
 imzayla daha yüksek versionCode taşıyan yeni bir forward build üretmek, test etmek ve normal
 update yoluyla dağıtmak gerekir. Veri silerek rollback veya test geçirme yasaktır.
 
+### 17 Eylül 2026 gerçek Trial provası
+
+Task 8 ignored kanıt kökü:
+`out/evidence/gate9/task8/f92857c8863a62a9a929efa3c9ef4279058d77e3/`.
+Shop GID `61252272257` ve beş definition sözleşmesi yeniden doğrulandı. Altı gerçek
+yazıyla yeni bağımsız image child `79673852033`, app'in seçmediği probe root
+`79673884801`, child revision, primary root-last publish, root-ref removal ve exact
+baseline ordered-ref rollback yürütüldü. Primary root `79655141505` önceki
+`79655010433, 79654944897, 79655075969, 79654977665, 79655108737` sırasına döndü.
+Child değişirken probe parent `updatedAt` aynı kaldı; public child digest değişti.
+Oluşturulan kaynaklar korunur; silme yoktur. Yeni File gerekmedi, mevcut READY File
+kullanıldı. `rehearsal-complete.json` ve `child-revision-proof.json` gerçek receipts'tir.
+
+Ayrı yedinci yazı, mevcut owned photo File `24034074525825` ile image-empty Trial
+product `7067655995521` arasında `fileUpdate.referencesToAdd` association kurdu.
+Collection'ın ilk-product fallback'i de böylece geçerli image taşır; renderer
+gevşetilmedi, collection/price/availability değiştirilmedi. `catalog-recovery.json`
+önce/sonra GID'leri ve gerektiğinde yalnız association'ı geri alma yolunu kaydeder;
+bu recovery yürütülmedi, File silinmez. Cihazda beş section ve iki CTA görüldü.
+
+`final-zero-write-plan.json` iki readback arasında `plannedActionCount=0`,
+`writeCount=0`, `drift=false` gösterir. Task 8 receipt digest'i exact public child-node
+query JSON'ının SHA-256'sıdır; Android canonical `sectionRevisionDigest` veya eski
+operator digest'iyle byte-eşit varsayılmaz (`digest-provenance.json`). Provider
+rehearsal PASS, customer/cart veya tüm A8/A9 kabulü PASS demek değildir.
+
 ## Player ve ağ işletim sınırları
 
 - Tek `PlaybackAttempt` toplam 32 MiB response-body bütçesi taşır.
@@ -223,6 +256,12 @@ Shared kodda `if (brand == "...")` ekleme. Yeni marka ayrı application module v
 registry kaydıyla eklenir. Her marka bağımsız application ID, datastore, database,
 Keystore alias, OAuth callback, Firebase app ve release version taşır.
 
+Task 8 `owner-simulation.json` yalnız **SIMULATION_ONLY**'dir: varsayımsal shared
+`HomeVideoPlayer.kt` değişikliği üç app/full registered unit lane'e; Trial-only
+`strings.xml` değişikliği Trial unit/package ve contamination/projection denetimine
+eşlendi. Bu simülasyon sıfır Git/provider yazısı yaptı; gerçek kaynak değişikliği
+veya ayrı brand-only release gibi sunulmaz.
+
 ## Local build, GitHub CI ve bağımsız sürümler
 
 Repo kökünden temel kontroller:
@@ -279,6 +318,11 @@ profile'a dönüştürülmez.
 
 ADB yokken artifact/package/signature sonucu alınabilir; install/update/data-continuity
 satırı `NOT RUN` kalır.
+
+Mevcut ledger handoff'tadır: Task 7 Samsung Trial final minified source `3ceb5a1`
+ile ölçüldü; Gürbakır isolated update-test pair daha eski `b54ad305` checkpoint'idir.
+Sonraki build, final-source Gürbakır fiziksel runtime kabulünü kendiliğinden sağlamaz.
+Task 8 katalog görseli sonrası eski A12 ölçümleri yeni payload'a yeniden etiketlenmez.
 
 ## Sorun ayırma rehberi
 

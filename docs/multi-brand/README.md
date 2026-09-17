@@ -65,7 +65,7 @@ architecture.
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 | 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
-| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: implementation candidate; A4 FAIL/setup required; ADB/provider/CI rows pending |
+| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: A4 FAIL/setup required; bounded Samsung evidence and A13 provider rehearsal exist; A5/A8/A9/CI remain incomplete |
 
 ## Gate 6 closure evidence
 
@@ -195,8 +195,10 @@ planned from current source and architecture. They must preserve:
 
 The second merchant/store implementation now exists as a development-only Gate 9
 candidate, but Gate 9 cumulative conformance is not closed. Trial cart scope/setup,
-ADB-dependent player/two-app/update/performance acceptance, provider rollback
-rehearsal, PR-head CI, owner merge and merged-main CI remain open. Production
+safe synthetic-customer acceptance, full player/two-app commerce acceptance,
+PR-head CI, owner merge and merged-main CI remain open. Bounded Samsung update/
+performance evidence and Trial root-last rollback rehearsal are recorded, not
+substitutes for those remaining rows. Production
 onboarding/configuration/signing/publication and P3-16 remain separately governed.
 
 The repository-wide authority map remains [docs/README.md](../README.md).
