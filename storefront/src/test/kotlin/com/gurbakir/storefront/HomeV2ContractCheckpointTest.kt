@@ -22,6 +22,7 @@ class HomeV2ContractCheckpointTest {
     private val json = Json { ignoreUnknownKeys = false }
 
     @Test
+    @Suppress("LongMethod") // The literal is the closed schema checkpoint and must stay reviewable as one value.
     fun `v2 schema drift is rejected by the closed checkpoint`() {
         val actual = readJson("config/onboarding/shopify-home-schema.v2.json")
         val expected =
@@ -260,6 +261,7 @@ class HomeV2ContractCheckpointTest {
         assertEquals("A6", manifest.objectAt("actualPublicClientReadback").stringAt("acceptance"))
     }
 
+    @Suppress("CyclomaticComplexMethod", "ReturnCount") // Each exit is a distinct contract classification boundary.
     private fun classify(root: JsonObject): String {
         if (root.stringAt("type") != "mobile_home_v2") return "REJECTED_DOCUMENT"
         if (!fieldIs(root, "schemaVersion", "schema_version", "number_integer", "2")) return "REJECTED_DOCUMENT"
@@ -305,6 +307,7 @@ class HomeV2ContractCheckpointTest {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod") // The closed type switch mirrors the four approved section schemas.
     private fun sectionIsValid(section: JsonObject): Boolean = when (section.stringAt("type")) {
         "mobile_home_collection_grid" ->
             fieldIsPresent(section, "title", "title", "single_line_text_field") &&
@@ -371,12 +374,14 @@ class HomeV2ContractCheckpointTest {
         return reference.stringAt("__typename") == expectedType
     }
 
+    @Suppress("ReturnCount") // Null field, unresolved reference, and resolved reference are separate valid states.
     private fun optionalReferenceHasType(element: JsonElement?, expectedType: String): Boolean {
         if (element == null || element is JsonNull) return true
         val reference = element.jsonObject.nullableObjectAt("reference") ?: return true
         return reference.stringAt("__typename") == expectedType
     }
 
+    @Suppress("ReturnCount") // Fail-fast keeps the mutually exclusive target contract explicit.
     private fun optionalTargetsAreValid(section: JsonObject): Boolean {
         val productTarget = section["productTarget"]
         val collectionTarget = section["collectionTarget"]
@@ -387,6 +392,7 @@ class HomeV2ContractCheckpointTest {
         return !(optionalTargetIsPopulated(productTarget) && optionalTargetIsPopulated(collectionTarget))
     }
 
+    @Suppress("ReturnCount") // Each exit maps one optional-field wire state to the closed validity result.
     private fun optionalTargetIsValid(
         element: JsonElement?,
         expectedKey: String,

@@ -467,12 +467,12 @@
           "legalSupport": {
             "origin": "https://multi-brand-trial-store.myshopify.com",
             "paths": {
-              "support": "/setup-required/support",
-              "privacy": "/setup-required/privacy",
-              "terms": "/setup-required/terms",
-              "shipping": "/setup-required/shipping",
-              "returns": "/setup-required/returns",
-              "legalNotice": "/setup-required/legal-notice"
+              "support": "/pages/trial-destek",
+              "privacy": "/pages/trial-gizlilik",
+              "terms": "/pages/trial-kullanim-kosullari",
+              "shipping": "/pages/trial-kargo",
+              "returns": "/pages/trial-iade",
+              "legalNotice": "/pages/trial-yasal-bildirim"
             }
           },
           "checkout": {

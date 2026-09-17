@@ -4,12 +4,15 @@
     <string name="trial_home_pilot_collection">Pilot koleksiyonu</string>
     <string name="trial_home_featured_product">Pilot ürün</string>
     <string name="trial_legal_title">Yasal ve destek</string>
-    <string name="trial_legal_setup_required">Bu geliştirme mağazasının bağlantısı henüz doğrulanmadı. Kurulum tamamlanana kadar dış bağlantı açılmaz.</string>
-    <string name="trial_legal_support">Destek: kurulum gerekli</string>
-    <string name="trial_legal_privacy">Gizlilik: kurulum gerekli</string>
-    <string name="trial_legal_terms">Kullanım koşulları: kurulum gerekli</string>
-    <string name="trial_legal_shipping">Kargo: kurulum gerekli</string>
-    <string name="trial_legal_returns">İade: kurulum gerekli</string>
-    <string name="trial_legal_notice">Yasal bildirim: kurulum gerekli</string>
+    <string name="trial_legal_provisional">Bu sayfalar development mağazasında okunarak doğrulandı; production hukuk onayı değildir.</string>
+    <string name="trial_legal_support">Destek</string>
+    <string name="trial_legal_privacy">Gizlilik</string>
+    <string name="trial_legal_terms">Kullanım koşulları</string>
+    <string name="trial_legal_shipping">Kargo</string>
+    <string name="trial_legal_returns">İade</string>
+    <string name="trial_legal_notice">Yasal bildirim</string>
+    <string name="trial_legal_opened">Güvenli Trial sayfası açılıyor.</string>
+    <string name="trial_legal_no_browser">Güvenli tarayıcı açılamadı.</string>
+    <string name="trial_legal_rejected">Bağlantı doğrulanmış Trial sayfalarıyla eşleşmediği için açılmadı.</string>
     <string name="trial_back">Geri</string>
 </resources>

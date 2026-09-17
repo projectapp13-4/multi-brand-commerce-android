@@ -9,8 +9,6 @@ import com.gurbakir.firebase.RemoteConfigResult
 import com.gurbakir.firebase.RemoteFeatureFlags
 import com.gurbakir.firebase.createFirebaseRemoteFeatureFlags
 import com.gurbakir.foundation.config.AppConfiguration
-import com.gurbakir.mobile.accountdeletion.DeletionPageDescriptor
-import com.gurbakir.mobile.accountdeletion.DeletionPageId
 import com.gurbakir.mobile.accountdeletion.DeletionPageSource
 import com.gurbakir.mobile.address.AddressTerritoryPolicy
 import com.gurbakir.mobile.catalog.CatalogConfiguration
@@ -27,7 +25,7 @@ import com.gurbakir.mobile.wishlist.WishlistPartition
 import com.gurbakir.storefront.AndroidKeystoreCartSessionStore
 import com.gurbakir.storefront.CartSessionStore
 import com.projectapp134.multibrandtrial.BuildConfig
-import com.projectapp134.multibrandtrial.R
+import com.projectapp134.multibrandtrial.accountdeletion.TrialDeletionPages
 import com.projectapp134.multibrandtrial.config.TrialConfiguration
 import dagger.Module
 import dagger.Provides
@@ -68,12 +66,7 @@ object TrialModule {
 @InstallIn(SingletonComponent::class)
 object TrialRuntimeModule {
     @Provides
-    fun provideDeletionPageSource(): DeletionPageSource = DeletionPageSource {
-        listOf(
-            DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.trial_legal_privacy),
-            DeletionPageDescriptor(DeletionPageId.SUPPORT, R.string.trial_legal_support)
-        )
-    }
+    fun provideDeletionPageSource(): DeletionPageSource = TrialDeletionPages(TrialConfiguration.legal)
 
     @Provides
     fun provideCurrentAppVersionCode(): CurrentAppVersionCode = CurrentAppVersionCode(BuildConfig.VERSION_CODE)

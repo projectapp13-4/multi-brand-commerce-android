@@ -176,12 +176,14 @@ function Invoke-RegistrySuite {
             $null -ne $trial.Application.identity.webRoles.legalSupport -and
             [string]$trial.Application.identity.webRoles.legalSupport.origin -ceq 'https://multi-brand-trial-store.myshopify.com' -and
             @($trial.Application.identity.webRoles.legalSupport.paths.Keys).Count -eq 6 -and
-            @(
-                @($trial.Application.identity.webRoles.legalSupport.paths.Values) |
-                    Where-Object { -not ([string]$_).StartsWith('/setup-required/') }
-            ).Count -eq 0
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.support -ceq '/pages/trial-destek' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.privacy -ceq '/pages/trial-gizlilik' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.terms -ceq '/pages/trial-kullanim-kosullari' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.shipping -ceq '/pages/trial-kargo' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.returns -ceq '/pages/trial-iade' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.legalNotice -ceq '/pages/trial-yasal-bildirim'
         ) `
-        -Name 'Trial registry owns a complete non-opening legal support placeholder contract'
+        -Name 'Trial registry owns the provider-read development legal support pages'
 
     $sha = Get-OnboardingSha256 -Path $registryPath
     $lines = Get-OnboardingProjectionLines `
@@ -214,12 +216,12 @@ function Invoke-RegistrySuite {
         'shopify.homeRootType=mobile_home',
         'shopify.homeContentSchemaVersion=1',
         'web.legalSupportOrigin=https://multi-brand-trial-store.myshopify.com',
-        'web.legalSupportPath.support=/setup-required/support',
-        'web.legalSupportPath.privacy=/setup-required/privacy',
-        'web.legalSupportPath.terms=/setup-required/terms',
-        'web.legalSupportPath.shipping=/setup-required/shipping',
-        'web.legalSupportPath.returns=/setup-required/returns',
-        'web.legalSupportPath.legalNotice=/setup-required/legal-notice',
+        'web.legalSupportPath.support=/pages/trial-destek',
+        'web.legalSupportPath.privacy=/pages/trial-gizlilik',
+        'web.legalSupportPath.terms=/pages/trial-kullanim-kosullari',
+        'web.legalSupportPath.shipping=/pages/trial-kargo',
+        'web.legalSupportPath.returns=/pages/trial-iade',
+        'web.legalSupportPath.legalNotice=/pages/trial-yasal-bildirim',
         'firebase.ownershipKey=multi-brand-trial-development'
     )) {
         Assert-True -Condition ($trialLines -ccontains $expectedTrialLine) `

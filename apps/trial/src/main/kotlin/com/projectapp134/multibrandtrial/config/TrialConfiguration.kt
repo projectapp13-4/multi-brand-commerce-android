@@ -162,7 +162,7 @@ internal object TrialConfiguration {
         SearchHistoryNormalizationPolicy(BuildConfig.SEARCH_NORMALIZATION_LOCALE)
     val wishlistPartition: WishlistPartition = WishlistPartition(app.environment.name, app.market.id)
     val legal: TrialLegalContract =
-        TrialLegalContract.setupRequired(
+        TrialLegalContract.developmentVerified(
             origin = BuildConfig.LEGAL_SUPPORT_ORIGIN,
             paths =
                 mapOf(
@@ -174,7 +174,7 @@ internal object TrialConfiguration {
                     TrialLegalRole.LEGAL_NOTICE to BuildConfig.LEGAL_SUPPORT_PATH_LEGAL_NOTICE
                 )
         )
-    val deletion: TrialDeletionContract = TrialDeletionContract.setupRequired(legal)
+    val deletion: TrialDeletionContract = TrialDeletionContract.developmentVerified(legal)
 }
 
 internal fun resolveEnvironment(rawValue: String): EnvironmentId = when (rawValue) {

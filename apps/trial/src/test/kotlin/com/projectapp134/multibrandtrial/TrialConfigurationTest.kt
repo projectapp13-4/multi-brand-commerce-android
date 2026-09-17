@@ -79,17 +79,35 @@ class TrialConfigurationTest {
     }
 
     @Test
-    fun `unverified legal and carrier links fail closed without borrowing another brand`() {
+    fun `provider verified Trial legal and deletion links stay provisional and brand isolated`() {
         assertEquals(TrialLegalRole.entries.toSet(), TrialConfiguration.legal.entries.map { it.role }.toSet())
-        assertTrue(TrialConfiguration.legal.entries.all { it.state == TrialLegalState.SETUP_REQUIRED })
-        assertTrue(
-            TrialConfiguration.legal.entries.all {
-                it.intendedUri.startsWith("https://multi-brand-trial-store.myshopify.com/setup-required/")
-            }
+        assertTrue(TrialConfiguration.legal.entries.all { it.state == TrialLegalState.DEVELOPMENT_VERIFIED })
+        assertEquals(
+            setOf(
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-destek",
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-gizlilik",
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-kullanim-kosullari",
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-kargo",
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-iade",
+                "https://multi-brand-trial-store.myshopify.com/pages/trial-yasal-bildirim"
+            ),
+            TrialConfiguration.legal.entries.map { it.intendedUri }.toSet()
         )
-        assertEquals(TrialLegalState.SETUP_REQUIRED, TrialConfiguration.deletion.state)
+        assertEquals(TrialLegalState.DEVELOPMENT_VERIFIED, TrialConfiguration.deletion.state)
         assertEquals(TrialLegalRole.PRIVACY, TrialConfiguration.deletion.privacy.role)
         assertEquals(TrialLegalRole.SUPPORT, TrialConfiguration.deletion.request.role)
+        assertEquals(
+            "https://multi-brand-trial-store.myshopify.com/pages/trial-gizlilik",
+            TrialConfiguration.app.brand.legalLinks.privacyPolicyUrl
+        )
+        assertEquals(
+            "https://multi-brand-trial-store.myshopify.com/pages/trial-kullanim-kosullari",
+            TrialConfiguration.app.brand.legalLinks.termsUrl
+        )
+        assertEquals(
+            "https://multi-brand-trial-store.myshopify.com/pages/trial-destek",
+            TrialConfiguration.app.brand.legalLinks.supportUrl
+        )
         assertFalse(TrialTrackingUrlPolicy.isAllowed("https://ptt.gov.tr/tracking/AA123"))
         assertFalse(TrialTrackingUrlPolicy.isAllowed("https://carrier.example/tracking/AA123"))
     }

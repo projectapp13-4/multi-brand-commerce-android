@@ -4,12 +4,15 @@
     <string name="trial_home_pilot_collection">Pilot collection</string>
     <string name="trial_home_featured_product">Pilot product</string>
     <string name="trial_legal_title">Legal and support</string>
-    <string name="trial_legal_setup_required">This development store link is not verified yet. No external link opens until setup is complete.</string>
-    <string name="trial_legal_support">Support: setup required</string>
-    <string name="trial_legal_privacy">Privacy: setup required</string>
-    <string name="trial_legal_terms">Terms: setup required</string>
-    <string name="trial_legal_shipping">Shipping: setup required</string>
-    <string name="trial_legal_returns">Returns: setup required</string>
-    <string name="trial_legal_notice">Legal notice: setup required</string>
+    <string name="trial_legal_provisional">These pages were read back from the development store; this is not production legal approval.</string>
+    <string name="trial_legal_support">Support</string>
+    <string name="trial_legal_privacy">Privacy</string>
+    <string name="trial_legal_terms">Terms</string>
+    <string name="trial_legal_shipping">Shipping</string>
+    <string name="trial_legal_returns">Returns</string>
+    <string name="trial_legal_notice">Legal notice</string>
+    <string name="trial_legal_opened">Opening the verified Trial page.</string>
+    <string name="trial_legal_no_browser">A secure browser could not be opened.</string>
+    <string name="trial_legal_rejected">The link did not match the verified Trial pages and was not opened.</string>
     <string name="trial_back">Back</string>
 </resources>

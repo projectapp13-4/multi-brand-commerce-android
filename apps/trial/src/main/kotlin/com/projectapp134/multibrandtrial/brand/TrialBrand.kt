@@ -111,7 +111,12 @@ internal object TrialBrand {
                     logoResourceName = null,
                     heroImageResourceName = null
                 ),
-            legalLinks = BrandLegalLinks(privacyPolicyUrl = null, termsUrl = null, supportUrl = null),
+            legalLinks =
+                BrandLegalLinks(
+                    privacyPolicyUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_PRIVACY,
+                    termsUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_TERMS,
+                    supportUrl = BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_SUPPORT
+                ),
             analyticsEventNamespace = BuildConfig.ANALYTICS_NAMESPACE
         )
 }
