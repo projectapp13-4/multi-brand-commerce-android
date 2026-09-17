@@ -38,10 +38,13 @@ class StorefrontMediaClientFactoryTest {
 
         assertFalse(client.followRedirects)
         assertFalse(client.followSslRedirects)
+        assertFalse(client.retryOnConnectionFailure)
         assertSame(CookieJar.NO_COOKIES, client.cookieJar)
         assertSame(Authenticator.NONE, client.authenticator)
         assertSame(Authenticator.NONE, client.proxyAuthenticator)
         assertSame(Proxy.NO_PROXY, client.proxy)
+        assertEquals(10_000, client.connectTimeoutMillis)
+        assertEquals(20_000, client.readTimeoutMillis)
         assertInstanceOf(StorefrontMediaPolicyInterceptor::class.java, client.interceptors.first())
     }
 
@@ -219,12 +222,77 @@ class StorefrontMediaClientFactoryTest {
         assertFalse(failure.message.orEmpty().contains("secret", ignoreCase = true))
     }
 
-    private fun clientWith(responder: Interceptor): OkHttpClient = OkHttpClient.Builder()
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .addInterceptor(StorefrontMediaPolicyInterceptor(policy))
-        .addInterceptor(responder)
-        .build()
+    @Test
+    fun `playback guard sees each response byte including a full body returned to range`() {
+        val guard = RecordingMediaRequestGuard()
+        val body = "0123456789abcdef".toByteArray()
+        val responder = RecordingResponder { request, _ -> response(request, 200, body = body.toResponseBody()) }
+        val client = clientWith(responder, guard)
+
+        client.newCall(
+            Request.Builder()
+                .url("https://gurbakir.com/cdn/shop/files/video.mp4")
+                .header("Range", "bytes=8-")
+                .build()
+        ).execute().use { response -> response.body.bytes() }
+
+        assertEquals(1, guard.startedUrls.size)
+        assertEquals(body.size.toLong(), guard.responseBytes)
+    }
+
+    @Test
+    fun `playback guard can reject a redirect before its target is requested`() {
+        val guard = RecordingMediaRequestGuard(allowRedirects = false)
+        val responder =
+            RecordingResponder { request, _ -> response(request, 302, location = "/cdn/shop/files/final.mp4") }
+
+        assertThrows<StorefrontMediaRejectedException> {
+            clientWith(responder, guard)
+                .newCall(Request.Builder().url("https://gurbakir.com/cdn/shop/files/start.mp4").build())
+                .execute()
+        }
+
+        assertEquals(1, responder.requests.size)
+        assertEquals(1, guard.redirectedUrls.size)
+    }
+
+    @Test
+    fun `request guard factory creates an independent budget for every HTTP call`() {
+        val createdGuards = AtomicInteger()
+        val responder =
+            RecordingResponder { request, _ -> response(request, 200, body = byteArrayOf(1).toResponseBody()) }
+        val client =
+            OkHttpClient.Builder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .retryOnConnectionFailure(false)
+                .addInterceptor(
+                    StorefrontPerRequestMediaPolicyInterceptor(policy) {
+                        createdGuards.incrementAndGet()
+                        RecordingMediaRequestGuard()
+                    }
+                )
+                .addInterceptor(responder)
+                .build()
+
+        repeat(2) {
+            client.newCall(
+                Request.Builder().url("https://gurbakir.com/cdn/shop/files/image-$it.jpg").build()
+            ).execute().use { response -> response.body.bytes() }
+        }
+
+        assertEquals(2, createdGuards.get())
+        assertEquals(2, responder.requests.size)
+    }
+
+    private fun clientWith(responder: Interceptor, guard: StorefrontMediaRequestGuard? = null): OkHttpClient =
+        OkHttpClient.Builder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            .addInterceptor(StorefrontMediaPolicyInterceptor(policy, guard))
+            .addInterceptor(responder)
+            .build()
 
     private class RecordingResponder(private val block: (request: Request, call: Int) -> Response) : Interceptor {
         val requests = mutableListOf<Request>()
@@ -253,6 +321,28 @@ class StorefrontMediaClientFactoryTest {
 
         override fun source(): BufferedSource = trackingSource
     }
+
+    private class RecordingMediaRequestGuard(private val allowRedirects: Boolean = true) : StorefrontMediaRequestGuard {
+        val startedUrls = mutableListOf<String>()
+        val redirectedUrls = mutableListOf<String>()
+        var responseBytes: Long = 0
+            private set
+
+        override fun onRequestStarted(url: String): Boolean {
+            startedUrls += url
+            return true
+        }
+
+        override fun onRedirect(targetUrl: String): Boolean {
+            redirectedUrls += targetUrl
+            return allowRedirects
+        }
+
+        override fun onResponseBytes(byteCount: Long): Boolean {
+            responseBytes += byteCount
+            return true
+        }
+    }
 }
 
 private fun response(
@@ -275,6 +365,16 @@ private object TrackingEmptyResponseBody : ResponseBody() {
     override fun contentType(): MediaType? = null
 
     override fun contentLength(): Long = 0
+
+    override fun source(): BufferedSource = buffer
+}
+
+private fun ByteArray.toResponseBody(): ResponseBody = object : ResponseBody() {
+    private val buffer = Buffer().write(this@toResponseBody)
+
+    override fun contentType(): MediaType? = null
+
+    override fun contentLength(): Long = this@toResponseBody.size.toLong()
 
     override fun source(): BufferedSource = buffer
 }

@@ -17,7 +17,8 @@ class HomeViewModel
 constructor(
     private val repository: HomeContentRepository,
     private val loadingClock: HomeLoadingClock,
-    private val editorialClock: HomeEditorialClock
+    private val editorialClock: HomeEditorialClock,
+    internal val playbackCoordinator: HomePlaybackCoordinator
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -41,8 +42,13 @@ constructor(
         }
     }
 
+    fun onHomeHidden() {
+        playbackCoordinator.finishAll(HomePlaybackTerminalReason.NAVIGATION)
+    }
+
     private fun start(trigger: HomeLoadTrigger) {
         if (trigger == HomeLoadTrigger.EXPIRY) expiryJob?.cancel()
+        if (trigger == HomeLoadTrigger.EXPIRY) playbackCoordinator.reconcile(null)
         _state.update { current ->
             val retained = if (trigger == HomeLoadTrigger.EXPIRY) null else current.presentation
             current.copy(
@@ -83,6 +89,7 @@ constructor(
 
     private fun accept(presentation: HomePresentation) {
         val settled = presentation.copy(refreshing = false)
+        playbackCoordinator.reconcile(settled)
         _state.value = HomeUiState(
             presentation = settled,
             loading = false,
@@ -108,7 +115,13 @@ constructor(
             failure = failure,
             expired = trigger == HomeLoadTrigger.EXPIRY
         )
+        playbackCoordinator.reconcile(retained)
         if (retained != null) installExpiry(retained.editorialExpiresAtMillis)
+    }
+
+    override fun onCleared() {
+        playbackCoordinator.close(HomePlaybackTerminalReason.NAVIGATION)
+        super.onCleared()
     }
 
     private fun installExpiry(deadlineMillis: Long?) {

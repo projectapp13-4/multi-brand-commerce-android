@@ -58,7 +58,8 @@ data class HomeActions(
     val openLegalSupport: (() -> Unit)? = null,
     val openCollection: (String) -> Unit = {},
     val openProduct: (String) -> Unit = {},
-    val onSetWishlist: ((String, Boolean) -> Unit)? = null
+    val onSetWishlist: ((String, Boolean) -> Unit)? = null,
+    val playbackCoordinator: HomePlaybackCoordinator? = null
 )
 
 @Composable
@@ -133,7 +134,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                             wishlist
                         )
 
-                        is HomeRenderedSection.Image, is HomeRenderedSection.Video -> Unit
+                        is HomeRenderedSection.Image -> imageSection(section, actions, actions.playbackCoordinator)
+
+                        is HomeRenderedSection.Video -> {
+                            if (actions.playbackCoordinator != null) {
+                                videoSection(section, actions, actions.playbackCoordinator)
+                            }
+                        }
                     }
                 }
             }
@@ -208,7 +215,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.featuredProductSectio
 }
 
 @Composable
-private fun HomeSectionHeading(title: HomeText, actionResourceId: Int? = null, onAction: () -> Unit = {}) {
+internal fun HomeSectionHeading(title: HomeText, actionResourceId: Int? = null, onAction: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp),
@@ -345,6 +352,16 @@ object HomeTestTags {
     const val FEATURED_ERROR = "home-featured-error"
     const val FEATURED_CARD = "home-featured-card"
     const val FEATURED_PRICE = "home-featured-price"
+    const val VIDEO_POSTER = "home-video-poster"
+    const val VIDEO_PLAYER = "home-video-player"
 
     fun collection(stableId: String): String = "home-collection-${stableId.lowercase()}"
+
+    fun image(stableId: String): String = "home-image-${stableId.lowercase()}"
+
+    fun video(stableId: String): String = "home-video-${stableId.lowercase()}"
+
+    fun videoPlay(stableId: String): String = "home-video-play-${stableId.lowercase()}"
+
+    fun videoError(stableId: String): String = "home-video-error-${stableId.lowercase()}"
 }

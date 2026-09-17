@@ -17,7 +17,9 @@ import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.storefront.HomeCollectionSummary
 import com.gurbakir.storefront.HomeProductSummary
 import com.gurbakir.storefront.StorefrontMedia
+import com.gurbakir.storefront.StorefrontMediaPolicy
 import com.gurbakir.storefront.StorefrontMoney
+import com.gurbakir.storefront.StorefrontVideoSource
 import java.math.BigDecimal
 import java.net.URI
 import org.junit.Assert.assertEquals
@@ -117,6 +119,24 @@ class HomeScreenTest {
         composeRule.onNodeWithTag(HomeTestTags.NONRENDERABLE).assertIsDisplayed()
     }
 
+    @Test
+    fun videoRendersAnExplicitPlayControlWithoutStartingAPlaybackAttempt() {
+        val section = videoSection()
+        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("example.com"), HomePlaybackClock { 0 })
+        composeRule.setContent {
+            CoreTestTheme {
+                HomeScreen(
+                    state = presentationState(sections = listOf(section)),
+                    brandDisplayName = "Test",
+                    actions = HomeActions(refreshContent = {}, playbackCoordinator = coordinator)
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(HomeTestTags.videoPlay(section.stableId)).performScrollTo().assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(null, coordinator.session(section).currentAttempt) }
+    }
+
     private fun setHome(state: HomeUiState, actions: HomeActions) {
         composeRule.setContent { CoreTestTheme { HomeScreen(state, "Test", actions) } }
     }
@@ -162,6 +182,26 @@ class HomeScreenTest {
                 StorefrontMoney(BigDecimal("1.00"), "TRY")
             )
         )
+    )
+
+    private fun videoSection() = HomeRenderedSection.Video(
+        stableId = "video-section",
+        title = HomeText.Remote("Video"),
+        sources =
+            listOf(
+                StorefrontVideoSource(
+                    URI("https://cdn.shopify.com/videos/video.mp4"),
+                    "video/mp4",
+                    "mp4",
+                    1280,
+                    720
+                )
+            ),
+        poster = null,
+        altText = "Video",
+        caption = null,
+        target = null,
+        revisionKey = "revision"
     )
 
     private fun media() = StorefrontMedia(
