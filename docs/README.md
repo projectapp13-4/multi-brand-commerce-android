@@ -49,6 +49,9 @@ history, protected bootstrap, and historical-archive cutover evidence.
   password gate. Samsung API33 configured Gürbakır/Trial update, same-handle,
   logged-out cart/process-death isolation, bounded player/measurement, Firebase
   debug runtime and Trial publish/change/remove/rollback evidence now exist.
+  Live Firebase instrumentation is explicitly opt-in as of `fcbbe84`; credential-free
+  API 23/API 30 lanes keep the normal identity test running and report the two provider
+  proofs as skipped/not requested, while configured opt-in still executes both proofs.
   Real Trial PKCE/profile/address/order-empty/restart/logout acceptance now passes
   its executed substeps, while natural token expiry, cross-app authenticated-session
   isolation, the complete physical player matrix and hosted exact-SHA CI remain

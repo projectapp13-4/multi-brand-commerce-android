@@ -288,6 +288,28 @@ doğruladı. JUnit SHA-256
 Bu debug instrumentation kanıtıdır; release veya gerçek bildirim teslimi değildir.
 Token/değer kaydedilmedi ve bildirim gönderilmedi.
 
+Canlı Firebase proof'u standart CI veya normal configured instrumentation sırasında
+kendiliğinden çalışmaz. `runTrialFirebaseRuntimeProof=true` açık opt-in'i yoksa iki
+canlı test `NOT REQUESTED/SKIPPED` kalır; normal Trial kimlik testi çalışmaya devam
+eder. Bu skip Firebase PASS değildir. Credential-free API 23/30 lane'lerinde beklenen
+sonuç `TrialLaunchTest` PASS ve iki canlı proof SKIP'tir.
+
+Configured Samsung kabulünde canlı proof yalnız exact sınıf ve opt-in birlikte
+verilerek çalıştırılır:
+
+```powershell
+.\gradlew.bat :trial:connectedDevelopmentDebugAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=com.projectapp134.multibrandtrial.TrialFirebaseRuntimeProofTest" `
+  "-Pandroid.testInstrumentationRunnerArguments.runTrialFirebaseRuntimeProof=true" `
+  --no-daemon --console=plain
+```
+
+Opt-in verildiğinde eksik/yanlış Firebase app/profile/config veya SDK hatası FAIL
+olmalıdır; assumption/catch ile skip'e çevrilmez. Ordinary CI'a provider config veya
+sır ekleme, Trial'ı matristen çıkarma ya da sınıfı silme. `fcbbe84` düzeltmesinde
+provider-free API 23/30 normal lane'leri `1 PASS + 2 SKIP`, configured API 33 opt-in
+koşusu `2/2 PASS`, provider-free opt-in negatif koşusu `2/2 FAIL` verdi.
+
 Credential rotasyonunda önce yeni credential/client oluşturulur, ignored local/CI binding
 güncellenir, readback ve app testi alınır; eski credential ancak ayrı güvenli retirement
 adımıyla kaldırılır. Sırlar receipt, Git, chat, analytics veya APK'ya girmez.

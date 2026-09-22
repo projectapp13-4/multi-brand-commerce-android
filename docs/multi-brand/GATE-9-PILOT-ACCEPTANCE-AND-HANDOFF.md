@@ -143,6 +143,36 @@ kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
   `DESTINATION_EXISTS` ile durdu; girdiler silinmedi/taşınmadı ve bu koşu PASS
   sayılmadı. Aynı operator kaynağının `80597a5` exact-SHA geniş lane kanıtı korunur.
 
+### Firebase canlı-proof CI düzeltmesi — `fcbbe84`
+
+`a0c9316` üzerindeki ilk debug proof sınıfı explicit seçim olmadan standart
+instrumentation'a giriyordu. Provider girdisiz exact `a0c9316` Samsung koşusu bu
+kusuru iki testin de `FIREBASE_CONFIGURED` assertion'ında FAIL olmasıyla RED olarak
+yeniden üretti. `fcbbe8437e51260d853b16b174038ea057e2b20c` yalnız AndroidTest sınıfına
+`runTrialFirebaseRuntimeProof=true` instrumentation kapısı ekler; release runtime
+kaynağı, debug/release manifest ayrımı ve mevcut fail-fast SDK assertion'ları değişmez.
+
+- Provider girdisiz exact `fcbbe84` normal koşularında API 23, API 30 ve Samsung
+  API 33 ayrı ayrı `tests=3`, `failures/errors=0`, `skipped=2` verdi. Çalışan test
+  `TrialLaunchTest`; iki canlı Firebase proof'u `NOT REQUESTED` olarak SKIP'tir ve
+  PASS sayılmaz.
+- Aynı provider-girdisiz source'a opt-in verilince iki canlı proof `2 failure`,
+  `0 skip` verdi. Yanlış/eksik Firebase hedefi assumption veya catch ile gizlenmez.
+- Configured Samsung koşusunda exact sınıf + opt-in ile iki canlı proof yeniden
+  `2 executed`, `0 skipped/failure/error` verdi. JUnit SHA-256
+  `0e75ae41cd0b78234fb65688a1cc6ebcf72dd848ce441f4b2595d493224aa57b`.
+- Provider/signing girdisi bulunmayan detached exact `fcbbe84` worktree'sinde
+  `Test-MultiBrandOnboarding.ps1 -Suite All` **240/240 PASS** verdi. Gerçek staging
+  dosyaları test için silinmedi veya yerinden taşınmadı.
+- Aynı ignored Trial/Firebase/signing girdileri ve cache dışı tam rebuild ile
+  `a0c9316` ve `fcbbe84` APK'larının 450 ZIP entry payload'ı birebir aynı çıktı
+  (`differingEntryCount=0`). APK kabı byte-reproducible olmadığı için bütün-dosya
+  digest eşitliği iddia edilmez; korunmuş `80597a5` artifact'i release adayı kalır.
+
+Redakte receipt `out/evidence/gate9/ci-harness-fix/receipt.json`, SHA-256
+`0726eb503cd57f7a4fe1df6cbb890b2800de1d4b0ddbaf91d0e3655dcd52a172`.
+Sır, Firebase token'ı veya bildirim payload'ı kaydedilmedi.
+
 ### Current-candidate A1–A14 matrisi
 
 | ID | Güncel durum | Current-candidate kanıt ve kalan sınır |
@@ -159,7 +189,7 @@ kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
 | A10a | **PASS** | Trial v1 minified baseline ve kendi nonproduction imzası korunur |
 | A10b | **PASS** | Güncel Trial `80597a5` release, v1→v2 package/imza/UID/first-install ve veri-silinmeden update kanıtı |
 | A10c | **PASS** | Gerçek configured Gürbakır staging baseline→`80597a5` candidate, aynı package/imza/UID/first-install ve sentinel sürekliliği |
-| A11 | **PARTIAL** | Geçmiş local static/JVM/build/API23/API30 PASS; current delta Spotless/detekt/Trial lint+unit+AndroidTest assemble/public23/portability46/projection PASS; configured-worktree `Suite All` overwrite guard nedeniyle NOT PASS; hosted exact-SHA CI yok |
+| A11 | **PARTIAL** | `fcbbe84` static/Trial build PASS; provider-free API23/API30 normal lane'lerinde identity PASS + iki canlı proof SKIP; configured API33 explicit opt-in 2/2 PASS; provider-free opt-in 2/2 beklenen FAIL; izole `Suite All` 240/240 PASS; hosted exact-SHA CI yok |
 | A12 | **PASS (bounded current measurement)** | Yukarıdaki yeni beş cold/beş warm raw/median/max; P95 yok |
 | A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipts korunur; silme veya yeniden prova yok |
 | A14 | **NOT RUN** | Push/PR/merge yetkisi verilmedi; H/M ve hosted exact-SHA CI yok |
