@@ -173,6 +173,33 @@ Redakte receipt `out/evidence/gate9/ci-harness-fix/receipt.json`, SHA-256
 `0726eb503cd57f7a4fe1df6cbb890b2800de1d4b0ddbaf91d0e3655dcd52a172`.
 Sır, Firebase token'ı veya bildirim payload'ı kaydedilmedi.
 
+### A8 fiziksel rotation/rebuild tazelemesi — `91ae165`
+
+`91ae165bc557ca0eef3433f482f4245813545cb0`, yalnız androidTest tarafında gerçek
+Activity configuration-change host'u ve regression testi ekler; production player,
+release kodu ve korunmuş `80597a5` minified adayı değişmez. Samsung `SM_A225F` /
+API33 üzerinde project-owned gerçek Video ile `OwnedHomeVideoPlayerTest` ve
+`OwnedHomeVideoRotationTest` birlikte **7 executed, 0 skipped/failure/error** geçti.
+Rotation sırasında Activity gerçekten yeniden yaratıldı; aynı ViewModel-owned
+`PlaybackAttempt`, ilk-kare durumu ve kümülatif byte sayacı korundu, yeni player
+otomatik başlamadan paused/explicit-Play durumuna döndü. Mevcut yönün tersini seçen
+test ayrıca ardışık ikinci cihaz koşusunda 1/1 geçti.
+
+JUnit kanıtı
+`out/evidence/gate9/a8-rotation-91ae165/owned-home-player-and-rotation-api33.xml`,
+SHA-256 `883b9b46dafc9e7ba03ee652decc696d65723750a7bdae7b7b852c05bd836837`.
+`spotlessCheck`, tüm-module `detekt`, `:mobile-core:lintDebug`, JVM suite ve
+AndroidTest assembly aynı test deltasıyla geçti (`256` task; `8` executed,
+`248` up-to-date).
+
+Shell UID ile gönderilen `AUDIO_BECOMING_NOISY`, Android 13'te Media3'nin
+system-only receiver'ı için gerçek route-change eşdeğeri değildir ve iki denemede
+pause üretmedi. Bu RED'ler gerçek kulaklık çıkarma PASS'ı olarak sunulmaz; başarısız
+otomasyon kaynakta tutulmadı. Fiziksel noisy/headphone route change ile kasıtlı
+first-frame/post-frame stall deadline enjeksiyonu hâlâ `NOT RUN`; fake-clock deadline
+ve iptal edilebilir gerçek data-source kanıtı korunur. Bu nedenle A8 bütünü
+**PARTIAL** kalır.
+
 ### Current-candidate A1–A14 matrisi
 
 | ID | Güncel durum | Current-candidate kanıt ve kalan sınır |
@@ -184,7 +211,7 @@ Sır, Firebase token'ı veya bildirim payload'ı kaydedilmedi.
 | A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address/order read, process-restart restore, logout ve post-logout restart PASS; address/order empty, Order Detail NOT RUN; natural token expiry NOT RUN; yazma/silme yok |
 | A6 | **PASS** | Exact v2 codegen/actual-client ve strict Gürbakır-v1/Trial-v2 cutover korunur |
 | A7 | **PASS** | HTTP/attempt/cache/revision kaynak, JVM ve gerçek data-source kanıtı korunur |
-| A8 | **PARTIAL** | Gerçek video, focus/visibility/pause/mute/completion ve data-source kanıtı var; physical noisy/rotation/deadline matrisi bütünü çalıştırılmadı |
+| A8 | **PARTIAL** | Gerçek video, focus/visibility/pause/mute/completion, data-source ve physical rotation/rebuild 7/7 PASS; physical noisy/headphone ve gerçek stall/deadline satırları NOT RUN |
 | A9 | **PARTIAL** | Same-handle, ayrı ürün/price, ayrı cart ve Trial process-death/cleanup PASS; authenticated session/logout izolasyonu A5'e bağlı |
 | A10a | **PASS** | Trial v1 minified baseline ve kendi nonproduction imzası korunur |
 | A10b | **PASS** | Güncel Trial `80597a5` release, v1→v2 package/imza/UID/first-install ve veri-silinmeden update kanıtı |
@@ -194,8 +221,8 @@ Sır, Firebase token'ı veya bildirim payload'ı kaydedilmedi.
 | A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipts korunur; silme veya yeniden prova yok |
 | A14 | **NOT RUN** | Push/PR/merge yetkisi verilmedi; H/M ve hosted exact-SHA CI yok |
 
-Gate 9 hâlâ AÇIK; A5 doğal-expiry alt satırı, A8'in çalıştırılmayan fiziksel alt
-satırları, A9 cross-app authenticated session izolasyonu, hosted exact-SHA CI ve
+Gate 9 hâlâ AÇIK; A5 doğal-expiry alt satırı, A8'in noisy/headphone ve gerçek
+stall/deadline fiziksel alt satırları, A9 cross-app authenticated session izolasyonu, hosted exact-SHA CI ve
 owner merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
 
 ## Sonuç özeti
@@ -421,21 +448,21 @@ anlamına gelir.
 | **A1 PASS** | Gürbakır staging + Trial development; remote/main `5c402241...`; kirli ana checkout korunmuş | İzole worktree/dal, strict projection ve provider provenansını doğrula; main'e dokunma | Git read-only inventory, projection/Firebase validators; Windows local runner | Base `5c402241...`; Trial/Gürbakır projection hash'leri; provider binding/readback; ana checkout/old worktree değişmedi |
 | **A2 PASS** | Trial development, provider'da v2 öncesi v1 yok | V1 Plan→Apply→Readback; tekrar Plan empty/Apply zero-write | Ignored bounded provider helper; Shopify CLI authenticated development session | `b4cdc45f696a314252a6be4d597c336774d65b97`; initial 15 write, repeat 0; receipts ve V1 root GID |
 | **A3 PASS (identity smoke)** | Trial `developmentDebug`; Samsung API33 ve ayrı API30/API23 managed cihazlar | Trial-owned application/package/composition launch, Gürbakır olmadığı | `TrialLaunchTest`; Task 7 explicit serial, Task 8 registered managed lanes | İlk `OK (0 tests)` kabul edilmedi. Samsung, API30 ve API23'te ayrı ayrı 1 executed, 0 skipped/failure; release update ile karıştırılmaz |
-| **A4 FAIL** | Aynı approved Trial Headless public client; config hash değişmedi | Catalogue/availability/TRY/cart/checkout uyumu; cart lifecycle temizlenmeli | Task 8 actual cart + Home proof tekrar yürütüldü | Home 1/1 PASS; cart 1 executed, 0 skipped, 1 failure: `graphql:ACCESS_DENIED`; SETUP REQUIRED, alternatif CLI-owned token kullanılmadı |
-| **A5 NOT RUN / EXTERNALLY BLOCKED** | Trial Customer Account client kayıtlı; yetkili synthetic session/inbox yok | Login/logout/reopen/expiry/profile/address; order yoksa detail NOT RUN | Güvenli önceden yetkili test customer gerekir | Callback/client digest receipt mevcut; OTP/2FA bypass veya gerçek customer kullanılmadı |
+| **A4 PARTIAL** | Aynı approved Trial Headless public client; checkout/customer-read scope readback edildi | Catalogue/availability/TRY/cart/Checkout Kit/retained-cart/cleanup geçti; parola kapısı sonrası checkout formu açık | Actual cart proof + Samsung configured release | Cart 1/1 PASS; add/quantity/subtotal/Checkout Kit/return/process restart/cleanup PASS; sipariş/ödeme yok; development password gate sonrası form NOT RUN |
+| **A5 PARTIAL** | Trial Customer Account client; user-assisted yetkili OTP oturumu | Login/callback/profile/address/order-empty/restart/logout/post-logout restart geçti; natural expiry ve Order Detail açık | Gerçek Samsung release akışı; PII receipt'e alınmadı | Profile read-only, address/order empty; Order Detail NOT RUN, natural expiry NOT RUN; yazma/silme yok |
 | **A6 PASS** | Trial v2 projection + aynı gerçek approved public client | Exact schema/query/codegen, strict readers, Gürbakır-v1/Trial-v2 aynı compile; actual Home v2 readback | Task 8 `OwnedHomeV2ReadProofTest`, force-rerun/no-build-cache | `f92857c`; executed 1, skipped 0, failure 0; `E8/owned-a4-a6-junit/` ve exact contract hash tablosu |
 | **A7 PASS** | Source/JVM fixtures; gerçek data-source instrumentation için Infinix X6817 | Wrong-type/PARTIAL/cache/revision; same-URL Range/seek/one retry; rejected rendition/redirect/budget/deadline/rebuild | JVM `Home*` suites + `HomePlaybackDataSourceTest` physical | `5354f5fad98622e1e09f5904656004cecb961df2`; JVM media suites PASS; physical data-source 3/3 PASS, serial evidence local |
-| **A8 PARTIAL** | Trial gerçek video; Samsung API33 | Frame/time/pause/mute/completion; kalan seek/15s/0/focus/noisy/timeout/cancel/retry gerçek-player matrisi açık | Opt-in `OwnedHomeVideoPlayerTest` + Home/data-source explicit-serial runner | RED→GREEN; final 12 executed, 0 skipped/failure; gerçek first-frame/bytes, Pause/Mute/Unmute ve hatasız completion. Tam A8 PASS değildir |
-| **A9 PARTIAL** | Gürbakır staging + Trial release side-by-side; Samsung API33 | Ayrı search history korunur; Trial refresh sonrası beş section ve catalogue CTA'ları açılır | Task 7 replacement/history; Task 8 gerçek refresh/scroll/UI readback | Trial collection 1 product/TRY199.00/Available, product detail photo1/1/Available; cart/session/logout/aynı-handle cross-app commerce ve tam cache matrisi NOT RUN |
+| **A8 PARTIAL** | Trial gerçek video; Samsung API33 | Frame/time/pause/mute/completion/focus/visibility ve rotation/rebuild geçti; physical noisy/headphone ve kasıtlı gerçek stall/deadline açık | Opt-in `OwnedHomeVideoPlayerTest` + `OwnedHomeVideoRotationTest` + Home/data-source runner | Tarihsel final 12/12; `91ae165` current player+rotation 7/7, 0 skip/failure. Aynı attempt/byte/first-frame korunup paused döndü; tam A8 PASS değildir |
+| **A9 PARTIAL** | Gürbakır staging + Trial release side-by-side; Samsung API33 | Same-handle iki gerçek ürün/GID/fiyat, ayrı logged-out cart, Trial process-death ve cleanup geçti | Configured release UI/provider readback | Trial TRY299, Gürbakır TRY680; Trial quantity 1 iken Gürbakır empty; authenticated cross-app session/logout A5'e bağlı ve NOT RUN |
 | **A10a PASS** | Trial v1 release, source `b4cdc45...` | Minified v1 baseline ve nonproduction imza | `:trial:assembleDevelopmentRelease`, R8/package/signature runner | APK SHA-256 `3836e475...6f0bc`; cert `4a8a0f0f...dfc77`; package/code/name `com.projectapp134.multibrandtrial.dev / 1 / 0.1.0-trial-v1` |
 | **A10b PASS (local continuity)** | Trial v1 `b4cdc45...` → v2 `b54ad305...`; Samsung API33 | Minified v2, code 1→2, aynı package/imza; `install -r`, veri silmeden | Release artifact validators + explicit-serial install/package/UI readback | `3836e475...6f0bc` → `ce16f823...19b93`; aynı cert/userId/firstInstallTime; `gate9-trial-continuity` korundu. Customer/cart migration kanıtı değildir |
-| **A10c PASS (isolated pair)** | Gürbakır staging base `5c402241...` → candidate `b54ad305...`; protected real config kopyalanmadı | Aynı package/imzalı minified update-test pair; veri silmeden update | Nonproduction test imzası + explicit-serial `install -r` | `5c285437...173b4` → `4809918c...75d6b`; aynı cert/userId/firstInstallTime; `gate9-gurbakir-continuity` korundu. Final `3ceb5a1` Gürbakır artifact/runtime kanıtı değildir |
-| **A11 PARTIAL (local lanes PASS)** | Tüm module/app'ler; local Windows runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators | Task 8 static365/assemble896-task PASS; JVM505 total/5skip/0failure; API30 191total/185executed/6skip/0failure; API23 145total/140executed/5skip/0failure; package/validators PASS. Koşullu proof skip'leri korunur; GitHub exact-SHA CI NOT RUN |
-| **A12 PASS (bounded measurement)** | Samsung API33; aynı final `3ceb5a1` release/root; retained cache, thermal status 0 | 5 process-cold launch + 5 full warm playback; raw/median/max; P95 yok | Explicit-serial `measure-cycles.ps1`; `am start -W` ve matching ExoPlayer Init/Release | Cold median411/max447ms; full playback median8674/max8862ms; aşağıdaki ham değerler ve ortam sınırlamaları geçerlidir; first-frame/performance-SLO kanıtı değildir |
+| **A10c PASS** | Gürbakır configured staging eski candidate → `80597a5`; Samsung API33 | Aynı package/nonproduction imza ile veri silmeden update | Explicit-serial `install -r`, package ve sentinel readback | Aynı UID `10284`, firstInstallTime `2026-09-17 19:09:35`; `gate9-gurbakir-continuity` update/restart sonrası korundu |
+| **A11 PARTIAL (local lanes PASS)** | Tüm module/app'ler; local Windows runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators | `fcbbe84` static/build PASS; provider-free API23/30 identity PASS + canlı proof SKIP; configured API33 opt-in 2/2 PASS; izole Suite All 240/240 PASS; hosted exact-SHA CI NOT RUN |
+| **A12 PASS (bounded current measurement)** | Samsung API33; `80597a5` Trial release; retained cache | 5 process-cold + 5 UI warm playback; raw/median/max; P95 yok | `am start -W`, UI cycle ve matching ExoPlayer Init/Release | Cold median405/max417ms; UI cycle median10895/max11038ms; player median8692/max8847ms; first-frame/performance-SLO değildir |
 | **A13 PASS (bounded rehearsal)** | Trial gerçek Admin CLI + approved public client + owner guide | Child revision; root-last publish/change/remove/exact rollback; zero-write Plan; simulation | E8 altı rehearsal yazısı, ardından ayrı bir catalog association; final readback/Plan | Parent updatedAt sabit/child digest değişti; rollback exact ordered refs/digest; resource deletion yok. Shared/brand-only flow açık SIMULATION_ONLY, sıfır Git/provider yazısı |
 | **A14 NOT RUN** | Branch local; PR/merge yetkisi yok | PR head H exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | PR/push/merge yapılmadı; H/M yok |
 
-### A4 başarısızlığının sınıflandırması
+### Tarihsel A4 başarısızlığının sınıflandırması
 
 Bu sonuç dış ticari engel değildir. Resmî Shopify access-scope sözleşmesine göre Cart
 yazımı `unauthenticated_write_checkouts` ister. Trial Headless izinleri/readback'i
@@ -457,6 +484,12 @@ Onaylı Headless client yerine CLI-owned public token oluşturulmadı/substitute
 Yetkili Headless operator'ü aynı client'ın checkout-write scope'unu düzeltip readback
 etmeli ve değişmeyen testi tekrar yürütmelidir. Admin CLI content yetkisi cart scope
 kanıtı değildir.
+
+Bu tarihsel düzeltme daha sonra current-candidate tazelemesinde tamamlandı:
+checkout/customer-read scope readback edildi, aynı approved client ile cart proof
+1/1 geçti ve Samsung add/cart/Checkout Kit/retained-cart/cleanup çalıştı. A4 artık
+`FAIL` değil `PARTIAL`dır; development-store parola kapısı sonrası checkout formu
+çalıştırılmadı ve sipariş/ödeme yapılmadı.
 
 ### Debug, release ve cihaz kanıtı ayrımı
 
@@ -677,16 +710,17 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
 | 3. Projection tek-dilim cutover | Tamam | Gürbakır v1 + Trial v2; strict key denetimi korunuyor |
 | 4. V2 provider/root-last | Tamam | Gerçek Trial definitions/content/media/root-last/rollback receipt |
 | 5. Mapper/validator/cache | Tamam | Sonuç matrisi, child freshness, atomic v2 store |
-| 6. HTTP/player | Kaynak/JVM tamam; cihaz kısmi | A7 PASS; A8 PARTIAL; Samsung RED→GREEN ve final 12/12 |
+| 6. HTTP/player | Kaynak/JVM tamam; cihaz kısmi | A7 PASS; A8 PARTIAL; tarihsel final 12/12 ve `91ae165` player+rotation 7/7; noisy/gerçek stall açık |
 | 7. Release/two-app/device | Release update/local continuity ve bounded ölçümler tamam; acceptance kısmi | A3/A10a–c/A12 scoped PASS; A8/A9 PARTIAL |
-| 8. Full validation/owner/handoff | Kısmi | A13 gerçek rehearsal/rollback ve owner simulation tamam; A4 FAIL, A5/A8/A9 ve exact-SHA CI açık |
+| 8. Full validation/owner/handoff | Kısmi | A13 gerçek rehearsal/rollback ve owner simulation tamam; A4/A5/A8/A9 ve exact-SHA CI açık |
 
 ## Gate 9'u kapatmak için kalanlar
 
-1. Onaylı Trial Headless client'ın `unauthenticated_write_checkouts` kapsamını
-   ver/readback et; client/token substitute etmeden A4 cart testini 1/1 PASS yap.
-2. Veri silmeden A8'in kalan gerçek-player koşullarını, A9 commerce/session/logout
-   izolasyonunu tamamla. Yerel API23/API30 lane'leri geçti; koşullu proof skip'leri
+1. A4'ün development-store parola kapısı sonrası checkout form/reopen alt satırını,
+   yalnız Shopify'ın development-safe yolu izin veriyorsa sipariş/ödeme oluşturmadan
+   tamamla; kapı kaldırılamıyorsa ilgili alt satırı dış engel olarak koru.
+2. Veri silmeden A8'in kalan physical noisy/headphone ve kasıtlı gerçek stall/deadline
+   koşullarını, A9 authenticated session/logout izolasyonunu tamamla. Yerel API23/API30 lane'leri geçti; koşullu proof skip'leri
    kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
 3. Güvenli önceden yetkilendirilmiş synthetic customer/session/inbox ile A5'i
    tamamla. Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni

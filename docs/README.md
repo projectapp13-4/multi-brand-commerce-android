@@ -53,9 +53,10 @@ history, protected bootstrap, and historical-archive cutover evidence.
   API 23/API 30 lanes keep the normal identity test running and report the two provider
   proofs as skipped/not requested, while configured opt-in still executes both proofs.
   Real Trial PKCE/profile/address/order-empty/restart/logout acceptance now passes
-  its executed substeps, while natural token expiry, cross-app authenticated-session
-  isolation, the complete physical player matrix and hosted exact-SHA CI remain
-  partial or not run. Gate 9 therefore remains open; see
+  its executed substeps. Physical Home-video rotation/rebuild continuity also passes
+  at `91ae165`, while natural token expiry, cross-app authenticated-session isolation,
+  physical noisy/deadline player rows and hosted exact-SHA CI remain partial or not
+  run. Gate 9 therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete

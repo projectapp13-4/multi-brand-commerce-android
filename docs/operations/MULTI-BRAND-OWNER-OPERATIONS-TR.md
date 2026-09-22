@@ -411,6 +411,14 @@ sentinel korundu. Aynı handle iki mağazada farklı ürün/fiyat verdi; Trial c
 1 iken Gürbakır cart empty kaldı ve Trial process restart sonrasında quantity 1 korundu.
 Authenticated customer session/logout izolasyonu hâlâ A5'e bağlıdır.
 
+Aynı gün `91ae165` androidTest checkpoint'inde gerçek Samsung/API33 Activity
+rotation'ı player'ı yeniden kurarken aynı PlaybackAttempt, ilk-kare ve kümülatif byte
+durumunu korudu; dönüş paused kaldı ve açık Play gerektirdi. Gerçek video/focus/
+visibility/pause/mute/completion + rotation grubu 7/7 geçti. Shell ile noisy broadcast
+göndermek Android 13 system-only route-change olayı değildir; bu deneme PASS
+sayılmadı. Fiziksel kulaklık çıkarma ve kasıtlı gerçek stall/deadline satırları
+çalıştırılmadığından A8 hâlâ PARTIAL'dır.
+
 ## Sorun ayırma rehberi
 
 | Belirti | Önce bakılacak sınır | Yanlış teşhis |
