@@ -1,7 +1,7 @@
 # Gate 9 İkinci Mağaza ve Sınırlı Medya Pilot Handoff'u
 
 Durum: **IMPLEMENTATION CANDIDATE; GATE 9 AÇIK**  
-Kanıt tarihi: 2026-09-17 (Europe/Istanbul)  
+Tarihsel provider/kabul kanıtı: 2026-09-17; final-review düzeltmesi: 2026-09-22 (Europe/Istanbul)
 Exact taban: `5c402241e22a45001bdc57da6d08a83d2ce407cc`  
 İlk handoff kaynağı: `033b69f38cd9df34f5a4b7a4d639afcbd4dce0c3`
 Cihaz düzeltmesi kaynağı: `3ceb5a172dd829f9006a6f1af5116a7c5d0489b3`
@@ -16,6 +16,64 @@ merchant içeriğine yazma veya yıkıcı provider işlemi yapılmadı.
 Dokümantasyon commit'i kendi SHA'sını içeremez. Final review/PR adayı bu dosyanın
 bulunduğu commit'i ve aşağıdaki implementation SHA'larını ancestor olarak
 göstermelidir.
+
+## Final-review Important düzeltme kaydı — 2026-09-22
+
+Bu bölüm `ee899131a36cdf4e421ac885e22d86e1c644ecf6` üzerindeki yedi Important
+bulgunun tek düzeltme dalgasını kaydeder. Önceki source/artifact/cihaz satırları
+tarihseldir; yeni kaynak için otomatik kabul kanıtı değildir. Exact final-fix SHA,
+artifact digest/imza ve ham RED/GREEN çıktıları ignored
+`out/evidence/gate9/final-fix/` ledger'ında ve final-fix raporunda tutulur.
+
+- Image/video Product CTA gerçek production navigation binding'ine Product GID
+  verir; Collection handle davranışı değişmedi.
+- Media3/OkHttp iç içe policy/cancellation nedenleri retry almaz; rejected rendition
+  redirect zincirini yeniden başlatamaz. Meşru same-URL tek transport retry aynı
+  attempt/byte budget içinde kalır.
+- Player dikdörtgeni görünür alanı terk ettiğinde pending load iptal edilir,
+  player pause/release olur; attempt/position korunur, dönüşte açık Play gerekir.
+- V2 caption CRLF/CR → LF normalize edilir; LF dışındaki ISO kontrolleri ve
+  mevcut uzunluk sınırı korunur. Remote, persistence ve restart testleri vardır.
+- LKG optional target kimlikleri yeniden hydrate edilir; güncel handle kullanılır,
+  missing target CTA'yı kaldırır ama geçerli medyayı kaldırmaz.
+- Duckable/transient/permanent audio-focus kaybı pause olur; otomatik resume yoktur.
+- Yalnız Home-v2 decode FIT/EXACT ile <=1600/<=2.56M pixel sınırında; görsel Crop
+  sunumu ve app-wide/non-v2 Coil politikası değişmedi. Gerçek decode boyutları
+  landscape/portrait/extreme oranlarda `1600×800`, `800×1600`, `1600×8`, `8×1600`.
+
+Samsung `SM_A225F` / API33 / explicit `R68RC006LPE` üzerinde final focused Android
+grubu **20 executed, 0 skip/failure** geçti. İlk koşudaki route-text beklentisi,
+focus-acquisition yarışı ve 0ms-position fixture hataları gerçek kusurlardan ayrı
+korundu; düzeltilmiş F1/F6 negative control yeniden RED üretip sonra GREEN geçti.
+Kayıtlı JVM lane: **510 total, 505 executed, 5 conditional skip, 0 failure/error**.
+Her kayıtlı JVM test task'i `--rerun` ile yeniden çalıştırıldı. Son tam static
+lane (`spotlessCheck detekt lint`) ve **896 task** kayıtlı assemble lane geçti;
+Maven DNS/eksik offline metadata denemeleri ayrı başarısız altyapı kayıtlarıdır.
+Kayıtlı API30 lane yeniden yürütülerek **199 total, 190 executed, 9 conditional
+skip, 0 failure/error** geçti. İlk emülatör denemesi Android package/activity
+servisleri bulunamadığı için test başlamadan başarısızdı; değişikliksiz tekrar
+geçti, bu başlangıç hatası uygulama assertion failure olarak sunulmaz.
+Kayıtlı API23 lane **153 total, 145 executed, 8 conditional skip,
+0 failure/error** geçti. Koşullu atlamalar PASS sayılmadı.
+Onboarding **240/240**, portability self-test **68**, synthetic fixture/package
+**49/63**, Trial fixture/package **6/25**, projection/Firebase/registry kontrolleri
+geçti. Bunlar provider readback veya hosted exact-SHA CI değildir.
+
+Commit öncesi dirty-source minified Trial candidate aynı development certificate
+ile normal `install -r` üzerinden kuruldu; UID `10279` ve firstInstallTime
+`2026-09-17 19:08:21` korundu, Home launch/görsel smoke geçti. Bu yalnız
+package/update sürekliliğidir; cart/customer session korunması test edilmedi.
+Commit öncesi APK `release-ledger-precommit.json` içinde açıkça dirty-source diye
+ayrılır; commit sonrası R8/package yeniden üretimi ve exact SHA/digest/certificate
+eşlemesi final-fix ledger/raporunda ayrı tutulur. Eski artifact satırları yeni
+kaynak için yeniden etiketlenmez.
+Bu kanıtlar A8'in tamamını veya commerce/session izolasyonunu kapatmaz.
+
+Bu dalgada provider yazısı, müşteri/sipariş/ödeme, Gürbakır merchant mutation,
+production signing, Play, push/PR/merge, uninstall veya data clear yoktur.
+**A4 FAIL; A5 NOT RUN/EXTERNALLY BLOCKED; A8/A9 PARTIAL; A14 NOT RUN** kalır.
+Gate 9 AÇIK, P3-16 başlamamıştır. Deferred Minor/closure checklist bu dalganın
+dışındadır; tarihsel A10/A12 kanıtları yeni candidate'e taşınmaz.
 
 ## Sonuç özeti
 

@@ -4,6 +4,11 @@ import com.gurbakir.storefront.StorefrontMediaLimitExceededException
 import com.gurbakir.storefront.StorefrontMediaRejectedException
 import com.gurbakir.storefront.StorefrontMediaRequestGuard
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
+import java.util.Collections
+import java.util.IdentityHashMap
+import java.util.concurrent.CancellationException
 
 internal class HomePlaybackNetworkGuard(
     private val attempt: HomePlaybackAttempt,
@@ -33,10 +38,26 @@ internal class HomePlaybackRetryController(
     internal val requestToken: HomePlaybackRequestToken
         get() = request
 
-    fun shouldRetry(exception: IOException): Boolean = when (exception) {
-        is StorefrontMediaRejectedException,
-        is StorefrontMediaLimitExceededException -> false
+    fun shouldRetry(exception: IOException): Boolean =
+        !exception.hasNonRetryablePlaybackCause() && attempt.permitTransportRetry(request)
+}
 
-        else -> attempt.permitTransportRetry(request)
+internal fun Throwable.hasNonRetryablePlaybackCause(): Boolean = anyPlaybackCause {
+    it is StorefrontMediaRejectedException || it is StorefrontMediaLimitExceededException || it.isPlaybackCancellation()
+}
+
+internal fun Throwable.hasPlaybackCancellationCause(): Boolean = anyPlaybackCause { it.isPlaybackCancellation() }
+
+private fun Throwable.isPlaybackCancellation(): Boolean =
+    this is CancellationException || (this is InterruptedIOException && this !is SocketTimeoutException) ||
+        (this is IOException && message.equals("Canceled", ignoreCase = true))
+
+private fun Throwable.anyPlaybackCause(matches: (Throwable) -> Boolean): Boolean {
+    val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    var current: Throwable? = this
+    while (current != null && visited.add(current)) {
+        if (matches(current)) return true
+        current = current.cause
     }
+    return false
 }

@@ -48,6 +48,36 @@ class HomePlaybackNetworkGuardTest {
     }
 
     @Test
+    fun `nested policy and cancellation failures cannot consume a transport retry`() {
+        val failures = listOf(
+            com.gurbakir.storefront.StorefrontMediaRejectedException(),
+            com.gurbakir.storefront.StorefrontMediaLimitExceededException(),
+            java.util.concurrent.CancellationException("cancelled"),
+            java.io.InterruptedIOException("interrupted"),
+            java.io.IOException("Canceled")
+        )
+        failures.forEach { cause ->
+            val attempt = attempt()
+            val request = requireNotNull(attempt.beginRequest(rendition, HomePlaybackRequestKind.INITIAL))
+            val controller = HomePlaybackRetryController(attempt, request)
+            assertFalse(controller.shouldRetry(java.io.IOException(java.io.IOException(cause))), cause.toString())
+            assertTrue(controller.shouldRetry(java.net.SocketTimeoutException("transport timeout")))
+            assertFalse(controller.shouldRetry(java.io.IOException("second transport")))
+        }
+    }
+
+    @Test
+    fun `rejected rendition cannot restart redirect chain or retry an existing request`() {
+        val attempt = attempt()
+        val request = requireNotNull(attempt.beginRequest(rendition, HomePlaybackRequestKind.INITIAL))
+        val guard = HomePlaybackNetworkGuard(attempt, request)
+        assertTrue(guard.onRequestStarted(rendition.url))
+        assertFalse(guard.onRedirect(rendition.url))
+        assertFalse(guard.onRequestStarted(rendition.url))
+        assertFalse(HomePlaybackRetryController(attempt, request).shouldRetry(java.io.IOException("transport")))
+    }
+
+    @Test
     fun `retry controller permits one transport retry but never retries policy or budget rejection`() {
         val attempt = attempt()
         val request = requireNotNull(attempt.beginRequest(rendition, HomePlaybackRequestKind.INITIAL))

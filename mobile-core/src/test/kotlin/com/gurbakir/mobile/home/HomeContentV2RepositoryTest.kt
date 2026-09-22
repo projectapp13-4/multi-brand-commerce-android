@@ -27,6 +27,79 @@ import org.junit.jupiter.api.Test
 
 class HomeContentV2RepositoryTest {
     @Test
+    fun `restart rehydrates renamed and missing image and video targets without discarding media`() = runTest {
+        val targetKey = HomeResourceKey(HomeResourceKind.COLLECTION, "gid://shopify/Collection/42")
+        val videoKey = HomeResourceKey(HomeResourceKind.VIDEO, "gid://shopify/Video/43")
+        val original = storedImageSnapshot()
+        val image = (original.snapshot.sections.single() as RemoteHomeSection.Image).copy(
+            target = RemoteHomeTarget(targetKey, "old-handle"),
+            caption = "First\r\nSecond\rThird"
+        )
+        val video = RemoteHomeSection.Video(
+            "gid://shopify/Metaobject/video", "mobile_home_video_v1", "video", "Video",
+            "2026-09-17T18:59:00Z", videoKey, null, "Video", null, RemoteHomeTarget(targetKey, "old-handle")
+        )
+        val stored = original.copy(
+            expiresAtMillis = original.acceptedAtMillis + HOME_EDITORIAL_TTL_MILLIS,
+            snapshot = original.snapshot.copy(sections = listOf(image, video), declaredSectionCount = 2)
+        )
+        val codec = HomeContentCodec()
+        val restarted = (codec.decodeSnapshot(codec.encodeSnapshot(stored)) as HomeCodecDecode.Accepted).value
+        val media = listOf(imageResource("11"), videoResource(videoKey))
+        listOf("renamed-handle", null).forEach { currentHandle ->
+            val target = currentHandle?.let {
+                StorefrontHomeResource.Collection(targetKey, it, "Current", true, HomeMediaObservation.Absent)
+            }
+            val gateway = FakeGateway(
+                wrongVideoDocument(),
+                HomeResourceBatch(
+                    (media + listOfNotNull(target)).map {
+                        HomeResourceResolution(it.key, it)
+                    }
+                )
+            )
+            val store = RecordingStore(
+                HomeStoreRead.Established(
+                    HomeEstablishmentRecord(PARTITION, NOW - 1_000, 2, HOME_CONTENT_STORAGE_VERSION_V2),
+                    restarted,
+                    HomeSnapshotRecovery.AVAILABLE
+                )
+            )
+            val result =
+                assertInstanceOf(
+                    HomeLoadResult.Accepted::class.java,
+                    repository(gateway, store).load(HomeLoadTrigger.INITIAL)
+                )
+            assertEquals(HomeContentSource.LKG, result.presentation.source)
+            assertEquals(2, result.presentation.renderedSections.size)
+            val expected = currentHandle?.let { RemoteHomeTarget(targetKey, it) }
+            assertEquals(expected, (result.presentation.renderedSections[0] as HomeRenderedSection.Image).target)
+            assertEquals(
+                "First\nSecond\nThird",
+                (result.presentation.renderedSections[0] as HomeRenderedSection.Image).caption
+            )
+            assertEquals(expected, (result.presentation.renderedSections[1] as HomeRenderedSection.Video).target)
+            assertEquals(listOf(IMAGE_KEY, targetKey, videoKey), gateway.requested)
+        }
+    }
+
+    private fun videoResource(key: HomeResourceKey) = StorefrontHomeResource.Video(
+        key,
+        "VIDEO",
+        listOf(
+            com.gurbakir.storefront.StorefrontVideoSource(
+                URI("https://cdn.shopify.com/videos/video.mp4"),
+                "video/mp4",
+                "mp4",
+                1280,
+                720
+            )
+        ),
+        1,
+        HomeMediaObservation.Absent
+    )
+
+    @Test
     fun `resolved v2 image renders and persists only storage v2 editorial identity`() = runTest {
         val image = imageResource("10")
         val store = RecordingStore(HomeStoreRead.NeverEstablished)
@@ -243,8 +316,18 @@ class HomeContentV2RepositoryTest {
         private val document: HomeDocumentObservation,
         private val resources: HomeResourceBatch = HomeResourceBatch(emptyList())
     ) : StorefrontHomeGateway {
+        var requested: List<HomeResourceKey> = emptyList()
         override suspend fun loadHomeDocument(selector: HomeDocumentSelector) = StorefrontResult.Success(document)
-        override suspend fun loadHomeResources(keys: List<HomeResourceKey>) = StorefrontResult.Success(resources)
+        override suspend fun loadHomeResources(keys: List<HomeResourceKey>): StorefrontResult<HomeResourceBatch> {
+            requested = keys
+            return StorefrontResult.Success(
+                HomeResourceBatch(
+                    keys.map { key ->
+                        HomeResourceResolution(key, resources.resolutions.firstOrNull { it.requested == key }?.resource)
+                    }
+                )
+            )
+        }
         override suspend fun loadHomeCollection(handle: String) = StorefrontResult.Success(null)
         override suspend fun loadHomeProduct(handle: String) = StorefrontResult.Success(null)
     }

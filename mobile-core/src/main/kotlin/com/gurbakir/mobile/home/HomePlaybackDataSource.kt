@@ -134,6 +134,7 @@ private class HomePlaybackDataSource(
     }
 
     private fun rejectAfterTerminalFailure(exception: IOException) {
+        if (exception.hasPlaybackCancellationCause()) return
         when (exception) {
             is StorefrontMediaLimitExceededException -> attempt.terminate(HomePlaybackTerminalReason.BYTE_BUDGET)
             is StorefrontMediaRejectedException -> attempt.rejectRendition(rendition, HomeRenditionRejection.ORIGIN)

@@ -176,6 +176,7 @@ class HomePlaybackAttempt internal constructor(
 
     fun restartRedirectChain(token: HomePlaybackRequestToken, rawInitialUrl: String = token.rendition.url): Boolean =
         synchronized(lock) {
+            if (token.rendition in rejectionReasons) return@synchronized false
             val normalized = normalizePlaybackUrl(rawInitialUrl)
             if (!owns(token) || normalized == null || state != HomePlaybackAttemptState.ACTIVE) {
                 false
@@ -206,7 +207,8 @@ class HomePlaybackAttempt internal constructor(
         }
 
     fun permitTransportRetry(token: HomePlaybackRequestToken): Boolean = synchronized(lock) {
-        owns(token) && state == HomePlaybackAttemptState.ACTIVE && retriedRequests.add(token.id)
+        owns(token) && state == HomePlaybackAttemptState.ACTIVE &&
+            token.rendition !in rejectionReasons && retriedRequests.add(token.id)
     }
 
     fun recordResponseBytes(byteCount: Long): Boolean = synchronized(lock) {

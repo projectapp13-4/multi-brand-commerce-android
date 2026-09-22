@@ -19,6 +19,8 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Scale
 import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontMediaClientFactory
 import com.gurbakir.storefront.StorefrontMediaPolicy
@@ -103,6 +105,8 @@ internal fun HomeV2Image(
         ImageRequest.Builder(context)
             .data(url)
             .size(HOME_V2_IMAGE_MAX_DIMENSION, HOME_V2_IMAGE_MAX_DIMENSION)
+            .scale(Scale.FIT)
+            .precision(Precision.EXACT)
             .memoryCacheKey(cacheKey)
             .diskCacheKey(cacheKey)
             .build()

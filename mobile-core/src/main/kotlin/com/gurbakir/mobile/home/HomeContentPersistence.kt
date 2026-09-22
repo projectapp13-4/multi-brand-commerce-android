@@ -221,7 +221,7 @@ private fun RemoteHomeSection.toJson(storageVersion: Int): JsonObject = when (th
             put("presentation", presentation.name)
             put("media", media.toJson())
             put("altText", altText)
-            put("caption", caption)
+            put("caption", caption?.normalizeHomeCaptionLineEndings())
             put("target", target?.toJson() ?: JsonNull)
         }
     }
@@ -235,7 +235,7 @@ private fun RemoteHomeSection.toJson(storageVersion: Int): JsonObject = when (th
             put("media", media.toJson())
             put("poster", poster?.toJson() ?: JsonNull)
             put("altText", altText)
-            put("caption", caption)
+            put("caption", caption?.normalizeHomeCaptionLineEndings())
             put("target", target?.toJson() ?: JsonNull)
         }
     }
@@ -368,7 +368,7 @@ private fun JsonObject.toImageSection(storageVersion: Int): RemoteHomeSection.Im
                 .getOrElse { error("Invalid presentation") },
         media = objectValue("media").toResourceKey(),
         altText = stringValue("altText"),
-        caption = nullableStringValue("caption"),
+        caption = nullableStringValue("caption")?.normalizeHomeCaptionLineEndings(),
         target = nullableObjectValue("target")?.toTarget()
     )
 }
@@ -397,7 +397,7 @@ private fun JsonObject.toVideoSection(storageVersion: Int): RemoteHomeSection.Vi
         media = objectValue("media").toResourceKey(),
         poster = nullableObjectValue("poster")?.toResourceKey(),
         altText = stringValue("altText"),
-        caption = nullableStringValue("caption"),
+        caption = nullableStringValue("caption")?.normalizeHomeCaptionLineEndings(),
         target = nullableObjectValue("target")?.toTarget()
     )
 }
@@ -521,7 +521,7 @@ private fun String.isBoundedText(maximumCodePoints: Int): Boolean =
     isNotBlank() && codePointCount(0, length) in 1..maximumCodePoints && none(Char::isISOControl)
 
 private fun String?.isOptionalBoundedText(maximumCodePoints: Int): Boolean =
-    this == null || isBoundedText(maximumCodePoints)
+    this == null || normalizeHomeCaptionLineEndings().isBoundedHomeCaption(maximumCodePoints)
 
 private fun storageVersionForContent(contentVersion: Int): Int = when (contentVersion) {
     1 -> HOME_CONTENT_STORAGE_VERSION

@@ -108,6 +108,31 @@ class HomeContentPersistenceTest {
     }
 
     @Test
+    fun `storage v2 normalizes multiline image and video captions and rejects other controls`() {
+        val stored = v2StoredSnapshot()
+        val image = stored.snapshot.sections[0] as RemoteHomeSection.Image
+        val video = stored.snapshot.sections[1] as RemoteHomeSection.Video
+        val canonical = stored.copy(
+            snapshot = stored.snapshot.copy(
+                sections = listOf(
+                    image.copy(caption = "First\nSecond\nThird"),
+                    video.copy(caption = "First\nSecond\nThird")
+                )
+            )
+        )
+        val encoded = codec.encodeSnapshot(canonical)
+        assertEquals(HomeCodecDecode.Accepted(canonical), codec.decodeSnapshot(encoded))
+        assertEquals(
+            HomeCodecDecode.Accepted(canonical),
+            codec.decodeSnapshot(encoded.replace("First\\nSecond\\nThird", "First\\r\\nSecond\\rThird"))
+        )
+        assertInstanceOf(
+            HomeCodecDecode.Rejected::class.java,
+            codec.decodeSnapshot(encoded.replace("First\\n", "First\\t"))
+        )
+    }
+
+    @Test
     fun `storage v2 round trips media identities without persisting provider urls`() {
         val stored = v2StoredSnapshot()
 

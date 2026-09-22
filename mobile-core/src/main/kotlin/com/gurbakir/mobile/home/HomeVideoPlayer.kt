@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -114,6 +116,7 @@ internal fun HomeVideoPlayer(
                 callbacks =
                     HomePlayerCallbacks(
                         onBuffering = {},
+                        onVisibilityLost = { rendition = null },
                         onRenditionFailure = {
                             attempt.rejectRendition(activeRendition, HomeRenditionRejection.TERMINAL_PLAYBACK)
                             val fallback = attempt.selectRendition(session.renditions)
@@ -160,6 +163,7 @@ private data class ActiveHomeVideoRequest(
 
 private data class HomePlayerCallbacks(
     val onBuffering: (Boolean) -> Unit,
+    val onVisibilityLost: () -> Unit,
     val onRenditionFailure: () -> Unit,
     val onTerminal: (HomePlaybackTerminalReason) -> Unit
 )
@@ -192,12 +196,14 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
     val player = remember(request.attempt.id, request.rendition.stableKey, request.generation) {
         createHomeVideoPlayer(context, request)
     }
+    val audioFocus = remember(player) { HomeVideoAudioFocus(context, player, request.session) }
     var buffering by remember(player) { mutableStateOf(true) }
     val listener = remember(player, request.attempt, request.rendition) {
         homePlayerListener(
             player = player,
             session = request.session,
             attempt = request.attempt,
+            audioFocus = audioFocus,
             callbacks =
                 callbacks.copy(onBuffering = { isBuffering -> buffering = isBuffering })
         )
@@ -213,6 +219,7 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
             player.pause()
             request.session.pause(HomePlaybackPauseReason.VISIBILITY_LOST)
             request.session.detachForRebuild()
+            audioFocus.abandon()
             player.release()
         }
     }
@@ -245,6 +252,10 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
     Box(
         modifier = Modifier.fillMaxWidth()
             .aspectRatio(request.rendition.width.toFloat() / request.rendition.height)
+            .onGloballyPositioned { coordinates ->
+                val visible = coordinates.boundsInWindow()
+                if (visible.width <= 0f || visible.height <= 0f) callbacks.onVisibilityLost()
+            }
             .testTag(HomeTestTags.VIDEO_PLAYER),
         contentAlignment = Alignment.Center
     ) {
@@ -294,7 +305,7 @@ private fun createHomeVideoPlayer(context: Context, request: ActiveHomeVideoRequ
             )
     return ExoPlayer.Builder(context)
         .setLoadControl(loadControl)
-        .setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, true)
+        .setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, false)
         .setHandleAudioBecomingNoisy(true)
         .build()
         .apply {
@@ -309,6 +320,7 @@ private fun homePlayerListener(
     player: ExoPlayer,
     session: HomePlaybackSession,
     attempt: HomePlaybackAttempt,
+    audioFocus: HomeVideoAudioFocus,
     callbacks: HomePlayerCallbacks
 ): Player.Listener = object : Player.Listener {
     override fun onRenderedFirstFrame() {
@@ -339,7 +351,14 @@ private fun homePlayerListener(
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         when {
-            playWhenReady -> session.markPlaying()
+            playWhenReady -> {
+                if (audioFocus.request()) {
+                    session.markPlaying()
+                } else {
+                    player.pause()
+                    session.pause(HomePlaybackPauseReason.AUDIO_FOCUS_LOST)
+                }
+            }
 
             reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
                 session.pause(HomePlaybackPauseReason.AUDIO_FOCUS_LOST)
@@ -351,7 +370,10 @@ private fun homePlayerListener(
                 player.pause()
             }
 
-            else -> session.pause(HomePlaybackPauseReason.USER)
+            else -> {
+                audioFocus.abandon()
+                session.pause(HomePlaybackPauseReason.USER)
+            }
         }
     }
 

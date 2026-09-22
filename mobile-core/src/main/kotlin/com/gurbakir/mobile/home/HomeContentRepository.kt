@@ -355,7 +355,13 @@ constructor(
                             media = media,
                             altText = section.altText,
                             caption = section.caption,
-                            target = section.target,
+                            target = if (source ==
+                                HomeContentSource.REMOTE
+                            ) {
+                                section.target
+                            } else {
+                                section.target.resolveCurrentTarget(resolved)
+                            },
                             revisionKey = snapshot.sectionRevisionDigest
                         )
                     }
@@ -387,7 +393,13 @@ constructor(
                             poster = explicitPoster ?: preview,
                             altText = section.altText,
                             caption = section.caption,
-                            target = section.target,
+                            target = if (source ==
+                                HomeContentSource.REMOTE
+                            ) {
+                                section.target
+                            } else {
+                                section.target.resolveCurrentTarget(resolved)
+                            },
                             revisionKey = snapshot.sectionRevisionDigest
                         )
                     }
@@ -430,10 +442,23 @@ constructor(
         when (section) {
             is RemoteHomeSection.CollectionGrid -> section.collections
             is RemoteHomeSection.FeaturedProduct -> listOf(section.product)
-            is RemoteHomeSection.Image -> listOf(section.media)
-            is RemoteHomeSection.Video -> listOfNotNull(section.media, section.poster)
+            is RemoteHomeSection.Image -> listOfNotNull(section.media, section.target?.key)
+            is RemoteHomeSection.Video -> listOfNotNull(section.media, section.poster, section.target?.key)
         }
     }.distinct()
+
+    private fun RemoteHomeTarget?.resolveCurrentTarget(
+        resolved: Map<HomeResourceKey, StorefrontHomeResource>
+    ): RemoteHomeTarget? {
+        val key = this?.key ?: return null
+        val handle = when (val resource = resolved[key]) {
+            is StorefrontHomeResource.Collection -> resource.handle.takeIf { key.kind == HomeResourceKind.COLLECTION }
+            is StorefrontHomeResource.Product -> resource.handle.takeIf { key.kind == HomeResourceKind.PRODUCT }
+            else -> null
+        } ?: return null
+        if (handle.length !in 1..255 || !handle.matches(Regex("[a-z0-9]+(?:-[a-z0-9]+)*"))) return null
+        return RemoteHomeTarget(key, handle)
+    }
 
     private fun HomeResourceBatch.strictResources(
         requested: List<HomeResourceKey>,

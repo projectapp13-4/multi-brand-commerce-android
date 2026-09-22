@@ -8,12 +8,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.navigateProduct
+import com.gurbakir.mobile.navigation.CollectionRoute
+import com.gurbakir.mobile.performDeterministicClick
 import com.gurbakir.storefront.HomeCollectionSummary
 import com.gurbakir.storefront.HomeProductSummary
 import com.gurbakir.storefront.StorefrontMedia
@@ -30,6 +37,59 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    @Test
+    fun imageAndVideoProductTargetsUseTheProductionProductNavigationBinding() {
+        val target = RemoteHomeTarget(
+            com.gurbakir.storefront.HomeResourceKey(com.gurbakir.storefront.HomeResourceKind.PRODUCT, PRODUCT_GID),
+            "current-product-handle"
+        )
+        val image = HomeRenderedSection.Image(
+            "target-image",
+            HomeText.Remote("Image"),
+            HomeImagePresentation.BANNER,
+            media(),
+            "Image",
+            null,
+            target,
+            "image-revision"
+        )
+        val video = videoSection().copy(target = target)
+        lateinit var nav: androidx.navigation.NavHostController
+        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("example.com"), HomePlaybackClock { 0 })
+        composeRule.setContent {
+            CoreTestTheme {
+                val controller = androidx.navigation.compose.rememberNavController()
+                androidx.compose.runtime.SideEffect { nav = controller }
+                com.gurbakir.mobile.ProductionNavHost(
+                    navController = controller,
+                    deepLinks = com.gurbakir.mobile.capabilityDeepLinks,
+                    applicationComposition = com.gurbakir.mobile.capabilityComposition(account = false),
+                    content = com.gurbakir.mobile.ProductionDestinationContent(
+                        home = {
+                            HomeScreen(
+                                presentationState(sections = listOf(image, video)),
+                                "Test",
+                                HomeActions(
+                                    refreshContent = {},
+                                    openProduct = controller::navigateProduct,
+                                    openCollection = { controller.navigate(CollectionRoute(it)) },
+                                    playbackCoordinator = coordinator
+                                )
+                            )
+                        },
+                        product = { androidx.compose.material3.Text(it.productId) }
+                    )
+                )
+            }
+        }
+        composeRule.onNode(hasClickAction() and hasAnyAncestor(hasTestTag(HomeTestTags.image(image.stableId))))
+            .performScrollTo().performDeterministicClick()
+        composeRule.onNodeWithText("1").assertIsDisplayed()
+        composeRule.runOnIdle { nav.popBackStack() }
+        composeRule.onNodeWithText(target.handle).performScrollTo().performDeterministicClick()
+        composeRule.onNodeWithText("1").assertIsDisplayed()
+    }
 
     @Test
     fun healthyAndEmptyHomeExposeAccessibleManualRefresh() {
@@ -100,8 +160,8 @@ class HomeScreenTest {
             )
         )
 
-        composeRule.onNodeWithTag(HomeTestTags.collection(COLLECTION_GID)).performScrollTo().performClick()
-        composeRule.onNodeWithTag(HomeTestTags.FEATURED_CARD).performScrollTo().performClick()
+        composeRule.onNodeWithTag(HomeTestTags.collection(COLLECTION_GID)).performScrollTo().performDeterministicClick()
+        composeRule.onNodeWithTag(HomeTestTags.FEATURED_CARD).performScrollTo().performDeterministicClick()
         assertEquals("current-collection-handle", collection)
         assertEquals(PRODUCT_GID, product)
     }

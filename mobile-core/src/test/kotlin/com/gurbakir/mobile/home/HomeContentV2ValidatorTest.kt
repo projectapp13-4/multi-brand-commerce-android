@@ -29,6 +29,33 @@ class HomeContentV2ValidatorTest {
     private val selector = HomeDocumentSelector("mobile_home_v2", "primary")
 
     @Test
+    fun `multiline captions normalize line endings without admitting other controls`() {
+        val captionValues = listOf("First\r\nSecond\rThird", "First\nSecond\nThird")
+        val accepted = captionValues.map { caption ->
+            val section = imageSection("309", resolvedImage("509")).copy(
+                caption = field("caption", "multi_line_text_field", caption)
+            )
+            assertInstanceOf(
+                HomeDocumentValidation.Accepted::class.java,
+                validator.validate(selector, root(listOf(section)), 2)
+            )
+        }
+        accepted.forEach {
+            assertEquals("First\nSecond\nThird", (it.snapshot.sections.single() as RemoteHomeSection.Image).caption)
+        }
+        assertEquals(accepted[0].snapshot.sectionRevisionDigest, accepted[1].snapshot.sectionRevisionDigest)
+        listOf("a\tb", "a\u0000b", "a\u0085b", "a".repeat(1_001)).forEach { caption ->
+            val section = videoSection("310", resolvedVideo("310")).copy(
+                caption = field("caption", "multi_line_text_field", caption)
+            )
+            assertInstanceOf(
+                HomeDocumentValidation.NoneRenderable::class.java,
+                validator.validate(selector, root(listOf(section)), 2)
+            )
+        }
+    }
+
+    @Test
     fun `explicit v2 zero count is intentional empty rather than a failed document`() {
         val validation = validator.validate(selector, root(emptyList()), 2)
 

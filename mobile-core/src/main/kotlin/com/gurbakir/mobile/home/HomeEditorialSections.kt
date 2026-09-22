@@ -91,7 +91,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.videoSection(
 
 private fun HomeActions.targetAction(target: RemoteHomeTarget): () -> Unit = when (target.key.kind) {
     HomeResourceKind.COLLECTION -> ({ openCollection(target.handle) })
-    HomeResourceKind.PRODUCT -> ({ openProduct(target.handle) })
+    HomeResourceKind.PRODUCT -> ({ openProduct(target.key.gid) })
     HomeResourceKind.MEDIA_IMAGE, HomeResourceKind.VIDEO -> ({})
 }
 

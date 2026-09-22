@@ -324,6 +324,14 @@ ile ölçüldü; Gürbakır isolated update-test pair daha eski `b54ad305` check
 Sonraki build, final-source Gürbakır fiziksel runtime kabulünü kendiliğinden sağlamaz.
 Task 8 katalog görseli sonrası eski A12 ölçümleri yeni payload'a yeniden etiketlenmez.
 
+2026-09-22 final-review Important düzeltmesi yeni bir kaynak/artifact checkpoint'idir;
+Task 7/8 SHA ve APK digest'leri bu yeni adayı tanımlamaz. Yeni adayın exact source,
+APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
+final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
+20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
+izolasyonunu PASS yapmaz. A4 FAIL, A5 NOT RUN/EXTERNALLY BLOCKED, A8/A9 PARTIAL,
+A14 NOT RUN ve Gate 9 AÇIK sınırları değişmedi.
+
 ## Sorun ayırma rehberi
 
 | Belirti | Önce bakılacak sınır | Yanlış teşhis |

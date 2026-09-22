@@ -407,7 +407,7 @@ internal class HomeV2ContentValidator(private val json: Json) {
         listOf(title, presentation, altText, caption).forEach { field ->
             part(field?.key)
             part(field?.type)
-            part(field?.value)
+            part(if (field == caption) field?.value?.normalizeHomeCaptionLineEndings() else field?.value)
         }
         part(collections?.value)
         part(product?.value)
@@ -469,6 +469,9 @@ internal class HomeV2ContentValidator(private val json: Json) {
     ): String? {
         if (this?.key != expectedKey || type != expectedType) return null
         val text = value ?: return null
+        if (expectedType == "multi_line_text_field") {
+            return text.normalizeHomeCaptionLineEndings().takeIf { it.isBoundedHomeCaption(maximumCodePoints) }
+        }
         val length = text.codePointCount(0, text.length)
         return text.takeIf { it.isNotBlank() && length in 1..maximumCodePoints && it.none(Char::isISOControl) }
     }
