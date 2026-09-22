@@ -10,6 +10,8 @@ import com.gurbakir.firebase.createFirebaseRemoteFeatureFlags
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -17,6 +19,16 @@ import org.junit.runner.RunWith
 class TrialFirebaseRuntimeProofTest {
     private val context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Before
+    fun requireExplicitFirebaseRuntimeProofRequest() {
+        val requested =
+            InstrumentationRegistry.getArguments().getString(FIREBASE_RUNTIME_PROOF_ARGUMENT) == "true"
+        assumeTrue(
+            "Live Firebase proof was not requested; pass $FIREBASE_RUNTIME_PROOF_ARGUMENT=true explicitly.",
+            requested
+        )
+    }
 
     @Test
     fun configuredTrialFetchesRemoteConfigFromItsDefaultFirebaseApp() = runBlocking {
@@ -45,5 +57,9 @@ class TrialFirebaseRuntimeProofTest {
             assertTrue(coordinator.unregister())
         }
         assertFalse(coordinator.hasStoredConsent())
+    }
+
+    private companion object {
+        const val FIREBASE_RUNTIME_PROOF_ARGUMENT = "runTrialFirebaseRuntimeProof"
     }
 }
