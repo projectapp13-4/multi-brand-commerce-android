@@ -2,30 +2,40 @@ package com.gurbakir.mobile.home
 
 import android.content.Context
 import android.os.SystemClock
+import androidx.media3.datasource.DataSource
 import coil3.ImageLoader
 import com.gurbakir.storefront.StorefrontMediaPolicy
 import javax.inject.Inject
 
+internal typealias HomePlaybackDataSourceProvider =
+    (HomePlaybackAttempt, HomeVideoRendition) -> DataSource.Factory
+
 class HomePlaybackCoordinator internal constructor(
     private val mediaPolicy: StorefrontMediaPolicy,
-    clock: HomePlaybackClock
+    clock: HomePlaybackClock,
+    limits: HomePlaybackLimits = HomePlaybackLimits(),
+    private val dataSourceProvider: HomePlaybackDataSourceProvider? = null,
+    internal val maxForwardBufferMillis: Int = HomeVideoPlayerPolicy.MAX_FORWARD_BUFFER_MILLIS
 ) {
+    init {
+        require(maxForwardBufferMillis >= MIN_PLAYER_BUFFER_MILLIS)
+    }
+
     @Inject
     constructor(mediaPolicy: StorefrontMediaPolicy) : this(
         mediaPolicy,
         HomePlaybackClock(SystemClock::elapsedRealtime)
     )
 
-    private val registry = HomePlaybackSessionRegistry(clock)
+    private val registry = HomePlaybackSessionRegistry(clock, limits = limits)
     private var v2ImageLoader: ImageLoader? = null
 
     internal fun session(section: HomeRenderedSection.Video): HomePlaybackSession =
         registry.session(section.identity(), section.renditions())
 
-    internal fun dataSourceFactory(
-        attempt: HomePlaybackAttempt,
-        rendition: HomeVideoRendition
-    ): HomePlaybackDataSourceFactory = HomePlaybackDataSourceFactory(attempt, rendition, mediaPolicy)
+    internal fun dataSourceFactory(attempt: HomePlaybackAttempt, rendition: HomeVideoRendition): DataSource.Factory =
+        dataSourceProvider?.invoke(attempt, rendition)
+            ?: HomePlaybackDataSourceFactory(attempt, rendition, mediaPolicy)
 
     @Synchronized
     internal fun imageLoader(context: Context): ImageLoader =
@@ -82,3 +92,4 @@ private fun HomeRenderedSection.Video.renditions(): List<HomeVideoRendition> = s
 
 private const val HOME_VIDEO_MAX_WIDTH = 1280
 private const val HOME_VIDEO_MAX_HEIGHT = 720
+private const val MIN_PLAYER_BUFFER_MILLIS = 1_000

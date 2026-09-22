@@ -241,6 +241,9 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
     LaunchedEffect(player, request.attempt) {
         while (request.attempt.state == HomePlaybackAttemptState.ACTIVE) {
             delay(HOME_PLAYBACK_DEADLINE_POLL_MILLIS)
+            if (request.attempt.firstFrameRendered && player.playbackState == Player.STATE_BUFFERING) {
+                request.attempt.bufferingStarted()
+            }
             request.attempt.checkDeadlines()?.let { reason ->
                 player.stop()
                 callbacks.onTerminal(reason)
@@ -281,8 +284,8 @@ private fun createHomeVideoPlayer(context: Context, request: ActiveHomeVideoRequ
     val loadControl =
         DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                HomeVideoPlayerPolicy.MAX_FORWARD_BUFFER_MILLIS,
-                HomeVideoPlayerPolicy.MAX_FORWARD_BUFFER_MILLIS,
+                request.coordinator.maxForwardBufferMillis,
+                request.coordinator.maxForwardBufferMillis,
                 HOME_BUFFER_FOR_PLAYBACK_MILLIS,
                 HOME_BUFFER_AFTER_REBUFFER_MILLIS
             )
