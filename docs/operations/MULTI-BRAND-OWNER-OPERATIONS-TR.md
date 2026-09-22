@@ -38,6 +38,20 @@ refresh token'ları Android Keystore arkasındaki uygulama soyutlamasında kalı
 adres, sipariş ve uzak silme birbirinden ayrı operasyonlardır; uygulamadaki yerel veri
 temizliği uzak müşteri silme sonucu değildir.
 
+### Trial Customer Account kabulü
+
+22 Eylül 2026'da user-assisted OTP ile gerçek Trial PKCE callback'i uygulamaya döndü.
+Account, Profile ve Addresses okundu; profil değiştirilmedi, adres listesi empty olduğu
+için adres yazma/silme yapılmadı. Orders gerçek empty döndüğünden Order Detail doğru
+olarak `NOT RUN` kaldı. Force-stop/relaunch oturumu geri yükledi; logout ve ikinci
+relaunch signed-out durumunu korudu. E-posta, OTP ve customer token kanıta alınmadı;
+kişisel değer taşıyan geçici UI dump'ları doğrulama özetinden sonra kaldırıldı.
+
+Bu doğal token expiry kanıtı değildir. Expiry yalnız gerçek sürenin dolması veya
+provider'ın desteklediği güvenli test fixture'ı ile ayrıca doğrulanabilir; cihaz saatini
+değiştirerek veya token'ı rapora çıkararak test edilmez. Gerçek uzak deletion,
+merchant acknowledgement/SLA ve customer mutation ayrıca kapsamlandırılır.
+
 ## Shopify katalog ve Menu işletimi
 
 1. Ürün fiyatı, para birimi, varyant availability ve stok Shopify'da yönetilir.
@@ -51,25 +65,32 @@ temizliği uzak müşteri silme sonucu değildir.
 5. Değişiklikten sonra Storefront public client ile ürün, koleksiyon ve Menu readback
    yap. Admin ekranında görünmesi tek başına Android runtime kanıtı değildir.
 
-### Trial cart kurulum eksiği
+### Trial cart scope düzeltmesi ve güncel kabul
 
 17 Eylül 2026 gerçek Trial client koşusunda ürün/collection/Home ve `TRY`
-okuması geçti, fakat `cartCreate` `ACCESS_DENIED` döndürdü. Güncel Shopify scope
-sözleşmesinde Cart için `unauthenticated_write_checkouts` gerekir. Bu bir production
-veya dış iş kararı değil, giderilebilir development kurulumu eksikliğidir.
+okuması geçti, fakat tam `cartCreate` response seçimi `ACCESS_DENIED` döndürdü.
+İlk kayıt yalnız genel hata kodunu bildiği için bunu tek başına checkout-write
+eksikliği diye yorumlamak yeterli değildi.
 
 Task 8'de aynı onaylı Headless configuration hash'iyle tekrar yürütülen test de
-`executed=1`, `skipped=0`, `failures=1` ve `graphql:ACCESS_DENIED` verdi. Admin CLI
-content erişiminin çalışması bu token'ın cart yetkisi olduğunu kanıtlamaz. Testi
-geçirmek için Shopify-CLI-owned başka bir public token/client oluşturma veya
-yerine koyma. Yetkili Headless operator'ü onaylı client üzerinde:
+`executed=1`, `skipped=0`, `failures=1` ve `graphql:ACCESS_DENIED` verdi. Sonraki
+resmî Headless yönetim yüzeyi readback'inde checkout read/write zaten açıktı. Tam
+query'deki `buyerIdentity.customer` alanı `unauthenticated_read_customers`
+gerektiriyordu. Trial mağazasındaki paylaşılan Headless izin yüzeyinde yalnız bu
+okuma kapsamı açıldı; `unauthenticated_write_customers` ve
+`unauthenticated_read_customer_tags` kapalı bırakıldı. Gürbakır mağazasına
+dokunulmadı ve client/token substitution yapılmadı.
 
-1. Headless Storefront API izinlerinde `unauthenticated_write_checkouts` kapsamını
-   Trial public client için etkinleştir ve değişikliği Shopify'dan readback et.
-2. Token değerini ekrana/loga yazmadan ignored Trial local configuration'ını güvenli
-   biçimde güncelle veya mevcut token'ın scope readback'ini doğrula.
-3. Aşağıdaki gerçek testte `executed=1`, `skipped=0`, `failures=0` aranmadan A4'ü
-   PASS yapma:
+Güncel işletim sırası:
+
+1. Exact approved Headless storefront'u, canonical Trial domain'ini ve değişmeyen
+   public-client binding'ini doğrula.
+2. Cart query değişirse, seçilen her nested alanın scope'unu ayrıca kontrol et;
+   genel `ACCESS_DENIED` kodundan tek scope sonucu çıkarma.
+3. Token değerini ekrana/loga yazmadan mevcut binding ve paylaşılan kanal scope
+   readback'ini kaydet. Gerekmeyen customer write/tag kapsamlarını açma.
+4. Aşağıdaki gerçek testte `executed=1`, `skipped=0`, `failures=0` aranmadan provider
+   cart yaşam döngüsünü PASS yapma:
 
 ```powershell
 .\gradlew.bat :storefront:testDebugUnitTest `
@@ -82,6 +103,15 @@ yerine koyma. Yetkili Headless operator'ü onaylı client üzerinde:
 
 Test yalnız geçici bir cart oluşturur, availability/TRY/checkout hostunu doğrular ve
 satırları `finally` içinde kaldırır. Sipariş oluşturmaz, checkout'u tamamlamaz ve ödeme yapmaz.
+22 Eylül 2026 koşusu aynı client ile `1/1 PASS`, `skipped=0`, `failure/error=0` verdi;
+JUnit SHA-256
+`d8ac50c813b7186dec3a96a46c18489d42bfa118d855414db868f56894d75342`.
+
+Samsung release yolunda ürün/TRY/availability, add/cart/quantity/subtotal, Checkout
+Kit açılışı, Close Checkout dönüşü, retained-cart refresh ve cleanup geçti. Development
+storefront parola kapısı checkout formundan önce göründü; parolayı receipt/loga almadan
+ve mağazayı public yapmadan test durduruldu. Bu yüzden provider cart yaşam döngüsü
+PASS olsa da A4'ün native checkout-form alt satırı PARTIAL kalır.
 
 ## Home v1 ve Home v2 içerik modeli
 
@@ -131,6 +161,17 @@ Her içerik değişikliği yeni revision olarak ele alınır:
 6. Public Storefront client ile root, child sırası, media ve Product/Collection
    hydration readback'i yap.
 7. Aynı planı tekrar çalıştır; ikinci Apply `zero-write` olmadan idempotence PASS değildir.
+
+İlk definition/probe Plan/Apply/Readback için checked-in giriş noktası
+`scripts/Invoke-MultiBrandOnboarding.ps1`, redakte receipt sözleşmesi ise
+`config/onboarding/operator-receipt.schema.v1.json` dosyasıdır. Gerçek Home content
+editörü şu sırayı Admin UI'da uygular: **Content → Metaobjects → child entry/File
+READY readback → mobile_home_v2 root → ordered references → Save**. Root'u child/File
+hazır olmadan kaydetme. Receipt en az verified target shop/domain, application/profile,
+contract version, before/after root ve ordered child/file GID'leri, child `updatedAt`,
+media source tuple, revision digest, planned/write counts, Admin/public readback,
+zero-write tekrar ve recovery ordered-list alanlarını taşır. Token, raw provider body,
+customer/cart verisi veya storefront parolası receipt'e girmez.
 
 Parent `updatedAt` tek başına yeterli değildir. Child `updatedAt`, normalize alanlar,
 sıralı reference GID'leri ve media source tuple digest'e dahildir. Böylece parent tarihi
@@ -239,6 +280,14 @@ Güvenli rutin:
 5. Messaging testi yalnız test device/token ile yapılır. Gerçek pazarlama bildirimi gönderme.
 6. Analytics/Crashlytics veya yeni data product'ı mevcut scope'a sessizce ekleme.
 
+22 Eylül 2026 Samsung debug proof'u tek Trial Firebase app/project binding'ini,
+Messaging auto-init'in kapalı olduğunu, gerçek Remote Config fetch/activate ve yalnız
+açık test eylemiyle FCM register→unregister/consent cleanup akışını `2/2 PASS`
+doğruladı. JUnit SHA-256
+`65ab51c911b0dd0460157586661b1b8a42cf8183bee43732ca7140860da6091e`.
+Bu debug instrumentation kanıtıdır; release veya gerçek bildirim teslimi değildir.
+Token/değer kaydedilmedi ve bildirim gönderilmedi.
+
 Credential rotasyonunda önce yeni credential/client oluşturulur, ignored local/CI binding
 güncellenir, readback ve app testi alınır; eski credential ancak ayrı güvenli retirement
 adımıyla kaldırılır. Sırlar receipt, Git, chat, analytics veya APK'ya girmez.
@@ -332,12 +381,20 @@ final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına ba�
 izolasyonunu PASS yapmaz. A4 FAIL, A5 NOT RUN/EXTERNALLY BLOCKED, A8/A9 PARTIAL,
 A14 NOT RUN ve Gate 9 AÇIK sınırları değişmedi.
 
+22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
+start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
+P95 veya first-frame SLO iddiası yoktur. Gerçek configured Gürbakır staging candidate
+aynı package/nonproduction imza/UID/first-install ile veri silmeden güncellendi ve
+sentinel korundu. Aynı handle iki mağazada farklı ürün/fiyat verdi; Trial cart quantity
+1 iken Gürbakır cart empty kaldı ve Trial process restart sonrasında quantity 1 korundu.
+Authenticated customer session/logout izolasyonu hâlâ A5'e bağlıdır.
+
 ## Sorun ayırma rehberi
 
 | Belirti | Önce bakılacak sınır | Yanlış teşhis |
 |---|---|---|
 | Ürün/Menu/Home okunmuyor | application/profile projection, Storefront domain/token/scope, publication | Firebase sorunu demek |
-| `cartCreate ACCESS_DENIED` | `unauthenticated_write_checkouts` ve doğru Headless token | Cart kodunda güvenlik kontrolünü kaldırmak |
+| `cartCreate ACCESS_DENIED` | Doğru Headless client + checkout read/write + query'nin nested `buyerIdentity.customer` alanı için gereken customer-read scope | Genel hata kodundan tek scope çıkarmak veya cart kodunda güvenlik kontrolünü kaldırmak |
 | Login callback dönmüyor | Customer Account client, discovery, PKCE callback, app scheme | Storefront token yenilemek |
 | Remote Config gelmiyor | Firebase project/app binding, template/version, fetch/activate | Shopify cache temizlemek |
 | Eski Home görünüyor | root/child/file digest, 24h TTL, request ordering, LKG kalite durumu | Fiyat/stok snapshot'ı yazmak |

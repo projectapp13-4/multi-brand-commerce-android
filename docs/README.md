@@ -43,11 +43,16 @@ history, protected bootstrap, and historical-archive cutover evidence.
 - The Gate 9 implementation candidate adds development-only `:trial` as the
   second real application/store pilot and bounded Home v2 image/video support.
   Real Trial v1/v2 provider checkpoints and local source/artifact validation
-  exist, but Trial cart acceptance currently fails because the Storefront cart
-  write scope is not effective. Samsung API33 bounded update/player/measurement
-  evidence and Trial publish/change/remove/rollback rehearsal now exist; complete
-  player and two-app commerce/session acceptance remain partial. Gate 9
-  therefore remains open; see
+  exist. The exact Trial cart provider lifecycle now passes after enabling only
+  the required customer-read scope for the query's nested buyer field; physical
+  add/cart/Checkout Kit/return/cleanup is proven up to the development-store
+  password gate. Samsung API33 configured Gürbakır/Trial update, same-handle,
+  logged-out cart/process-death isolation, bounded player/measurement, Firebase
+  debug runtime and Trial publish/change/remove/rollback evidence now exist.
+  Real Trial PKCE/profile/address/order-empty/restart/logout acceptance now passes
+  its executed substeps, while natural token expiry, cross-app authenticated-session
+  isolation, the complete physical player matrix and hosted exact-SHA CI remain
+  partial or not run. Gate 9 therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete

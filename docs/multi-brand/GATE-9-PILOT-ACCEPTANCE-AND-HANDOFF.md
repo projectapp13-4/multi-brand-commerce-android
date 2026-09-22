@@ -75,6 +75,99 @@ production signing, Play, push/PR/merge, uninstall veya data clear yoktur.
 Gate 9 AÇIK, P3-16 başlamamıştır. Deferred Minor/closure checklist bu dalganın
 dışındadır; tarihsel A10/A12 kanıtları yeni candidate'e taşınmaz.
 
+Yukarıdaki durum `80597a5` final-review anının tarihsel kaydıdır. Aşağıdaki
+current-candidate tazelemesi daha yeni gerçek provider ve Samsung kanıtını ayrı
+tutar; eski failure/skip kayıtlarını silmez.
+
+## Current-candidate kabul tazelemesi — 2026-09-22
+
+Release kaynağı ve artifact sınırı değişmedi: `80597a55899a6c16d5a43c7620e4de91578c2b70`
+ve tree `597bfd01afe56d61072339ef4370542390669a04`. Bu tazelemedeki Firebase proof
+yalnız debug instrumentation ve dokümantasyon/test kaynaklarıdır; minified release
+kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
+`out/evidence/gate9/continuation-80597a5/` olup Git'e alınmaz. Redakte current receipt
+`current-acceptance-receipt.json` SHA-256
+`df4ea99e1dc3fbe02380594670198cf234ad3094031a6eec8d6a23f99a33c05b`.
+
+- Korunmuş gerçek Gürbakır staging girdileri ana checkout değiştirilmeden yalnız
+  pilotun ignored yollarına provenance/hash kontrolüyle taşındı. Configured
+  `stagingRelease` eski candidate → `80597a5` normal `install -r` güncellemesi aynı
+  package, nonproduction certificate, UID `10284` ve first-install time
+  `2026-09-17 19:09:35` ile geçti; arama sentinel'i veri silmeden korundu.
+- Trial Headless checkout read/write kapsamları zaten açıktı. Tam cart query'sindeki
+  `buyerIdentity.customer` alanı `unauthenticated_read_customers` gerektiriyordu.
+  Trial mağazasındaki paylaşılan Headless izin yüzeyinde yalnız bu okuma kapsamı
+  açıldı; customer write ve customer-tag read kapalı bırakıldı. Gürbakır mağazası
+  değiştirilmedi. Aynı onaylı public client ile `OwnedStorefrontCartProofTest`
+  **1/1 PASS**, `skipped=0`, `failure/error=0`, JUnit SHA-256
+  `d8ac50c813b7186dec3a96a46c18489d42bfa118d855414db868f56894d75342`.
+- Samsung `R68RC006LPE` üzerinde Trial release ürünü `TRY299.00 / Available`,
+  add/cart/quantity/subtotal, Checkout Kit açılışı, güvenli Close Checkout dönüşü,
+  retained-cart refresh ve son cleanup doğrulandı. Development storefront'un zorunlu
+  parola sayfası görüldüğü için checkout iletişim/teslimat formu ve formu yeniden
+  açma adımı çalıştırılmadı; sipariş/ödeme yoktur. A4 bu nedenle provider yaşam
+  döngüsünde PASS, uçtan uca native satırda **PARTIAL**dır.
+- Aynı handle iki configured release uygulamada farklı gerçek ürün verdi: Trial
+  `Çekiç Dokulu Trial Seramik Kupa / TRY299.00`, Gürbakır `Çekiç Dokulu Bakır Kupa /
+  TRY680.00`; product GID'leri de farklıdır. Trial sepetinde quantity 1 varken
+  Gürbakır sepeti boş kaldı. Trial process force-stop/relaunch sonrasında quantity 1
+  korundu, sonra yalnız Trial satırı kaldırıldı ve empty readback alındı. Bu logged-out
+  cart/process-death izolasyonunu kapatır; müşteri login/logout/session izolasyonu A5'e
+  bağımlı kaldığı için A9 bütünü **PARTIAL**dır.
+- Trial debug runtime, tek doğru Firebase app/project binding'i, kapalı Messaging
+  auto-init, gerçek Remote Config fetch/activate ve yalnız açık test eylemiyle FCM
+  register→unregister/consent cleanup akışında Samsung'da **2/2 PASS** verdi. JUnit
+  SHA-256 `65ab51c911b0dd0460157586661b1b8a42cf8183bee43732ca7140860da6091e`.
+  Token/değer receipt'e veya loga alınmadı; bildirim gönderilmedi.
+- User-assisted OTP ile gerçek Trial Customer Account PKCE callback'i uygulamaya
+  döndü. Account, Profile ve Addresses gerçek client üzerinden okundu; profil
+  alanları değiştirilmedi, adres listesi empty olduğundan yazma/silme yapılmadı.
+  Orders gerçek empty döndü; güvenli order olmadığı için Order Detail `NOT RUN`.
+  Force-stop/relaunch sonrasında oturum ve Account işlemleri geri geldi; Sign out
+  ardından ikinci relaunch signed-out `Sign in` durumunu korudu. E-posta/OTP/token
+  receipt'e alınmadı; kişisel değer içeren ara UI dump'ları kanıt özetinden sonra
+  yerel ve cihaz geçici yollarından kaldırıldı. Doğal token-expiry beklenmedi veya
+  zorlanmadı; A5 bütünü bu nedenle **PARTIAL**dır.
+- Aynı `80597a5` Trial release ve aynı payload/retained-cache şartında A12 yeniden
+  ölçüldü. Cold-start ms `[405,417,405,395,408]`, median `405`, max `417`;
+  UI warm-cycle ms `[11038,10882,10909,10867,10895]`, median `10895`, max `11038`;
+  eşleşen ExoPlayer Init→Release ms `[8847,8699,8667,8655,8692]`, median `8692`,
+  max `8847`. UI cycle dump overhead içerir; P95 veya first-frame SLO iddiası yoktur.
+- Acceptance-only kaynak deltası için `spotlessCheck`, tüm module `detekt`, Trial
+  developmentDebug lint/unit/AndroidTest assembly **PASS** (`330` task; `23`
+  executed, `307` up-to-date); public readiness **23/23**, repository portability
+  **46/46**, projection/onboarding read-only Validate ve delta secret taraması PASS.
+  DevelopmentRelease merged manifest debug-only Messaging opt-in'i içermiyor;
+  DevelopmentDebug içeriyor. Gerçek ignored Gürbakır staging girdileri varken
+  `Test-MultiBrandOnboarding -Suite All` bunları overwrite etmeyi reddedip
+  `DESTINATION_EXISTS` ile durdu; girdiler silinmedi/taşınmadı ve bu koşu PASS
+  sayılmadı. Aynı operator kaynağının `80597a5` exact-SHA geniş lane kanıtı korunur.
+
+### Current-candidate A1–A14 matrisi
+
+| ID | Güncel durum | Current-candidate kanıt ve kalan sınır |
+|---|---|---|
+| A1 | **PASS** | Temiz izole pilot, gerçek Gürbakır staging ve Trial provenance; kirli main/old worktree değişmedi |
+| A2 | **PASS** | Korunmuş gerçek Trial v1 Plan→Apply→Readback ve zero-write tekrar; yeniden üretilmedi |
+| A3 | **PASS (identity smoke only)** | Trial debug identity launch alt satırı geçti; geniş commerce parent'ı bu etiketle kapatılmaz |
+| A4 | **PARTIAL** | Exact cart lifecycle 1/1 PASS; fiziksel add/cart/Checkout Kit/return/cleanup PASS; development-store parola kapısı sonrası checkout formu NOT RUN |
+| A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address/order read, process-restart restore, logout ve post-logout restart PASS; address/order empty, Order Detail NOT RUN; natural token expiry NOT RUN; yazma/silme yok |
+| A6 | **PASS** | Exact v2 codegen/actual-client ve strict Gürbakır-v1/Trial-v2 cutover korunur |
+| A7 | **PASS** | HTTP/attempt/cache/revision kaynak, JVM ve gerçek data-source kanıtı korunur |
+| A8 | **PARTIAL** | Gerçek video, focus/visibility/pause/mute/completion ve data-source kanıtı var; physical noisy/rotation/deadline matrisi bütünü çalıştırılmadı |
+| A9 | **PARTIAL** | Same-handle, ayrı ürün/price, ayrı cart ve Trial process-death/cleanup PASS; authenticated session/logout izolasyonu A5'e bağlı |
+| A10a | **PASS** | Trial v1 minified baseline ve kendi nonproduction imzası korunur |
+| A10b | **PASS** | Güncel Trial `80597a5` release, v1→v2 package/imza/UID/first-install ve veri-silinmeden update kanıtı |
+| A10c | **PASS** | Gerçek configured Gürbakır staging baseline→`80597a5` candidate, aynı package/imza/UID/first-install ve sentinel sürekliliği |
+| A11 | **PARTIAL** | Geçmiş local static/JVM/build/API23/API30 PASS; current delta Spotless/detekt/Trial lint+unit+AndroidTest assemble/public23/portability46/projection PASS; configured-worktree `Suite All` overwrite guard nedeniyle NOT PASS; hosted exact-SHA CI yok |
+| A12 | **PASS (bounded current measurement)** | Yukarıdaki yeni beş cold/beş warm raw/median/max; P95 yok |
+| A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipts korunur; silme veya yeniden prova yok |
+| A14 | **NOT RUN** | Push/PR/merge yetkisi verilmedi; H/M ve hosted exact-SHA CI yok |
+
+Gate 9 hâlâ AÇIK; A5 doğal-expiry alt satırı, A8'in çalıştırılmayan fiziksel alt
+satırları, A9 cross-app authenticated session izolasyonu, hosted exact-SHA CI ve
+owner merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
+
 ## Sonuç özeti
 
 - Ayrı `:trial` real-application module'ü, bağımsız package/persistence/OAuth/
