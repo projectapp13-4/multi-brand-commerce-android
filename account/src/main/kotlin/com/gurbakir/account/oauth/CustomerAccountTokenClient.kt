@@ -5,6 +5,7 @@ import com.gurbakir.foundation.config.CustomerAccountConfiguration
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -305,20 +306,29 @@ private fun failure(reason: CustomerTokenFailure): CustomerTokenResult = Custome
 
 private suspend fun Call.awaitTokenResult(parser: ShopifyCustomerTokenResponseParser): CustomerTokenResult =
     suspendCancellableCoroutine { continuation ->
-        continuation.invokeOnCancellation { cancel() }
+        val completed = AtomicBoolean(false)
+        fun complete(result: CustomerTokenResult) {
+            if (completed.compareAndSet(false, true)) {
+                continuation.resumeWith(Result.success(result))
+            }
+        }
+        continuation.invokeOnCancellation {
+            completed.set(true)
+            cancel()
+        }
         enqueue(
             object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    if (continuation.isActive) {
-                        continuation.resumeWith(Result.success(failure(CustomerTokenFailure.Transient)))
-                    }
+                    complete(failure(CustomerTokenFailure.Transient))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    response.use {
-                        val result = response.toCustomerTokenResult(parser)
-                        if (continuation.isActive) continuation.resumeWith(Result.success(result))
+                    val result = try {
+                        response.use { it.toCustomerTokenResult(parser) }
+                    } catch (_: IOException) {
+                        failure(CustomerTokenFailure.Transient)
                     }
+                    complete(result)
                 }
             }
         )
