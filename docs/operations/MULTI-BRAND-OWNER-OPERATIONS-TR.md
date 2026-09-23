@@ -47,10 +47,20 @@ olarak `NOT RUN` kaldı. Force-stop/relaunch oturumu geri yükledi; logout ve ik
 relaunch signed-out durumunu korudu. E-posta, OTP ve customer token kanıta alınmadı;
 kişisel değer taşıyan geçici UI dump'ları doğrulama özetinden sonra kaldırıldı.
 
-Bu doğal token expiry kanıtı değildir. Expiry yalnız gerçek sürenin dolması veya
-provider'ın desteklediği güvenli test fixture'ı ile ayrıca doğrulanabilir; cihaz saatini
-değiştirerek veya token'ı rapora çıkararak test edilmez. Gerçek uzak deletion,
-merchant acknowledgement/SLA ve customer mutation ayrıca kapsamlandırılır.
+23 Eylül'deki ikinci user-assisted callback ve force-stop/relaunch da authenticated
+döndü. Aynı cihazdaki Gürbakır staging Account signed-out kaldı; Trial oturumu marka
+partition'ını aşmadı. Bogus sipariş reserved guest e-postayla oluşturulduğundan
+Customer Account Orders yine gerçek empty'dir ve Order Detail `NOT RUN` kalır.
+
+Bu doğal token expiry kanıtı değildir. Güvenli doğrulama mevcut şifreli Trial oturumunu
+korur, sadece gözlenen UTC zamanı ve token'dan türetilen `expiresAt` değerini kaydeder,
+gerçek sürenin dolmasını bekler ve normal force-stop/relaunch restore akışını
+çalıştırır. Başarılı refresh daha ileri `expiresAt` ve typed profile read ile;
+terminal ret ise fail-closed signed-out durumuyla kanıtlanır. Cihaz saati, token dosyası
+veya Keystore state'i değiştirilmez; token/PII rapora çıkarılmaz. Release uygulama
+non-debuggable olduğu için hosttan exact `expiresAt` okunamıyorsa bu alt satır `NOT RUN`
+kalır. Gerçek uzak deletion, merchant acknowledgement/SLA ve customer mutation
+ayrıca kapsamlandırılır.
 
 ## Shopify katalog ve Menu işletimi
 
@@ -108,10 +118,18 @@ JUnit SHA-256
 `d8ac50c813b7186dec3a96a46c18489d42bfa118d855414db868f56894d75342`.
 
 Samsung release yolunda ürün/TRY/availability, add/cart/quantity/subtotal, Checkout
-Kit açılışı, Close Checkout dönüşü, retained-cart refresh ve cleanup geçti. Development
-storefront parola kapısı checkout formundan önce göründü; parolayı receipt/loga almadan
-ve mağazayı public yapmadan test durduruldu. Bu yüzden provider cart yaşam döngüsü
-PASS olsa da A4'ün native checkout-form alt satırı PARTIAL kalır.
+Kit açılışı, Close Checkout dönüşü, retained-cart refresh ve cleanup geçti. 23
+Eylül 2026'da owner'ın yalnız Bogus Gateway için verdiği açık test yetkisiyle
+development-store parola kapısı cihazda geçildi. İlk açılış storefront home'a
+çıktığı için PASS sayılmadı; uygulamaya dönülüp aynı retained cart yeniden
+açıldı. Gerçek Contact/Delivery/Shipping/Order summary/Pay now formu ve açık
+`Test Payment Gateway` görüldü. Reserved `example.com`, sentetik isim/adres ve
+Bogus success değerleriyle `Thank you` / `Your order is confirmed` alındı;
+Checkout kapatılınca uygulama `Checkout completed` gösterip completed-cart linkini
+yerelden temizledi. Gerçek kart/ödeme/müşteri verisi ve Gürbakır yazısı yoktur.
+Ignored receipt SHA-256
+`02a58d518896b4ec6d0bd037d73675d184bc5ebebf9fa8b60f040ba316c7702b`;
+A4 `PASS`tır. Guest sipariş Customer Account Order Detail kanıtı değildir.
 
 ## Home v1 ve Home v2 içerik modeli
 

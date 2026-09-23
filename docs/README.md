@@ -44,19 +44,21 @@ history, protected bootstrap, and historical-archive cutover evidence.
   second real application/store pilot and bounded Home v2 image/video support.
   Real Trial v1/v2 provider checkpoints and local source/artifact validation
   exist. The exact Trial cart provider lifecycle now passes after enabling only
-  the required customer-read scope for the query's nested buyer field; physical
-  add/cart/Checkout Kit/return/cleanup is proven up to the development-store
-  password gate. Samsung API33 configured Gürbakır/Trial update, same-handle,
+  the required customer-read scope for the query's nested buyer field. Physical
+  add/cart, development-store password gate, real checkout form/reopen, explicit
+  Test Payment Gateway confirmation, app callback and completed-cart cleanup pass
+  with synthetic Trial data only. Samsung API33 configured Gürbakır/Trial update, same-handle,
   logged-out cart/process-death isolation, bounded player/measurement, Firebase
   debug runtime and Trial publish/change/remove/rollback evidence now exist.
   Live Firebase instrumentation is explicitly opt-in as of `fcbbe84`; credential-free
   API 23/API 30 lanes keep the normal identity test running and report the two provider
   proofs as skipped/not requested, while configured opt-in still executes both proofs.
-  Real Trial PKCE/profile/address/order-empty/restart/logout acceptance now passes
-  its executed substeps. Physical Home-video rotation/rebuild continuity also passes
-  at `91ae165`, while natural token expiry, cross-app authenticated-session isolation,
-  physical noisy/deadline player rows and hosted exact-SHA CI remain partial or not
-  run. Gate 9 therefore remains open; see
+  Real Trial PKCE/profile/address/order-empty/restart/logout acceptance passes its
+  executed substeps; a second authenticated restore remains isolated from signed-out
+  Gürbakır staging. Physical Home-video rotation/rebuild plus controlled real-player
+  first-frame and post-frame deadline/cancellation pass at `a2c4ded`. Natural token
+  expiry/Order Detail, two-app authenticated logout, physical noisy/headphone route
+  change and hosted exact-SHA CI remain partial or not run. Gate 9 therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
