@@ -1,11 +1,11 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–8 technically closed; Gate 9 implementation candidate açık**
+Status: **Gates 0–8 technically closed; Gate 9 implementation merged, cumulative acceptance open**
 
 ## Purpose
 
 This directory preserves accepted architecture reasoning, approved execution
-plans, Gate 1–8 implementation/evidence records, and the open Gate 9 candidate
+plans, Gate 1–8 implementation/evidence records, and the merged Gate 9 implementation
 for evolving the Gürbakır
 application into a multi-brand Android monorepo. It is a navigation and status
 index, not a duplicate architecture specification.
@@ -19,7 +19,7 @@ durable rationale -> ../decisions/*
 investigation/history -> research/*
 approved gate execution -> plans/* or recorded owner-approved scope
 historical gate outcome -> GATE-1 through GATE-8 completion handoffs
-current Gate 9 candidate -> GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md
+current Gate 9 implementation/open acceptance -> GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md
 current lifecycle status -> this index and ../README.md
 product/release boundary -> ../phase3/*
 ```
@@ -36,8 +36,8 @@ review, merge, or post-merge events.
   classification and anti-contamination rules.
 - [Gürbakır Legacy Identities](../architecture/GURBAKIR-LEGACY-IDENTITIES.md) —
   exact compatibility identities and unresolved production state.
-- [Brand Onboarding](../architecture/BRAND-ONBOARDING.md) — future real-brand
-  ownership and evidence contract.
+- [Brand Onboarding](../architecture/BRAND-ONBOARDING.md) — current and future
+  real-brand ownership and evidence contract.
 - [ADR-0004](../decisions/ADR-0004-MULTI-BRAND-APPLICATION-MODULE-ARCHITECTURE.md)
   — one application module per real brand plus shared `:mobile-core`.
 
@@ -65,7 +65,7 @@ architecture.
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 | 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
-| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: A4 Bogus checkout, A8 player (physical route-change owner-attested), A9 two-app commerce/session/logout and A5 authenticated Orders/Order Detail/reopen PASS; A5 remains PARTIAL only for exact natural expiry. Real-player deadline, latest-source Trial/Gürbakır update and A13 provider rehearsal evidence exist; hosted exact-SHA CI remains incomplete |
+| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Implementation merged; cumulative acceptance open. A4 Bogus checkout, A8 player (physical route-change owner-attested), A9 two-app commerce/session/logout and A5 authenticated Orders/Order Detail/reopen PASS; A5 remains PARTIAL only for exact natural expiry. PR-head run `35851940911` and merged-main run `35877081839` passed all three required jobs. This is not Gate 9 closure, P3-16 or production readiness |
 
 ## Gate 6 closure evidence
 
@@ -194,11 +194,13 @@ planned from current source and architecture. They must preserve:
 - honest separation between reusable contracts and concrete brand behavior.
 
 The second merchant/store implementation now exists as a development-only Gate 9
-candidate, but Gate 9 cumulative conformance is not closed. A5 exact natural token
-expiry, the final PR-head exact-SHA CI, owner merge and merged-main CI remain open.
-Bounded Samsung commerce/player/two-app/update/performance evidence and Trial
-root-last rollback rehearsal are recorded, not substitutes for those remaining
-rows. Production
+implementation on `main`, but Gate 9 cumulative conformance is not closed. Protected
+PR #14 approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as
+`c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911`
+and exact merged-main run `35877081839` passed `validate`, API 30 and API 23.
+A5 exact natural token expiry remains `UNCONFIRMED`. Bounded Samsung
+commerce/player/two-app/update/performance evidence and Trial root-last rollback
+rehearsal are recorded, not substitutes for that remaining acceptance. Production
 onboarding/configuration/signing/publication and P3-16 remain separately governed.
 
 The repository-wide authority map remains [docs/README.md](../README.md).

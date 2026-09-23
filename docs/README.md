@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-17
+Status date: 2026-09-23
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -40,7 +40,7 @@ history, protected bootstrap, and historical-archive cutover evidence.
   DRAFT/unselected acceptance probe, and repeated zero-write idempotence.
   [`multi-brand/GATE-8-COMPLETION-HANDOFF.md`](multi-brand/GATE-8-COMPLETION-HANDOFF.md)
   remains the historical pre-merge record rather than the closure authority.
-- The Gate 9 implementation candidate adds development-only `:trial` as the
+- The merged Gate 9 implementation adds development-only `:trial` as the
   second real application/store pilot and bounded Home v2 image/video support.
   Real Trial v1/v2 provider checkpoints and local source/artifact validation
   exist. The exact Trial cart provider lifecycle now passes after enabling only
@@ -59,8 +59,11 @@ history, protected bootstrap, and historical-archive cutover evidence.
   first-frame and post-frame deadline/cancellation pass at `a2c4ded`; owner-attested
   wired and Bluetooth route-change pause/no-auto-resume closes A8 without being
   misrepresented as agent-captured evidence. Authenticated account-linked Bogus order,
-  Orders/Order Detail and data-preserving reopen pass; exact natural token expiry and
-  hosted exact-SHA CI remain partial or not run. Gate 9 therefore remains open; see
+  Orders/Order Detail and data-preserving reopen pass. PR #14 approved HEAD
+  `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as
+  `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911`
+  and exact merged-main run `35877081839` passed `validate`, API 30 and API 23.
+  Exact natural token expiry remains `UNCONFIRMED`, so Gate 9 remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
@@ -100,7 +103,7 @@ scope. They do not override current source or later accepted decisions.
 | [`architecture`](architecture) | Accepted Multi-Brand target, brand boundaries, onboarding, and migration-sensitive identities |
 | [`decisions`](decisions) | Accepted platform, navigation, SDK, and Multi-Brand ADRs |
 | [`multi-brand/README.md`](multi-brand/README.md) | Current Gate index and unfinished continuation point |
-| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Gate 9 implementation candidate, A1–A14 evidence and open blockers |
+| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Merged Gate 9 implementation, A1–A14 evidence and open A5 natural-expiry blocker |
 | [`operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md`](operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Turkish Shopify/Firebase/content/release owner operations and rollback guide |
 | [`PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md`](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) | Fresh-history public bootstrap, rights, protection, CI, and authority-cutover evidence |
 | [`phase3/README.md`](phase3/README.md) | Current functional status index |

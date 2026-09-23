@@ -1,6 +1,6 @@
 # Gate 9 İkinci Mağaza ve Sınırlı Medya Pilot Handoff'u
 
-Durum: **IMPLEMENTATION CANDIDATE; GATE 9 AÇIK**  
+Durum: **IMPLEMENTATION MERGED; GATE 9 KABULÜ AÇIK**
 Tarihsel provider/kabul kanıtı: 2026-09-17; final-review düzeltmesi: 2026-09-22; son kaynak kabul deltası: 2026-09-23 (Europe/Istanbul)
 Exact taban: `5c402241e22a45001bdc57da6d08a83d2ce407cc`  
 İlk handoff kaynağı: `033b69f38cd9df34f5a4b7a4d639afcbd4dce0c3`
@@ -9,14 +9,41 @@ Task 8 doğrulama/provider kaynağı: `f92857c8863a62a9a929efa3c9ef4279058d77e3`
 Son kaynak/test checkpoint'i: `a2c4dede13e8e29ec78d5b7ce64662fe31d26e37`
 Dal: `codex/gate9-second-store-media-pilot`
 
+Onaylanan PR HEAD: `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a`
+Gerçek merge commit'i: `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`
+
 Bu kayıt owner-approved Gate 9 planının uygulanmış ve gerçekten çalıştırılmış
-kısmını, başarısızlıkları ve çalıştırılmayan kabul satırlarını ayırır. Merge, PR,
-Play yükleme/yayını, production signing, gerçek müşteri/sipariş/ödeme, Gürbakır
-merchant içeriğine yazma veya yıkıcı provider işlemi yapılmadı.
+kısmını, başarısızlıkları ve çalıştırılmayan kabul satırlarını ayırır. İlk handoff
+kapanışında merge/PR yapılmamıştı; bu tarihsel sınır aşağıdaki korumalı merge
+uzlaştırmasıyla supersede edilmiştir. Play yükleme/yayını, production signing,
+Gürbakır merchant içeriğine yazma veya yıkıcı provider işlemi yapılmadı.
 
 Dokümantasyon commit'i kendi SHA'sını içeremez. Final review/PR adayı bu dosyanın
 bulunduğu commit'i ve aşağıdaki implementation SHA'larını ancestor olarak
 göstermelidir.
+
+## Korumalı merge ve exact-main uzlaştırması — 2026-09-23
+
+- PR #14 merge öncesi tekrar okundu: HEAD exact
+  `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a`, non-draft/open,
+  `mergeable=true`, `mergeable_state=clean` ve çözülmemiş aktif review thread sayısı
+  sıfırdı.
+- Aynı HEAD'in GitHub Actions run `35851940911` içindeki `validate`,
+  `instrumentation` (API 30) ve `minimum-sdk-instrumentation` (API 23) job'ları
+  `completed/success` idi.
+- Owner'ın exact-HEAD onayı yalnız bu adaya uygulandı. GitHub merge API'sine
+  `merge_method=merge` ve expected `sha=bbf8ab82...` gönderildi; gerçek merge commit'i
+  `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94` oldu. Squash/rebase, admin bypass,
+  force-push veya koruma gevşetmesi kullanılmadı.
+- Merge parent'ları sırasıyla base `5c402241e22a45001bdc57da6d08a83d2ce407cc`
+  ve onaylanan HEAD'dir. HEAD merge commit'inin ancestry'sindedir; iki commit'in tree
+  SHA'sı `c44594bbce30c6b0e48f0c966436ed8383ae8947` ve source diff'i boştur.
+- Exact merge SHA'sının push run `35877081839` içindeki `validate`, API 30 ve API 23
+  job'ları ayrı ayrı `completed/success` oldu. PR açıkken görünen test-merge SHA'sı
+  bu kanıt olarak kullanılmadı.
+- Bu olay A11 hosted exact-SHA alt satırını ve A14'ü PASS yapar. A5 exact doğal token
+  expiry hâlâ `UNCONFIRMED` olduğundan A5 PARTIAL ve Gate 9 AÇIK kalır. P3-16 ve
+  production readiness başlamamıştır.
 
 ## Final-review Important düzeltme kaydı — 2026-09-22
 
@@ -297,13 +324,14 @@ Gürbakır staging ledger SHA-256
 | A10a | **PASS** | Trial v1 minified baseline ve kendi nonproduction imzası korunur |
 | A10b | **PASS** | Korunmuş v1→v2 kanıtına ek olarak exact `a2c4ded` minified Trial artifact'i; aynı package/nonproduction imza/version ile normal update, UID/first-install ve release medya smoke sürekliliği |
 | A10c | **PASS** | Gerçek configured Gürbakır staging exact `a2c4ded` candidate; aynı package/nonproduction imza/UID/first-install ve Search sentinel sürekliliği; merchant write yok |
-| A11 | **PARTIAL** | `a2c4ded` focused static/JVM/build PASS; credential-free exact-source API23/API30/API33 normal lane'lerinin her birinde identity PASS + iki canlı proof SKIP ve izole `Suite All` 240/240 PASS; önceki configured API33 opt-in 2/2 PASS/negative controls korunur; hosted exact-SHA CI yok |
+| A11 | **PASS (tanımlı canonical kapsam)** | `a2c4ded` focused static/JVM/build, credential-free API23/API30/API33 identity lane'leri ve izole `Suite All` korunur; koşullu canlı proof skip'leri kendi kapsamı dışında PASS sayılmaz. Final H run `35851940911` ve merge M run `35877081839` exact SHA üzerinde validate/API30/API23 PASS |
 | A12 | **PASS (bounded current measurement)** | Exact `a2c4ded` Trial minified artifact'inde beş cold/beş warm raw/median/max ve matching player lifetime; P95/first-frame SLO yok |
 | A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipts korunur; silme veya yeniden prova yok |
-| A14 | **NOT RUN** | Push/PR owner tarafından yetkilendirildi ancak henüz yürütülmedi; H ve hosted exact-SHA CI yok. Merge yalnız owner'ın nokta-onayıyla yapılabilir; M yok |
+| A14 | **PASS** | PR #14 final H `bbf8ab82...` run `35851940911` üç zorunlu job PASS; owner exact-HEAD onayıyla normal merge M `c77afeda...`; H ancestry'de, H/M tree `c44594bb...` eşit ve diff boş; M run `35877081839` üç job PASS |
 
-Gate 9 hâlâ AÇIK; A5 doğal-expiry alt satırı, hosted exact-SHA CI ve owner
-merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
+Gate 9 hâlâ AÇIK; yalnız A5 exact doğal-expiry alt satırı `UNCONFIRMED` kalır.
+PR-head, owner merge/ancestry/tree ve merged-main exact-SHA CI tamamlanmıştır.
+P3-16 ayrı ve başlamamıştır.
 
 ## Sonuç özeti
 
@@ -351,9 +379,9 @@ merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
   son fiziksel route-change alt satırı owner'ın doğrudan manuel beyanıdır; agent
   tarafından yeniden çalıştırılmış veya artifact ile yakalanmış gibi sunulmaz.
 
-Gate 9 bu dalda kapanmaz. A5 exact doğal-expiry, PR-head exact-SHA CI,
-owner merge ve merged-main exact-SHA CI tamamlanmadan closure
-verilemez. P3-16 ayrıca başlamamıştır.
+Gate 9 bu merge ile otomatik kapanmaz. PR-head exact-SHA CI, owner merge ve
+merged-main exact-SHA CI tamamlandı; A5 exact doğal-expiry hâlâ `UNCONFIRMED`
+olduğundan closure verilemez. P3-16 ayrıca başlamamıştır.
 
 ## Mimari ve uygulama ayrımı
 
@@ -541,10 +569,10 @@ anlamına gelir.
 | **A10a PASS** | Trial v1 release, source `b4cdc45...` | Minified v1 baseline ve nonproduction imza | `:trial:assembleDevelopmentRelease`, R8/package/signature runner | APK SHA-256 `3836e475...6f0bc`; cert `4a8a0f0f...dfc77`; package/code/name `com.projectapp134.multibrandtrial.dev / 1 / 0.1.0-trial-v1` |
 | **A10b PASS (local continuity)** | Trial v1 `b4cdc45...` → v2 ve exact `a2c4ded`; Samsung API33 | Minified v2, code 1→2, sonra aynı-code corrective update; aynı package/imza, `install -r`, veri silmeden | Sealed release ledger + explicit-serial install/package/Home/video readback | Latest APK `0e526074...aa0a5`; aynı cert/UID `10279`/firstInstallTime; release Home ve owned-video Play smoke geçti. Full customer/cart migration kanıtı değildir |
 | **A10c PASS** | Gürbakır configured staging eski candidate → exact `a2c4ded`; Samsung API33 | Aynı package/nonproduction imza ile veri silmeden update | Sealed unsigned/update-test ledger + explicit-serial install/package/sentinel readback | Signed APK `6c175ab2...23363`; aynı UID `10284`, firstInstallTime `2026-09-17 19:09:35`; `gate9-gurbakir-continuity` korundu; merchant write yok |
-| **A11 PARTIAL (local lanes PASS; ilk PR head CI superseded)** | Tüm module/app'ler; local Windows ve GitHub runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators + protected workflow | Önceki geniş yerel kanıt korunur; `0117511` run `35840664204` validate/API30/API23 PASS yalnız tarihsel ilk-head kanıtıdır ve current candidate'ı kanıtlamaz. Final H kendi exact-SHA run'ıyla A14 kapsamında yeniden kanıtlanır |
+| **A11 PASS (tanımlı canonical kapsam)** | Tüm module/app'ler; local Windows ve GitHub runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators + protected workflow | Önceki geniş yerel kanıt korunur; `0117511` run `35840664204` yalnız tarihsel ilk-head kanıtıdır. Final H `bbf8ab82...` run `35851940911` ve merge M `c77afeda...` run `35877081839` validate/API30/API23 PASS. Koşullu provider-proof skip'leri bu canonical kapsama eklenmez |
 | **A12 PASS (bounded current measurement)** | Samsung API33; sealed `a2c4ded` Trial release; retained cache | 5 process-cold + 5 UI warm playback; raw/median/max; P95 yok | `am start -W`, UI cycle ve matching ExoPlayer Init/Release | Cold median384/max463ms; UI cycle median10895/max10969ms; player median8674/max8738ms; thermal 0; first-frame/performance-SLO değildir |
 | **A13 PASS (bounded rehearsal)** | Trial gerçek Admin CLI + approved public client + owner guide | Child revision; root-last publish/change/remove/exact rollback; zero-write Plan; simulation | E8 altı rehearsal yazısı, ardından ayrı bir catalog association; final readback/Plan | Parent updatedAt sabit/child digest değişti; rollback exact ordered refs/digest; resource deletion yok. Shared/brand-only flow açık SIMULATION_ONLY, sıfır Git/provider yazısı |
-| **A14 NOT RUN (current candidate)** | PR #14; merge nokta-onayı bekler | Her final PR head H için exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | `0117511` run `35840664204` superseded tarihsel head kanıtıdır. İnceleme sonrası current candidate exact-SHA CI henüz yoktur. Merge yapılmadı; M/post-merge CI yok |
+| **A14 PASS** | PR #14; final H `bbf8ab82...`; normal merge M `c77afeda...` | Final H exact-SHA CI; owner expected-head merge; H ancestry/tree; M exact-SHA CI | GitHub protected workflow | H run `35851940911` ve M run `35877081839` validate/API30/API23 PASS; parent'lar `5c402241... bbf8ab82...`; H/M tree `c44594bb...` eşit ve diff boş; test-merge SHA kullanılmadı |
 
 ### Tarihsel A4 başarısızlığının sınıflandırması
 
@@ -805,7 +833,7 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
 | 5. Mapper/validator/cache | Tamam | Sonuç matrisi, child freshness, atomic v2 store |
 | 6. HTTP/player | Tamam | A7 PASS; `a2c4ded` Samsung debug grubu 15/15, ayrı minified release smoke ve owner-attested kablolu/Bluetooth route-change ile A8 PASS |
 | 7. Release/two-app/device | Tamam | A3/A8/A9/A10a–c/A12 scoped PASS |
-| 8. Full validation/owner/handoff | Kısmi | A4/A8/A9/A13 ve A5 Order Detail tamam; A5 exact natural expiry ile hosted exact-SHA CI açık |
+| 8. Full validation/owner/handoff | Kısmi | A4/A8/A9/A13, A5 Order Detail, final H CI, owner merge/ancestry/tree ve merged-main CI tamam; yalnız A5 exact natural expiry açık |
 
 ## Gate 9'u kapatmak için kalanlar
 
@@ -814,16 +842,19 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
    refresh veya fail-closed sonucu gözle. Account-linked Bogus order ile Orders ve
    Order Detail ilk okuma + veri silmeden relaunch artık PASS'tır; exact expiry
    kanıtlanana kadar yalnız natural-expiry alt satırını `UNCONFIRMED` koru.
-2. Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu provider-proof
-   skip'leri kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
-3. Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni resource
-   deletion veya mevcut receipt'i aşan provider yazısı gerekli sayılmaz.
-4. Zorunlu satırlarda failure/skip/NOT RUN kalmazsa final review ve exact candidate
-   source/artifact kanıtını tazele.
-5. Owner push/PR'ı yetkilendirdi; PR head `H` exact-SHA CI geçer. Merge için işlem
-   anında ayrı owner onayı alınır.
-6. Merge `M`, `H` ile eşit olmak zorunda değildir; `H` ancestry/tree karşılaştırması
-   ve `M` exact-SHA validate/API30/API23 post-merge CI gerekir.
+
+PR #14 final H/CI, normal merge, ancestry/tree ve merged-main CI tamamlanmış
+kanıtlardır; yukarıdaki korumalı merge uzlaştırmasında kayıtlıdır ve kalan iş
+değildir.
+
+### Devam eden kanıt bütünlüğü koşulları
+
+- Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu provider-proof
+  skip'leri kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
+- Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni resource
+  deletion veya mevcut receipt'i aşan provider yazısı gerekli sayılmaz.
+- Final review, exact candidate source ve artifact sınırı korunur; eski SHA/APK
+  kanıtları yeni bir candidate'in kanıtı diye yeniden etiketlenmez.
 
 ## P3-16 production/Play tablosu
 

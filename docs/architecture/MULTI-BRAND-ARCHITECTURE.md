@@ -1,10 +1,10 @@
 # Multi-Brand Architecture
 
-Status: **Canonical architecture; Gates 1–7 implemented and closed; remaining Multi-Brand work is separately planned**
+Status: **Canonical architecture; Gates 1–8 closed; Gate 9 implementation merged with cumulative acceptance open**
 
 This document defines the repository's accepted multi-brand architecture. Current source remains authoritative for what is implemented today.
 
-Gate 0 established the design in documentation. Gate 1 implemented and verified the `:app -> :mobile-core` base. Gate 2 implemented and verified a second, non-production application edge: logical project `:synthetic` maps to physical directory `apps/synthetic` and independently composes `:mobile-core`. Gate 3 moved the remaining fixed locale, market, territory-input, merchant-media and protected-persistence inputs to application composition while preserving Gürbakır compatibility state. Gate 4 implemented and verified application-owned Search/Wishlist/Customer Account capability presence and primary-navigation ordering. Gate 5 implemented and verified application-owned Firebase/provider selection while preserving a provider-neutral `:mobile-core` and strengthening physical Firebase-exclusion proof for `:synthetic`. Gate 6 implemented bounded, application-selected Shopify Menu discovery for Categories. Gate 7 implemented bounded, application-selected Shopify Home editorial content with finite native rendering, typed Product/Collection actions, deterministic validation, editorial-only LKG persistence and an offline/Firebase-free synthetic conformance path. Gürbakır remains the first real validation brand; no additional real merchant application exists.
+Gate 0 established the design in documentation. Gates 1–7 established the reusable-core, synthetic-conformance, application-owned composition/provider, bounded Menu and Home-v1 contracts. Gate 8 added bounded enrollment/operator automation. Gate 9 added an independent development-only `:trial` application bound to a separate Trial Shopify store/Firebase identity, plus the finite Home-v2 image/video contract and two-application acceptance path. Gürbakır remains the first production-intended validation brand; Trial is a real development pilot, not a production application. Gate 9 cumulative acceptance remains open because exact natural Customer Account token expiry is still `UNCONFIRMED`.
 
 ## Context and development line
 
@@ -25,6 +25,9 @@ This repository remains one monorepo. `main` is the canonical shared development
 :synthetic (non-production conformance app; implemented at apps/synthetic)
    └──> :mobile-core
 
+:trial (development-only real application/store pilot; implemented at apps/trial)
+   └──> :mobile-core
+
 :<future-real-brand> (future application module)
    └──> :mobile-core
 
@@ -32,7 +35,7 @@ brand app ──> provider adapter such as :firebase when required
 shared modules -X-> concrete brand application modules
 ```
 
-The exact future real-brand module path spelling is secondary to the boundary. Existing `:app` intentionally remains the Gürbakır application/composition shell. Shared `:mobile-core` owns reusable application behavior. Gates 2–7 prove that a separately identified application can consume that behavior with distinct fixed configuration, protected storage, capability/navigation composition, provider ownership, bounded discovery and bounded Home-content composition without importing `:app`, requiring Firebase in shared application code, or adding a runtime merchant switch. They do not prove production onboarding, runtime switching, live provider health, a second real merchant or every planned variation dimension.
+The exact future real-brand module path spelling is secondary to the boundary. Existing `:app` intentionally remains the Gürbakır production-intended application/composition shell; `:synthetic` remains the non-production conformance application; and `:trial` is the development-only real application/store pilot. Shared `:mobile-core` owns reusable application behavior. Gates 2–8 proved the reusable configuration, protected-storage, capability/navigation, provider-ownership, bounded-discovery/Home and onboarding/operator boundaries. Gate 9 proved that Trial consumes those boundaries with independent identities and bounded Home-v2 media without importing `:app`, requiring Firebase in shared application code, or adding a runtime merchant switch. This does not prove Trial production readiness, production onboarding/signing/publication, runtime switching or every planned variation dimension.
 
 ## Build selection
 
@@ -74,7 +77,7 @@ See [Brand Boundaries](BRAND-BOUNDARIES.md) for the operational ownership test.
 ## Dependency invariants
 
 ```text
-Shared and provider modules MUST NOT depend on :app, :synthetic, or a future concrete brand application.
+Shared and provider modules MUST NOT depend on :app, :synthetic, :trial, or a future concrete brand application.
 Brand applications MAY depend on shared modules.
 Shared code MUST NOT branch on concrete brand names.
 Brand-specific compiled behavior stays on the brand side of a narrow shared contract when a real requirement justifies it.
@@ -162,4 +165,8 @@ Gate 6 implemented bounded, application-selected Shopify Menu discovery for Cate
 
 Gate 7 implemented bounded Shopify-driven Home editorial content using an application-selected metaobject root, finite collection-grid/featured-product native rendering, typed resource actions, strict validation, editorial-only LKG persistence, refresh/expiry behavior and an Account-disabled native Legal/Support entry. Synthetic remains remote-disabled, credential-free, Firebase-free and without an effective INTERNET permission. Its exact implementation and proof limits remain in the [Gate 7 completion handoff](../multi-brand/GATE-7-COMPLETION-HANDOFF.md), which intentionally preserves its pre-merge checkpoint wording. Gate 7 is closed because protected PR #6 merged candidate `e0a62e9047f2cc6d3241bdb3b4c963fdbdae27e0` as `3b22707f27f71973383cf176503f8d967ece9b05`, and exact merged-`main` run `34816195929` completed validate, API 30 and API 23 successfully.
 
-Future gates must be separately planned from current source and architecture. Gate 8 provisioning/onboarding automation, a second real merchant/store pilot, Gate 9 cumulative conformance, runtime market/language switching, Storefront `@inContext`, generalized page building, signing, publication and P3-16 remain unstarted or separately governed unless later evidence and approval establish otherwise.
+Gate 8 implemented bounded provisioning/onboarding contracts and operator validation; its historical pre-merge evidence remains in the [Gate 8 handoff](../multi-brand/GATE-8-COMPLETION-HANDOFF.md). Gate 8 is technically closed.
+
+Gate 9 implemented the independent development-only `:trial` application/store pilot, strict Home-v1/Home-v2 dispatch, bounded image/video rendering and lifecycle policy, isolated persistence/provider identities, two-app/update acceptance and owner operations flow. Protected PR #14 approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911` and exact merged-main run `35877081839` passed validate, API 30 and API 23. The exact evidence and remaining A5 boundary are in the [Gate 9 handoff](../multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md). Gate 9 remains open because exact natural token expiry is `UNCONFIRMED`.
+
+Runtime market/language switching, Storefront `@inContext`, generalized page building, production signing/publication and P3-16 remain unstarted or separately governed unless later evidence and approval establish otherwise.
