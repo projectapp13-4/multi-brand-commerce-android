@@ -23,6 +23,87 @@
     "readback",
     "recovery"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "operationContractVersion": { "const": "gate8-v1" } },
+        "required": ["operationContractVersion"]
+      },
+      "then": {
+        "properties": {
+          "actions": {
+            "items": {
+              "allOf": [
+                {
+                  "if": {
+                    "properties": { "resourceKind": { "const": "SHOPIFY_HOME_DEFINITION" } },
+                    "required": ["resourceKind"]
+                  },
+                  "then": {
+                    "properties": {
+                      "resourceKey": {
+                        "enum": ["mobile_home_collection_grid", "mobile_home_featured_product", "mobile_home"]
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": { "resourceKind": { "const": "SHOPIFY_HOME_ACCEPTANCE_PROBE" } },
+                    "required": ["resourceKind"]
+                  },
+                  "then": {
+                    "properties": { "resourceKey": { "const": "gate8-operator-acceptance-v1" } }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operationContractVersion": { "const": "gate9-v2" } },
+        "required": ["operationContractVersion"]
+      },
+      "then": {
+        "properties": {
+          "actions": {
+            "items": {
+              "allOf": [
+                {
+                  "if": {
+                    "properties": { "resourceKind": { "const": "SHOPIFY_HOME_DEFINITION" } },
+                    "required": ["resourceKind"]
+                  },
+                  "then": {
+                    "properties": {
+                      "resourceKey": {
+                        "enum": [
+                          "mobile_home_collection_grid",
+                          "mobile_home_featured_product",
+                          "mobile_home_image_v1",
+                          "mobile_home_video_v1",
+                          "mobile_home_v2"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "properties": { "resourceKind": { "const": "SHOPIFY_HOME_ACCEPTANCE_PROBE" } },
+                    "required": ["resourceKind"]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "receiptSchemaVersion": { "const": 1 },
     "operationContractVersion": { "enum": ["gate8-v1", "gate9-v2"] },

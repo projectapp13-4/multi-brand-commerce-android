@@ -872,6 +872,18 @@ function Import-OnboardingReceipt {
     Assert-OnboardingEnum -Value ([string]$receipt.overallStatus) `
         -Allowed @('PLANNED', 'SUCCEEDED', 'BLOCKED', 'FAILED', 'PARTIAL') `
         -Field '$.overallStatus'
+    $operationContractVersion = [string]$receipt.operationContractVersion
+    $allowedHomeDefinitionKeys = if ($operationContractVersion -ceq 'gate8-v1') {
+        @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    } else {
+        @(
+            'mobile_home_collection_grid',
+            'mobile_home_featured_product',
+            'mobile_home_image_v1',
+            'mobile_home_video_v1',
+            'mobile_home_v2'
+        )
+    }
     $actions = @(Assert-OnboardingArray -Value $receipt.actions -Field '$.actions' -MaximumCount 16)
     $actionOrdinals = [System.Collections.Generic.HashSet[int]]::new()
     foreach ($action in $actions) {
@@ -896,9 +908,9 @@ function Import-OnboardingReceipt {
         $resourceKind = [string]$action.resourceKind
         $resourceKey = [string]$action.resourceKey
         if (($resourceKind -ceq 'SHOPIFY_HOME_DEFINITION' -and
-                $resourceKey -cnotin @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')) -or
+                $resourceKey -cnotin $allowedHomeDefinitionKeys) -or
             ($resourceKind -ceq 'SHOPIFY_HOME_ACCEPTANCE_PROBE' -and
-                $resourceKey -cne 'gate8-operator-acceptance-v1')) {
+                ($operationContractVersion -cne 'gate8-v1' -or $resourceKey -cne 'gate8-operator-acceptance-v1'))) {
             throw (New-OnboardingContractError -Code 'INVALID_RESOURCE_KEY' -Field '$.actions.resourceKey')
         }
         if ($null -ne $action.providerResourceId -and [string]$action.providerResourceId -cnotmatch '^gid://shopify/[A-Za-z][A-Za-z0-9]{0,64}/[0-9]+$') {

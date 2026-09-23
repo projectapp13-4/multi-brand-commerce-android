@@ -541,10 +541,10 @@ anlamına gelir.
 | **A10a PASS** | Trial v1 release, source `b4cdc45...` | Minified v1 baseline ve nonproduction imza | `:trial:assembleDevelopmentRelease`, R8/package/signature runner | APK SHA-256 `3836e475...6f0bc`; cert `4a8a0f0f...dfc77`; package/code/name `com.projectapp134.multibrandtrial.dev / 1 / 0.1.0-trial-v1` |
 | **A10b PASS (local continuity)** | Trial v1 `b4cdc45...` → v2 ve exact `a2c4ded`; Samsung API33 | Minified v2, code 1→2, sonra aynı-code corrective update; aynı package/imza, `install -r`, veri silmeden | Sealed release ledger + explicit-serial install/package/Home/video readback | Latest APK `0e526074...aa0a5`; aynı cert/UID `10279`/firstInstallTime; release Home ve owned-video Play smoke geçti. Full customer/cart migration kanıtı değildir |
 | **A10c PASS** | Gürbakır configured staging eski candidate → exact `a2c4ded`; Samsung API33 | Aynı package/nonproduction imza ile veri silmeden update | Sealed unsigned/update-test ledger + explicit-serial install/package/sentinel readback | Signed APK `6c175ab2...23363`; aynı UID `10284`, firstInstallTime `2026-09-17 19:09:35`; `gate9-gurbakir-continuity` korundu; merchant write yok |
-| **A11 PARTIAL (local lanes PASS)** | Tüm module/app'ler; local Windows runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators | Önceki geniş `fcbbe84` lane korunur; `a2c4ded` focused static/JVM/build PASS, provider-free API23/API30/API33 normal matrixinde her lane 1 executed identity + 2 explicit live-proof SKIP, izole Suite All 240/240; hosted exact-SHA CI NOT RUN |
+| **A11 PARTIAL (local lanes + ilk PR head CI PASS)** | Tüm module/app'ler; local Windows ve GitHub runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators + protected workflow | Önceki geniş yerel kanıt korunur; ilk `0117511` PR head run `35840664204` validate/API30/API23 PASS. İnceleme sonrası final H kendi exact-SHA run'ıyla A14 kapsamında yeniden kanıtlanır |
 | **A12 PASS (bounded current measurement)** | Samsung API33; sealed `a2c4ded` Trial release; retained cache | 5 process-cold + 5 UI warm playback; raw/median/max; P95 yok | `am start -W`, UI cycle ve matching ExoPlayer Init/Release | Cold median384/max463ms; UI cycle median10895/max10969ms; player median8674/max8738ms; thermal 0; first-frame/performance-SLO değildir |
 | **A13 PASS (bounded rehearsal)** | Trial gerçek Admin CLI + approved public client + owner guide | Child revision; root-last publish/change/remove/exact rollback; zero-write Plan; simulation | E8 altı rehearsal yazısı, ardından ayrı bir catalog association; final readback/Plan | Parent updatedAt sabit/child digest değişti; rollback exact ordered refs/digest; resource deletion yok. Shared/brand-only flow açık SIMULATION_ONLY, sıfır Git/provider yazısı |
-| **A14 NOT RUN** | Branch local; push/PR owner tarafından yetkilendirildi, merge nokta-onayı bekler | PR head H exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | PR/push henüz yapılmadı; H/M yok. Merge otomatik değildir |
+| **A14 PARTIAL** | PR #14; merge nokta-onayı bekler | Her final PR head H için exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | İlk `0117511` head run `35840664204` validate/API30/API23 PASS; inceleme düzeltmeleri final H'de yeniden kanıtlanır. Merge yapılmadı; M/post-merge CI yok |
 
 ### Tarihsel A4 başarısızlığının sınıflandırması
 
@@ -721,7 +721,10 @@ ExceptionService job). Bu Trial process'i değildir; sistem uygulamasına müdah
 edilmedi. Ölçümler bu mevcut gürültülü cihaz koşulunun küçük örneklemidir, temiz
 laboratuvar benchmark'ı veya regression budget karşılaştırması değildir.
 
-## Yerel doğrulama özeti
+## Task 8 tarihsel yerel doğrulama özeti (`f92857c`)
+
+Güncel adayın kabul durumu için yukarıdaki A1–A14 matrisini esas alın; bu tablo
+Task 8 checkpoint'inin korunmuş yerel anlık görüntüsüdür.
 
 | Doğrulama | Sonuç |
 |---|---|

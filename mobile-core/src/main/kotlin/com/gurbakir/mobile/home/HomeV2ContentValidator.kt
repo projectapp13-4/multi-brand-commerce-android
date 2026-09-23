@@ -241,7 +241,9 @@ internal class HomeV2ContentValidator(private val json: Json) {
     private fun HomeSectionObservation.mapTarget(): OptionalValue<RemoteHomeTarget?>? {
         val populated = listOfNotNull(productTarget?.value, collectionTarget?.value)
         if (populated.size > 1) return null
-        val field = productTarget ?: collectionTarget ?: return OptionalValue(null)
+        val field = productTarget?.takeIf { it.value != null }
+            ?: collectionTarget?.takeIf { it.value != null }
+            ?: return OptionalValue(null)
         val expected = if (field === productTarget) TargetExpectation.PRODUCT else TargetExpectation.COLLECTION
         if (field.key != expected.key || field.type != expected.fieldType) return null
         val gid = field.value ?: return OptionalValue(null)

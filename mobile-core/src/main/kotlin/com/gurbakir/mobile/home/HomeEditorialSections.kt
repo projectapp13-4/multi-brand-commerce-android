@@ -13,9 +13,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
+import com.gurbakir.mobile.core.R
 import com.gurbakir.storefront.HomeResourceKind
 
 internal fun androidx.compose.foundation.lazy.LazyListScope.imageSection(
@@ -81,8 +83,19 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.videoSection(
             HomeSectionHeading(section.title)
             HomeVideoPlayer(section, playbackCoordinator)
             section.target?.let { target ->
-                TextButton(onClick = actions.targetAction(target)) {
-                    Text(target.handle)
+                TextButton(
+                    onClick = actions.targetAction(target),
+                    modifier = Modifier.testTag(HomeTestTags.videoTarget(section.stableId))
+                ) {
+                    Text(
+                        stringResource(
+                            if (target.key.kind == HomeResourceKind.COLLECTION) {
+                                R.string.home_open_collection
+                            } else {
+                                R.string.home_open_product
+                            }
+                        )
+                    )
                 }
             }
         }

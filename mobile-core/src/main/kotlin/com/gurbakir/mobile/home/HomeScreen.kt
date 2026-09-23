@@ -100,6 +100,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
     val presentation = state.presentation
     when {
         presentation != null -> {
+            val showUnavailablePanel = when (presentation.resourceStatus) {
+                HomeResourceStatus.NONE_RENDERABLE -> true
+                HomeResourceStatus.NON_PLAYABLE -> presentation.renderedSections.isEmpty()
+                else -> false
+            }
             when {
                 presentation.editorial is HomeEditorialState.IntentionalEmpty -> item {
                     CommerceStatePanel(
@@ -111,7 +116,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                     )
                 }
 
-                presentation.resourceStatus == HomeResourceStatus.NONE_RENDERABLE -> item {
+                showUnavailablePanel -> item {
                     CommerceStatePanel(
                         title = stringResource(R.string.home_unavailable_title),
                         body = stringResource(R.string.home_nonrenderable),
@@ -362,6 +367,8 @@ object HomeTestTags {
     fun video(stableId: String): String = "home-video-${stableId.lowercase()}"
 
     fun videoPlay(stableId: String): String = "home-video-play-${stableId.lowercase()}"
+
+    fun videoTarget(stableId: String): String = "home-video-target-${stableId.lowercase()}"
 
     fun videoError(stableId: String): String = "home-video-error-${stableId.lowercase()}"
 }

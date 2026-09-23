@@ -194,11 +194,11 @@ planned from current source and architecture. They must preserve:
 - honest separation between reusable contracts and concrete brand behavior.
 
 The second merchant/store implementation now exists as a development-only Gate 9
-candidate, but Gate 9 cumulative conformance is not closed. Trial cart scope/setup,
-safe synthetic-customer acceptance, full player/two-app commerce acceptance,
-PR-head CI, owner merge and merged-main CI remain open. Bounded Samsung update/
-performance evidence and Trial root-last rollback rehearsal are recorded, not
-substitutes for those remaining rows. Production
+candidate, but Gate 9 cumulative conformance is not closed. A5 exact natural token
+expiry, the final PR-head exact-SHA CI, owner merge and merged-main CI remain open.
+Bounded Samsung commerce/player/two-app/update/performance evidence and Trial
+root-last rollback rehearsal are recorded, not substitutes for those remaining
+rows. Production
 onboarding/configuration/signing/publication and P3-16 remain separately governed.
 
 The repository-wide authority map remains [docs/README.md](../README.md).

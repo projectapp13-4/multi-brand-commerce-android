@@ -13,7 +13,9 @@ import com.gurbakir.storefront.HomeSectionObservation
 import com.gurbakir.storefront.HomeSectionReferencesObservation
 import com.gurbakir.storefront.HomeSectionsFieldObservation
 import com.gurbakir.storefront.HomeTargetFieldObservation
+import com.gurbakir.storefront.HomeTargetNodeObservation
 import com.gurbakir.storefront.StorefrontHomeResource
+import com.gurbakir.storefront.StorefrontHomeTarget
 import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontVideoSource
 import java.net.URI
@@ -119,6 +121,36 @@ class HomeContentV2ValidatorTest {
         val accepted = assertInstanceOf(HomeDocumentValidation.Accepted::class.java, validation)
         val image = accepted.snapshot.sections.single() as RemoteHomeSection.Image
         assertNull(image.target)
+    }
+
+    @Test
+    fun `null product target does not hide a populated collection target`() {
+        val collectionGid = "gid://shopify/Collection/705"
+        val section = imageSection("314", resolvedImage("514")).copy(
+            productTarget = HomeTargetFieldObservation("product_reference", null, null, "product_target"),
+            collectionTarget =
+                HomeTargetFieldObservation(
+                    type = "collection_reference",
+                    value = collectionGid,
+                    reference =
+                        HomeTargetNodeObservation(
+                            "Collection",
+                            StorefrontHomeTarget(
+                                HomeResourceKey(HomeResourceKind.COLLECTION, collectionGid),
+                                "current-collection",
+                                "Current collection"
+                            )
+                        ),
+                    key = "collection_target"
+                )
+        )
+
+        val validation = validator.validate(selector, root(listOf(section)), 2)
+
+        val accepted = assertInstanceOf(HomeDocumentValidation.Accepted::class.java, validation)
+        val target = (accepted.snapshot.sections.single() as RemoteHomeSection.Image).target
+        assertEquals(HomeResourceKind.COLLECTION, target?.key?.kind)
+        assertEquals(collectionGid, target?.key?.gid)
     }
 
     @Test

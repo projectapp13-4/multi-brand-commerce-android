@@ -702,6 +702,36 @@ function Invoke-RegistrySuite {
         $gate9Receipt = Import-OnboardingReceipt -Path $gate9ReceiptPath
         Assert-True -Condition ($gate9Receipt.operationContractVersion -ceq 'gate9-v2') `
             -Name 'closed Gate 9 Plan receipt version is accepted without widening unknown versions'
+        $gate9ActionReceiptPath = Join-Path $temporaryRoot 'gate9-action-receipt.json'
+        $gate9ActionJson = $receiptJson.Replace(
+            '"operationContractVersion": "gate8-v1"',
+            '"operationContractVersion": "gate9-v2"'
+        ).Replace(
+                '"actions": []',
+                '"actions": [{"ordinal":1,"resourceKind":"SHOPIFY_HOME_DEFINITION","resourceKey":"mobile_home_image_v1","managementMode":"CREATE_IF_MISSING","beforeClassification":"ABSENT","intendedAction":"CREATE","beforeFingerprint":"0000000000000000000000000000000000000000000000000000000000000000","providerResourceId":null,"status":"PLANNED","afterClassification":"UNKNOWN","afterFingerprint":"0000000000000000000000000000000000000000000000000000000000000000"}]'
+        )
+        [System.IO.File]::WriteAllText(
+            $gate9ActionReceiptPath,
+            $gate9ActionJson,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $gate9ActionReceipt = Import-OnboardingReceipt -Path $gate9ActionReceiptPath
+        Assert-True `
+            -Condition (
+                [string]$gate9ActionReceipt.operationContractVersion -ceq 'gate9-v2' -and
+                [string]$gate9ActionReceipt.actions[0].resourceKey -ceq 'mobile_home_image_v1'
+            ) `
+            -Name 'Gate 9 Plan receipt round-trips a v2 image definition action'
+        $gate8V2ActionReceiptPath = Join-Path $temporaryRoot 'gate8-v2-action-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $gate8V2ActionReceiptPath,
+            $gate9ActionJson.Replace('"operationContractVersion": "gate9-v2"', '"operationContractVersion": "gate8-v1"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingReceipt -Path $gate8V2ActionReceiptPath } `
+            -Pattern 'INVALID_RESOURCE_KEY' `
+            -Name 'Gate 8 receipt cannot admit a Gate 9 definition key'
         $unknownReceiptPath = Join-Path $temporaryRoot 'unknown-receipt.json'
         [System.IO.File]::WriteAllText(
             $unknownReceiptPath,

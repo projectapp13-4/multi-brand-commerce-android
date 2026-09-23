@@ -87,7 +87,9 @@ class HomeScreenTest {
             .performScrollTo().performDeterministicClick()
         composeRule.onNodeWithText("1").assertIsDisplayed()
         composeRule.runOnIdle { nav.popBackStack() }
-        composeRule.onNodeWithText(target.handle).performScrollTo().performDeterministicClick()
+        composeRule.onNodeWithTag(
+            HomeTestTags.videoTarget(video.stableId)
+        ).performScrollTo().performDeterministicClick()
         composeRule.onNodeWithText("1").assertIsDisplayed()
     }
 
@@ -173,6 +175,19 @@ class HomeScreenTest {
                 editorial = HomeEditorialState.NonEmpty(emptyList()),
                 sections = emptyList(),
                 resourceStatus = HomeResourceStatus.NONE_RENDERABLE
+            ),
+            HomeActions(refreshContent = {})
+        )
+        composeRule.onNodeWithTag(HomeTestTags.NONRENDERABLE).assertIsDisplayed()
+    }
+
+    @Test
+    fun temporarilyUnresolvedMediaShowsAnExplanatoryPanel() {
+        setHome(
+            presentationState(
+                editorial = HomeEditorialState.NonEmpty(emptyList()),
+                sections = emptyList(),
+                resourceStatus = HomeResourceStatus.NON_PLAYABLE
             ),
             HomeActions(refreshContent = {})
         )
