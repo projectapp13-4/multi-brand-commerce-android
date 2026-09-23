@@ -33,3 +33,6 @@ interface CustomerSessionStore {
 
     suspend fun clear()
 }
+
+/** A read, write, or clear of the protected session could not be confirmed. */
+class CustomerSessionStorageException(cause: Exception) : Exception("Protected session storage failed", cause)

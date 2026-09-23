@@ -12,6 +12,7 @@ import com.gurbakir.account.oauth.CustomerTokenFailure
 import com.gurbakir.account.session.CustomerAccountSessionCoordinator
 import com.gurbakir.account.session.CustomerLogoutResolution
 import com.gurbakir.account.session.CustomerSessionResolution
+import com.gurbakir.account.session.CustomerSessionStorageException
 import com.gurbakir.mobile.cart.CartRepository
 import com.gurbakir.mobile.cart.CartStatus
 import java.util.concurrent.CancellationException
@@ -29,6 +30,7 @@ enum class AccountNotice {
 }
 
 enum class AccountFailure {
+    SECURE_STORAGE,
     DISCOVERY,
     CALLBACK,
     TOKEN_REJECTED,
@@ -87,7 +89,7 @@ constructor(
     private val cartRepository: CartRepository
 ) : AccountController {
     override suspend fun restore(): AccountResult =
-        resolveSession(sessionCoordinator.restore(), terminalSessionMeansSignedOut = true)
+        withStorageFailure { resolveSession(sessionCoordinator.restore(), terminalSessionMeansSignedOut = true) }
 
     override suspend fun prepareAuthorization(): AccountPreparation =
         when (val preparation = authorizationCoordinator.prepare()) {
@@ -98,7 +100,7 @@ constructor(
                 AccountPreparation.Failed(preparation.reason.toAccountFailure())
         }
 
-    override suspend fun consumeCallback(rawRedirectUri: String): AccountResult =
+    override suspend fun consumeCallback(rawRedirectUri: String): AccountResult = withStorageFailure {
         when (val callback = authorizationCoordinator.validateAndConsumeCallback(rawRedirectUri)) {
             is CustomerAccountCallbackResult.Authorized ->
                 resolveSession(
@@ -118,21 +120,22 @@ constructor(
 
             else -> AccountResult.Failed(AccountFailure.CALLBACK, retryable = true, sessionRetained = false)
         }
+    }
 
     override fun cancelAuthorization() {
         authorizationCoordinator.cancel()
     }
 
     override suspend fun refresh(): AccountResult =
-        resolveSession(sessionCoordinator.refresh(), terminalSessionMeansSignedOut = true)
+        withStorageFailure { resolveSession(sessionCoordinator.refresh(), terminalSessionMeansSignedOut = true) }
 
-    override suspend fun logout(): AccountResult {
+    override suspend fun logout(): AccountResult = withStorageFailure {
         val logout = sessionCoordinator.logout()
         val notices = reconcileCartForCurrentSession().toMutableSet()
         if (logout is CustomerLogoutResolution.RemoteFailed) {
             notices += AccountNotice.REMOTE_LOGOUT_UNVERIFIED
         }
-        return AccountResult.SignedOut(notices)
+        AccountResult.SignedOut(notices)
     }
 
     private suspend fun resolveSession(
@@ -211,6 +214,13 @@ constructor(
     } catch (_: Exception) {
         setOf(AccountNotice.CART_RECONCILIATION_FAILED)
     }
+}
+
+private suspend fun withStorageFailure(action: suspend () -> AccountResult): AccountResult = try {
+    action()
+} catch (_: CustomerSessionStorageException) {
+    // Durable removal is unconfirmed, so callers must continue treating the session as retained.
+    AccountResult.Failed(AccountFailure.SECURE_STORAGE, retryable = true, sessionRetained = true)
 }
 
 private val TERMINAL_ACCOUNT_ERROR_CODES =
