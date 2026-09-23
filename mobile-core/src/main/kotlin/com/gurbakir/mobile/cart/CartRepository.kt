@@ -419,13 +419,25 @@ constructor(private val operations: CartOperations) : CartRepository {
             CartActionResult.Restricted
         }
 
-        is CartSessionResolution.Failed -> {
-            val failure = resolution.error.toCartFailure(resolution.persistedCartRetained)
-            _state.value =
-                activeCart?.toState(failure = failure)
-                    ?: CartState(status = CartStatus.ERROR, failure = failure)
-            CartActionResult.Failed(failure)
+        is CartSessionResolution.Failed -> applyFailure(resolution)
+    }
+
+    private fun applyFailure(resolution: CartSessionResolution.Failed): CartActionResult.Failed {
+        val failure = resolution.error.toCartFailure(resolution.persistedCartRetained)
+        val retainedOwnership = _state.value.ownership
+            ?: activeCart?.let { cart ->
+                if (cart.customerAssociated) CartOwnership.CUSTOMER_ASSOCIATED else CartOwnership.ANONYMOUS
+            }
+        val failedSecureWrite = resolution.error == StorefrontFailure.SecurePersistence &&
+            resolution.persistedCartRetained
+        val ownershipIsUnconfirmed = retainedOwnership != CartOwnership.ANONYMOUS
+        _state.value = if (activeCart != null && failedSecureWrite && ownershipIsUnconfirmed) {
+            CartState(status = CartStatus.ERROR, ownership = retainedOwnership, failure = failure)
+        } else {
+            activeCart?.toState(ownership = retainedOwnership ?: CartOwnership.ANONYMOUS, failure = failure)
+                ?: CartState(status = CartStatus.ERROR, failure = failure)
         }
+        return CartActionResult.Failed(failure)
     }
 
     private fun invalidAction(cartRetained: Boolean = activeCart != null): CartActionResult.Failed {
