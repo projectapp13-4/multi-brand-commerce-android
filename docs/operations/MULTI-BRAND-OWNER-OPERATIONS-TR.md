@@ -21,8 +21,9 @@ Account bileşimi, legal/support sayfaları ve bağımsız Firebase yapılandır
 Home v2 kaynak, validator, cache ve player sözleşmeleri uygulanmıştır. Samsung
 `SM_A225F` / API33 (`R68RC006LPE`) üzerinde veri silmeden minified update, ayrı
 yerel geçmiş, bounded player ve beşer cold/warm ölçüm kanıtı vardır. İki-app
-cart/session/logout kabulü PASS; tam player kabulü fiziksel route-change nedeniyle
-`PARTIAL`dır. Trial Home refresh sonrası
+cart/session/logout kabulü PASS'tır. Owner'ın doğrudan manuel beyanıyla kablolu
+kulaklık çıkarma ve Bluetooth kesme sırasındaki pause/no-auto-resume de PASS'tır;
+bu son satır agent-captured artifact değildir. Trial Home refresh sonrası
 beş section ve product/collection CTA'ları ayrıca doğrulandı. Ayrıntılı sınırlar
 ve tarihsel ilk test flake'i Gate 9 handoff'unda korunur.
 
@@ -425,8 +426,8 @@ Task 7/8 SHA ve APK digest'leri bu yeni adayı tanımlamaz. Yeni adayın exact s
 APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
-izolasyonunu kendi başına PASS yapmaz. 23 Eylül current-candidate durumunda A4/A9
-PASS; A5/A8 PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
+izolasyonunu kendi başına PASS yapmaz. 23 Eylül current-candidate durumunda A4/A8/A9
+PASS; A5 PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
@@ -451,8 +452,11 @@ sayılmadı. Fiziksel kulaklık çıkarma ve kasıtlı gerçek stall/deadline sa
 bu checkpoint'te çalıştırılmamıştı. Sonraki `a2c4ded` controlled-data-source/
 real-player koşusu first-frame ve post-frame stall/deadline/iptal satırlarını kapattı;
 Samsung/API33 birleşik grup 15/15 geçti. Bu debug instrumentation'dır, minified
-release yolculuğu değildir. Fiziksel kulaklık çıkarma/route-change hâlâ `NOT RUN`
-olduğundan A8 PARTIAL'dır. Ayrıca `a2c4ded` production player düzeltmesi içerdiği
+release yolculuğu değildir. 23 Eylül'de owner, gerçek playback sırasında hem
+kablolu kulaklık çıkarma hem Bluetooth kesme sonrası pause/no-auto-resume sonucunu
+manuel PASS bildirdi. Bu doğrudan owner attestation'dır; agent'ın tekrar çalıştırdığı
+veya artifact yakaladığı iddia edilmez. A8 bu birleşik kanıtla PASS'tır. Ayrıca
+`a2c4ded` production player düzeltmesi içerdiği
 için korunmuş `80597a5` APK kendi exact release kanıtı olarak kalır; yeni kaynağın
 artifact'i diye yeniden adlandırılmaz. Normal `build/outputs` APK'sı ledger seçimi
 yerine kullanılamaz. Exact `a2c4ded` için ayrı sealed Trial minified artifact'i
