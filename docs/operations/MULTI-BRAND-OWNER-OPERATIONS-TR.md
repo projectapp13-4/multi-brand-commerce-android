@@ -418,8 +418,8 @@ Task 7/8 SHA ve APK digest'leri bu yeni adayı tanımlamaz. Yeni adayın exact s
 APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
-izolasyonunu PASS yapmaz. Güncel durumda A4/A5/A8/A9 PARTIAL, A14 NOT RUN ve Gate 9
-AÇIK kalır.
+izolasyonunu PASS yapmaz. 23 Eylül current-candidate durumunda A4 PASS; A5/A8/A9
+PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
@@ -427,7 +427,8 @@ P95 veya first-frame SLO iddiası yoktur. Gerçek configured Gürbakır staging 
 aynı package/nonproduction imza/UID/first-install ile veri silmeden güncellendi ve
 sentinel korundu. Aynı handle iki mağazada farklı ürün/fiyat verdi; Trial cart quantity
 1 iken Gürbakır cart empty kaldı ve Trial process restart sonrasında quantity 1 korundu.
-Authenticated customer session/logout izolasyonu hâlâ A5'e bağlıdır.
+Sonraki Trial authenticated restore Gürbakır signed-out partition'ına taşmadı;
+iki uygulama authenticated iken tek-app logout karşılaştırması yine `NOT RUN`dır.
 
 Aynı gün `91ae165` androidTest checkpoint'inde gerçek Samsung/API33 Activity
 rotation'ı player'ı yeniden kurarken aynı PlaybackAttempt, ilk-kare ve kümülatif byte

@@ -322,21 +322,23 @@ merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
   Sınırlı aspect-ratio, açık controls/mute ve normal completion'ın hata olmaması
   düzeltildi; Trial launch 1/1 ve son player/Home/data-source grubu 12/12 geçti.
   İlk 10-test grubundaki ayrı Home action failure kaydı korunur.
-- Gerçek Trial `cartCreate` testi çalıştırıldı ve `ACCESS_DENIED` ile **FAIL** oldu.
-  Katalog/Home/TRY/availability okumaları geçiyor; cart için gerekli
-  `unauthenticated_write_checkouts` development kurulumu eksik veya mevcut public
-  token'a etkin yansımamış durumda. Güvenlik kontrolü kaldırılmadı.
+- Task 7/8 checkpoint'lerinde gerçek Trial `cartCreate` testi `ACCESS_DENIED` ile
+  **FAIL** oldu. Bu tarihsel failure silinmez: sonraki resmî readback, checkout
+  read/write'ın açık fakat exact query'deki nested customer okumasının eksik olduğunu
+  gösterdi. Yalnız gerekli customer-read scope'u açıldı; değişmeyen cart proof 1/1
+  geçti. Güvenlik kontrolü kaldırılmadı.
 - Task 7'deki Shopify plugin reauthentication engeli tarihsel kayıttır. Task 8'de
   Trial Shopify CLI/Admin erişimiyle gerçek child revision, root-last publish,
   remove ve exact baseline rollback provası tamamlandı; kaynaklar silinmedi.
 - Mevcut owned Trial photo File yalnız image-empty fallback product'a bağlandı;
   değişmeyen renderer collection'ın first-product image fallback'ini de kullandı.
   Samsung'da refresh sonrası beş section ve gerçek product/collection CTA'ları
-  görüldü. A4 aynı approved token ile yine `ACCESS_DENIED`; A8/A9 hâlâ PARTIAL.
+  görüldü. Task 8 anında A4 aynı approved token ile yine `ACCESS_DENIED`, A8/A9
+  PARTIAL idi; daha yeni current-candidate matrisi A4'ü PASS, A8/A9'u PARTIAL kaydeder.
 
-Gate 9 bu dalda kapanmaz. A4 başarısızlığı, güvenli customer ve kalan zorunlu cihaz
-kabul satırları, PR-head exact-SHA CI, owner merge ve merged-main exact-SHA CI
-tamamlanmadan closure verilemez. P3-16 ayrıca başlamamıştır.
+Gate 9 bu dalda kapanmaz. A5 doğal-expiry/Order Detail, A8 fiziksel route-change,
+A9 iki-app authenticated logout, PR-head exact-SHA CI, owner merge ve merged-main
+exact-SHA CI tamamlanmadan closure verilemez. P3-16 ayrıca başlamamıştır.
 
 ## Mimari ve uygulama ayrımı
 
