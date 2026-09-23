@@ -109,6 +109,16 @@ function Test-OnboardingProbeAttribution {
     )
     return $probeActions.Count -eq 1
 }
+function Get-OnboardingManagedHomeTypes {
+    param([Parameter(Mandatory)]$HomeState)
+
+    if ($null -ne $HomeState.PSObject.Properties['ManagedTypes'] -and
+        @($HomeState.ManagedTypes).Count -gt 0) {
+        return @($HomeState.ManagedTypes | ForEach-Object { [string]$_ })
+    }
+    return @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+}
+
 function New-OnboardingExpectedActions {
     param(
         [Parameter(Mandatory)]$HomeState,
@@ -120,12 +130,7 @@ function New-OnboardingExpectedActions {
     if ([string]$HomeState.Classification -eq 'INCOMPATIBLE') { throw 'INCOMPATIBLE_HOME_DEFINITIONS' }
     $actions = [Collections.Generic.List[object]]::new()
     $ordinal = 1
-    $managedTypes = if ($null -ne $HomeState.PSObject.Properties['ManagedTypes'] -and
-        @($HomeState.ManagedTypes).Count -gt 0) {
-        @($HomeState.ManagedTypes | ForEach-Object { [string]$_ })
-    } else {
-        @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
-    }
+    $managedTypes = @(Get-OnboardingManagedHomeTypes -HomeState $HomeState)
     foreach ($type in $managedTypes) {
         if ($type -in @($HomeState.MissingTypes)) {
             $actions.Add((New-ReceiptAction $ordinal 'SHOPIFY_HOME_DEFINITION' $type 'CREATE_IF_MISSING' 'ABSENT' 'CREATE' $HomeState.Fingerprint))
@@ -706,7 +711,7 @@ function Invoke-OnboardingApply {
         $expectedActions=New-OnboardingExpectedActions -HomeState $homeState -ProbeState $probe -IncludeAcceptanceProbe:$IncludeAcceptanceProbe -ProbeIsAttributed:$probeIsAttributed
         if((Get-OnboardingCanonicalJson (Get-OnboardingActionContractView $expectedActions)) -cne (Get-OnboardingCanonicalJson (Get-OnboardingActionContractView @($plan.actions)))){throw 'PLAN_ACTION_DRIFT'}
         $actions=@($plan.actions);$createdIds=@{}
-        foreach($type in @($homeState.ManagedTypes)){$existing=@($homeState.Definitions[$type]);if($existing.Count-eq 1){$createdIds[$type]=[string]$existing[0].id}}
+        foreach($type in @(Get-OnboardingManagedHomeTypes -HomeState $homeState)){$existing=@($homeState.Definitions[$type]);if($existing.Count-eq 1){$createdIds[$type]=[string]$existing[0].id}}
         foreach($action in $actions|Sort-Object ordinal){
             if([string]$action.intendedAction -ceq 'NONE'){continue}
             if([string]$action.resourceKind -ceq 'SHOPIFY_HOME_DEFINITION'){

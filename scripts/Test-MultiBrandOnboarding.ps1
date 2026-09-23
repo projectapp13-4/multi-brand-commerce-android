@@ -1565,6 +1565,17 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition ((@($v2Actions | ForEach-Object { [string]$_.resourceKey }) -join ',') -ceq (@($v2Schema.definitions.type) -join ',')) `
         -Name 'Home v2 definition plan preserves dependency order and keeps the root last'
+    $legacyManagedTypes = & (Get-Module Onboarding.Operator) {
+        param($HomeState)
+        @(Get-OnboardingManagedHomeTypes -HomeState $HomeState)
+    } ([pscustomobject]@{
+        Classification = 'ABSENT'
+        Fingerprint = ('1' * 64)
+        MissingTypes = @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    })
+    Assert-True `
+        -Condition (($legacyManagedTypes -join ',') -ceq 'mobile_home_collection_grid,mobile_home_featured_product,mobile_home') `
+        -Name 'legacy Home state fallback is shared by Plan and Apply definition ordering'
 
     $compatibleProbe = @{
         id = 'gid://shopify/Metaobject/99'
