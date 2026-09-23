@@ -435,8 +435,11 @@ APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
 izolasyonunu kendi başına PASS yapmaz. 23 Eylül current-candidate durumunda A4/A8/A9
-ve A5 Order Detail PASS; A5 exact natural-expiry nedeniyle PARTIAL, A14 NOT RUN ve
-Gate 9 AÇIK kalır.
+ve A5 Order Detail PASS; A5 exact natural-expiry nedeniyle PARTIAL kalır. PR #14
+approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` normal merge ile
+`c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94` oldu; PR-head run `35851940911`
+ve merged-main run `35877081839` üç zorunlu lane'de başarılıdır. A14 PASS olsa da
+Gate 9 A5 nedeniyle AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,

@@ -59,8 +59,11 @@ history, protected bootstrap, and historical-archive cutover evidence.
   first-frame and post-frame deadline/cancellation pass at `a2c4ded`; owner-attested
   wired and Bluetooth route-change pause/no-auto-resume closes A8 without being
   misrepresented as agent-captured evidence. Authenticated account-linked Bogus order,
-  Orders/Order Detail and data-preserving reopen pass; exact natural token expiry and
-  hosted exact-SHA CI remain partial or not run. Gate 9 therefore remains open; see
+  Orders/Order Detail and data-preserving reopen pass. PR #14 approved HEAD
+  `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as
+  `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911`
+  and exact merged-main run `35877081839` passed `validate`, API 30 and API 23.
+  Exact natural token expiry remains `UNCONFIRMED`, so Gate 9 remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete

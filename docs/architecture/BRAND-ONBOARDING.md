@@ -177,7 +177,7 @@ Before calling a real brand onboarded, record evidence that:
 
 The exact verification lane belongs in the later brand/gate implementation plan, not here.
 
-Current applicability: use this contract to plan the separately approved second real merchant/store pilot. Gates 2–8 establish the synthetic edge, fixed-input, capability-composition, provider-isolation, Categories/Home, enrollment, and bounded-operator boundaries. Gate 8 closure does not prove a second real application, production configuration, signing, publication, or release readiness. Gate 9 and P3-16 remain separate and unstarted.
+Current applicability: this contract now governs the merged development-only Trial application/store pilot as well as future brand onboarding. Gates 2–8 establish the synthetic edge, fixed-input, capability-composition, provider-isolation, Categories/Home, enrollment, and bounded-operator boundaries. Gate 9 applies those boundaries to `:trial` with independent Shopify/Firebase/application identities; its implementation is merged, but cumulative acceptance remains open because exact natural token expiry is `UNCONFIRMED`. Trial is not production configuration, signing, publication, or release readiness. P3-16 remains separate and unstarted.
 
 ## Related authority
 
