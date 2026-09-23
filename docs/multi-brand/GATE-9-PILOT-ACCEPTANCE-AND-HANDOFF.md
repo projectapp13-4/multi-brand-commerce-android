@@ -842,16 +842,19 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
    refresh veya fail-closed sonucu gözle. Account-linked Bogus order ile Orders ve
    Order Detail ilk okuma + veri silmeden relaunch artık PASS'tır; exact expiry
    kanıtlanana kadar yalnız natural-expiry alt satırını `UNCONFIRMED` koru.
-2. Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu provider-proof
-   skip'leri kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
-3. Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni resource
-   deletion veya mevcut receipt'i aşan provider yazısı gerekli sayılmaz.
-4. Final review, exact candidate source ve artifact sınırı korunur; eski SHA/APK
-   kanıtları yeni aday diye yeniden etiketlenmez.
-5. PR #14 final H `bbf8ab82...` ve run `35851940911` tamamlandı; owner'ın exact-HEAD
-   onayıyla normal merge M `c77afeda...` üretildi.
-6. H ancestry/tree karşılaştırması ve M exact-SHA run `35877081839` tamamlandı.
-   Bunlar A5 natural-expiry eksikliğini kapatmaz.
+
+PR #14 final H/CI, normal merge, ancestry/tree ve merged-main CI tamamlanmış
+kanıtlardır; yukarıdaki korumalı merge uzlaştırmasında kayıtlıdır ve kalan iş
+değildir.
+
+### Devam eden kanıt bütünlüğü koşulları
+
+- Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu provider-proof
+  skip'leri kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
+- Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni resource
+  deletion veya mevcut receipt'i aşan provider yazısı gerekli sayılmaz.
+- Final review, exact candidate source ve artifact sınırı korunur; eski SHA/APK
+  kanıtları yeni bir candidate'in kanıtı diye yeniden etiketlenmez.
 
 ## P3-16 production/Play tablosu
 

@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-17
+Status date: 2026-09-23
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -40,7 +40,7 @@ history, protected bootstrap, and historical-archive cutover evidence.
   DRAFT/unselected acceptance probe, and repeated zero-write idempotence.
   [`multi-brand/GATE-8-COMPLETION-HANDOFF.md`](multi-brand/GATE-8-COMPLETION-HANDOFF.md)
   remains the historical pre-merge record rather than the closure authority.
-- The Gate 9 implementation candidate adds development-only `:trial` as the
+- The merged Gate 9 implementation adds development-only `:trial` as the
   second real application/store pilot and bounded Home v2 image/video support.
   Real Trial v1/v2 provider checkpoints and local source/artifact validation
   exist. The exact Trial cart provider lifecycle now passes after enabling only
@@ -103,7 +103,7 @@ scope. They do not override current source or later accepted decisions.
 | [`architecture`](architecture) | Accepted Multi-Brand target, brand boundaries, onboarding, and migration-sensitive identities |
 | [`decisions`](decisions) | Accepted platform, navigation, SDK, and Multi-Brand ADRs |
 | [`multi-brand/README.md`](multi-brand/README.md) | Current Gate index and unfinished continuation point |
-| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Gate 9 implementation candidate, A1–A14 evidence and open blockers |
+| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Merged Gate 9 implementation, A1–A14 evidence and open A5 natural-expiry blocker |
 | [`operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md`](operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Turkish Shopify/Firebase/content/release owner operations and rollback guide |
 | [`PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md`](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) | Fresh-history public bootstrap, rights, protection, CI, and authority-cutover evidence |
 | [`phase3/README.md`](phase3/README.md) | Current functional status index |

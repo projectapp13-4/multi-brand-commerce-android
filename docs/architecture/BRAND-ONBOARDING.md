@@ -1,10 +1,10 @@
 # Brand Onboarding
 
-Status: **Canonical future real-brand onboarding contract after Gate 8 closure**
+Status: **Canonical real-brand onboarding contract; Gate 9 Trial implementation merged with acceptance open**
 
-This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation, provider-isolation, bounded Categories-discovery, bounded Home-content, and provisioning/onboarding gates. Gates 1–7 established the application-module architecture and the current Menu/Home contracts. Gate 8 added the strict application/profile registry, deterministic non-secret projections, scoped ignored client configuration, independent provider bindings, explicit enrollment/CI coverage, and a bounded local operator with Inspect, Plan, guarded Apply, Readback, and recovery evidence. Gate 8 is technically closed for the current Gürbakır development/staging profiles. No additional real merchant application exists.
+This document describes the accepted onboarding model after the reusable-core, synthetic-edge, fixed-input, capability/navigation, provider-isolation, bounded Categories-discovery, bounded Home-content, and provisioning/onboarding gates. Gates 1–7 established the application-module architecture and the current Menu/Home contracts. Gate 8 added the strict application/profile registry, deterministic non-secret projections, scoped ignored client configuration, independent provider bindings, explicit enrollment/CI coverage, and a bounded local operator with Inspect, Plan, guarded Apply, Readback, and recovery evidence. At Gate 8 closure, those facts applied to the Gürbakır development/staging profiles and no additional real merchant application yet existed. Gate 9 has since added the merged development-only `:trial` real application/store pilot with independent application, Shopify, Customer Account, Firebase and persistence identities. Gate 9 cumulative acceptance remains open because A5 exact natural token expiry is `UNCONFIRMED`; Trial is not a production application.
 
-This is an ownership and evidence contract, not authorization to create a second real application, begin the separate second-store pilot, mutate production state, start Gate 9/P3-16, or publish an application. Those later slices require their own current-source plan and authority.
+This ownership and evidence contract did not by itself authorize the second real application or second-store pilot; Gate 9 proceeded under its separate approved plan and evidence boundary. Neither that implementation nor this document authorizes production-state mutation, production signing, publication or P3-16. P3-16 remains separate and unstarted.
 
 ## Gate 8 enrollment and operator contract
 

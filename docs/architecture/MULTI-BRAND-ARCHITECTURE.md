@@ -25,6 +25,9 @@ This repository remains one monorepo. `main` is the canonical shared development
 :synthetic (non-production conformance app; implemented at apps/synthetic)
    └──> :mobile-core
 
+:trial (development-only real application/store pilot; implemented at apps/trial)
+   └──> :mobile-core
+
 :<future-real-brand> (future application module)
    └──> :mobile-core
 
@@ -32,7 +35,7 @@ brand app ──> provider adapter such as :firebase when required
 shared modules -X-> concrete brand application modules
 ```
 
-The exact future real-brand module path spelling is secondary to the boundary. Existing `:app` intentionally remains the Gürbakır application/composition shell. Shared `:mobile-core` owns reusable application behavior. Gates 2–7 prove that a separately identified application can consume that behavior with distinct fixed configuration, protected storage, capability/navigation composition, provider ownership, bounded discovery and bounded Home-content composition without importing `:app`, requiring Firebase in shared application code, or adding a runtime merchant switch. They do not prove production onboarding, runtime switching, live provider health, a second real merchant or every planned variation dimension.
+The exact future real-brand module path spelling is secondary to the boundary. Existing `:app` intentionally remains the Gürbakır production-intended application/composition shell; `:synthetic` remains the non-production conformance application; and `:trial` is the development-only real application/store pilot. Shared `:mobile-core` owns reusable application behavior. Gates 2–8 proved the reusable configuration, protected-storage, capability/navigation, provider-ownership, bounded-discovery/Home and onboarding/operator boundaries. Gate 9 proved that Trial consumes those boundaries with independent identities and bounded Home-v2 media without importing `:app`, requiring Firebase in shared application code, or adding a runtime merchant switch. This does not prove Trial production readiness, production onboarding/signing/publication, runtime switching or every planned variation dimension.
 
 ## Build selection
 
@@ -74,7 +77,7 @@ See [Brand Boundaries](BRAND-BOUNDARIES.md) for the operational ownership test.
 ## Dependency invariants
 
 ```text
-Shared and provider modules MUST NOT depend on :app, :synthetic, or a future concrete brand application.
+Shared and provider modules MUST NOT depend on :app, :synthetic, :trial, or a future concrete brand application.
 Brand applications MAY depend on shared modules.
 Shared code MUST NOT branch on concrete brand names.
 Brand-specific compiled behavior stays on the brand side of a narrow shared contract when a real requirement justifies it.
