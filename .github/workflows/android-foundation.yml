@@ -110,6 +110,12 @@ jobs:
           ./scripts/Test-Gate2SyntheticPackage.ps1 -SelfTest
           ./scripts/Test-Gate2SyntheticPackage.ps1 -Variant All
 
+      - name: Trial development package contract
+        shell: pwsh
+        run: |
+          ./scripts/Test-TrialPackage.ps1 -SelfTest
+          ./scripts/Test-TrialPackage.ps1 -Variant All
+
       - name: Repository portability validator self-tests
         shell: pwsh
         run: ./scripts/Test-RepositoryPortability.ps1 -SelfTest

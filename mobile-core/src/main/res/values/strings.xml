@@ -61,6 +61,10 @@
     <string name="search_history_settings">Arama geçmişi ayarları</string>
     <string name="search_history_settings_hide">Arama geçmişi ayarlarını gizle</string>
     <string name="retry">Yeniden dene</string>
+    <string name="home_video_play">Videoyu oynat</string>
+    <string name="home_open_collection">Koleksiyonu aç</string>
+    <string name="home_open_product">Ürünü aç</string>
+    <string name="home_video_unavailable">Video bu oturumda oynatılamadı. Yeniden denemek için düğmeyi kullanın.</string>
     <string name="route_recovery_title">Bu içerik henüz kullanılamıyor</string>
     <string name="route_recovery_message">Güvenli bir şekilde ana sayfaya dönebilirsiniz.</string>
     <string name="route_recovery_home">Ana sayfaya dön</string>

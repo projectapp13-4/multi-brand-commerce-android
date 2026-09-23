@@ -1,0 +1,74 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/224",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:24:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/324\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/324",
+              "handle": "ambiguous-target",
+              "type": "mobile_home_image_v1",
+              "updatedAt": "2026-09-17T08:23:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Ambiguous target" },
+              "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "photo" },
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/MediaImage/524",
+                "reference": {
+                  "__typename": "MediaImage",
+                  "id": "gid://shopify/MediaImage/524",
+                  "alt": "An ambiguous call to action",
+                  "mediaContentType": "IMAGE",
+                  "image": {
+                    "id": "gid://shopify/ImageSource/524",
+                    "altText": "An ambiguous call to action",
+                    "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/ambiguous-target.jpg",
+                    "width": 1200,
+                    "height": 800
+                  }
+                }
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "An ambiguous call to action" },
+              "caption": null,
+              "productTarget": {
+                "key": "product_target",
+                "type": "product_reference",
+                "value": "gid://shopify/Product/724",
+                "reference": {
+                  "__typename": "Product",
+                  "id": "gid://shopify/Product/724",
+                  "handle": "ambiguous-product",
+                  "title": "Ambiguous product"
+                }
+              },
+              "collectionTarget": {
+                "key": "collection_target",
+                "type": "collection_reference",
+                "value": "gid://shopify/Collection/824",
+                "reference": {
+                  "__typename": "Collection",
+                  "id": "gid://shopify/Collection/824",
+                  "handle": "ambiguous-collection",
+                  "title": "Ambiguous collection"
+                }
+              }
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

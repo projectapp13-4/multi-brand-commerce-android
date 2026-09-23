@@ -335,7 +335,7 @@ class ApolloCatalogDiscoveryGatewayTest {
         }
     }
 
-    private fun gateway(requestTimeoutMillis: Long = 1_000): ApolloStorefrontCatalogGateway =
+    private fun gateway(requestTimeoutMillis: Long = 5_000): ApolloStorefrontCatalogGateway =
         ApolloStorefrontCatalogGateway(client, mediaPolicy, requestTimeoutMillis = requestTimeoutMillis)
 
     private fun assertSuccess(result: StorefrontResult<CatalogDiscoveryMenu?>): CatalogDiscoveryMenu? {

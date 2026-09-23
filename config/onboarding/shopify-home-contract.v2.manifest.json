@@ -1,0 +1,135 @@
+{
+  "manifestVersion": 1,
+  "contract": {
+    "id": "pilot-media-v2",
+    "schemaVersion": 2,
+    "rootType": "mobile_home_v2",
+    "resourceHydrationMaximumUniqueIds": 14
+  },
+  "storefrontApiVersion": "2026-07",
+  "checkpointFiles": [
+    {
+      "path": "config/onboarding/shopify-home-schema.v2.json",
+      "sha256": "782cbf8f21275f7f7d6a46c29bdbf3c0976eeb723d8c8681cfb0832f839d06b7"
+    },
+    {
+      "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeContentV2Metaobject.graphql",
+      "sha256": "dab92a88a1a7a95a57bac87e7f47254eaf3a9295dc97c856a578caa50951a54f"
+    },
+    {
+      "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeV2Resources.graphql",
+      "sha256": "26cdbc0aa6846564eaf8fec6dea5d57260fe24982d287dae194444a280a7b78e"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/both-targets-populated.json",
+      "sha256": "779145670e66675a014f9180b47fa65bbe2c46afd5975f16ed4ffd1ed5a2aea4"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/intentional-empty.json",
+      "sha256": "4f094150739da1dd70510dfb4a5c55ae9e71f1c62239d398f3749656cd6419b3"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/new-file-gid-refresh.json",
+      "sha256": "898bb7419c79a6131c97f496b58cd3cebbed5a38c05f9197369380aec18cc9e4"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/none-renderable.json",
+      "sha256": "86f58202963eee14b4da438ce8a940832cbdf5833148ec28b8d762794c3f5c5c"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/optional-unresolved-target.json",
+      "sha256": "024143a74456f064d31c497a4698584049f9ce11d3588e7a325897e1a0903f22"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/parent-unchanged-child-changed.json",
+      "sha256": "c6c52fc1497ed217ae4a8848dd7227e83d89515199fc4636bd2673a18a80fb46"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/partial.json",
+      "sha256": "d81c978abcc9de37fcb7169a04e5c99cb2cfac5a8af3cb047d7a32d4521e888c"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/same-id-url-freshness-unsupported.json",
+      "sha256": "c9229752f5d4c241d28045b8baa87cdac7af956a763176f64c5ed85eed071bdf"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/transient-unresolved-media.json",
+      "sha256": "49b02c33de90399e9f81f5e0cbfa63719daf570fc9af38531cfbb079b19a0ece"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/transient-unresolved-reference.json",
+      "sha256": "8aa878b3a41a0d3e59d4781ea7c1c69688e83c01e49fc91cf75c89a690b7943f"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-count.json",
+      "sha256": "106aa9f9ed28a8b6d311b2ae977a08b42b7dcdbfe2e93d8db60306237d5b89b8"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-order.json",
+      "sha256": "40d72a0d7077c7bc5b76a0a9ae0d63424747a7d99e556b3b6d8e43a093a55099"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-root-type.json",
+      "sha256": "74a51f4010634301696e124609d9daa0ca763a3626bd7c06b182eca940fcaf47"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-schema-version.json",
+      "sha256": "3c6a86b18ee76a233442ebf39d844bbc7a32622dd155a4f003f22c99d7eb3be0"
+    },
+    {
+      "path": "storefront/src/test/resources/home-v2/wrong-typename.json",
+      "sha256": "91e6e14df4e91e609948558e6c42ba4fba8c1afcc354573799d689f9eb789be4"
+    }
+  ],
+  "schemaValidation": {
+    "status": "PASS",
+    "tool": "shopify-storefront-graphql@1.9.1",
+    "model": "gpt-6-astra",
+    "clientName": "codex-app",
+    "clientVersion": "2026-09-17",
+    "documentation": [
+      "https://shopify.dev/docs/api/storefront/2026-07/objects/MediaImage",
+      "https://shopify.dev/docs/api/storefront/2026-07/objects/Video",
+      "https://shopify.dev/docs/api/storefront/2026-07/unions/MetafieldReference",
+      "https://shopify.dev/docs/apps/build/metafields/list-of-data-types"
+    ],
+    "operations": [
+      {
+        "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeContentV2Metaobject.graphql",
+        "artifactId": "gate9-home-v2-root-a41f7c2e",
+        "attempts": [
+          { "revision": 1, "status": "INVALID", "detail": "Unknown shared HomeImageFields fragment in standalone validation." },
+          { "revision": 2, "status": "VALID" },
+          { "revision": 3, "status": "VALID", "detail": "Revalidated after splitting optional Product and Collection targets." }
+        ]
+      },
+      {
+        "path": "storefront/src/main/graphql/com/gurbakir/storefront/HomeV2Resources.graphql",
+        "artifactId": "gate9-home-v2-resources-b72cd913",
+        "attempts": [
+          { "revision": 1, "status": "INVALID", "detail": "Unknown shared HomeImageFields fragment in standalone validation." },
+          { "revision": 2, "status": "VALID" },
+          { "revision": 3, "status": "VALID", "detail": "Unchanged operation revalidated with the corrected checkpoint." }
+        ]
+      }
+    ]
+  },
+  "actualPublicClientReadback": {
+    "acceptance": "A6",
+    "status": "PASS",
+    "verifiedAtUtc": "2026-09-17T09:31:25.728Z",
+    "application": "trial",
+    "profile": "development",
+    "shopDomain": "multi-brand-trial-store.myshopify.com",
+    "shopGid": "gid://shopify/Shop/61252272257",
+    "rootId": "gid://shopify/Metaobject/79655141505",
+    "sectionRevisionDigest": "9b2d6637c9f5fc0ee7e8d166eb0bc12e16f7921912bd4a39d06c464969c284f7",
+    "command": ".\\gradlew.bat :storefront:generateStorefrontApolloSources :storefront:testDebugUnitTest --tests \"com.gurbakir.storefront.OwnedHomeV2ReadProofTest\" -PonboardingApplication=trial -PonboardingProfile=development -PonboardingRunOwnedHomeV2Readback=true --rerun-tasks --no-build-cache",
+    "junit": {
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  }
+}

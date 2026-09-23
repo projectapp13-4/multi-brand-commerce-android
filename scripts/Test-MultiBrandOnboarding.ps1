@@ -150,6 +150,41 @@ function Invoke-RegistrySuite {
     Assert-True -Condition ($resolved.Application.identity.brandKey -eq 'gurbakir') `
         -Name 'Gurbakir runtime brand key remains exact'
 
+    $trial = Get-OnboardingApplicationProfile `
+        -Registry $registry `
+        -Application 'trial' `
+        -Profile 'development'
+    Assert-True `
+        -Condition (
+            [string]$trial.Application.module -ceq ':trial' -and
+            [string]$trial.Application.identity.brandKey -ceq 'multi-brand-trial' -and
+            [string]$trial.Profile.runtimeEnvironment -ceq 'DEVELOPMENT'
+        ) `
+        -Name 'Trial resolves as an independent development real-application profile'
+    Assert-True `
+        -Condition (
+            [string]$trial.Profile.storefront.domain -ceq 'multi-brand-trial-store.myshopify.com' -and
+            [string]$trial.Profile.storefront.apiVersion -ceq '2026-07' -and
+            [string]$trial.Profile.storefront.catalog.menuHandle -ceq 'main-menu' -and
+            [string]$trial.Profile.storefront.home.rootType -ceq 'mobile_home_v2' -and
+            [long]$trial.Profile.storefront.home.contentSchemaVersion -eq 2 -and
+            [string]$trial.Profile.storefront.home.definitionContract -ceq 'pilot-media-v2'
+        ) `
+        -Name 'Trial selects the exact Home v2 Storefront contract after the atomic cutover'
+    Assert-True `
+        -Condition (
+            $null -ne $trial.Application.identity.webRoles.legalSupport -and
+            [string]$trial.Application.identity.webRoles.legalSupport.origin -ceq 'https://multi-brand-trial-store.myshopify.com' -and
+            @($trial.Application.identity.webRoles.legalSupport.paths.Keys).Count -eq 6 -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.support -ceq '/pages/trial-destek' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.privacy -ceq '/pages/trial-gizlilik' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.terms -ceq '/pages/trial-kullanim-kosullari' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.shipping -ceq '/pages/trial-kargo' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.returns -ceq '/pages/trial-iade' -and
+            [string]$trial.Application.identity.webRoles.legalSupport.paths.legalNotice -ceq '/pages/trial-yasal-bildirim'
+        ) `
+        -Name 'Trial registry owns the provider-read development legal support pages'
+
     $sha = Get-OnboardingSha256 -Path $registryPath
     $lines = Get-OnboardingProjectionLines `
         -Registry $registry `
@@ -160,10 +195,44 @@ function Invoke-RegistrySuite {
         -Name 'projection begins with schema version'
     Assert-True -Condition ($lines -contains 'app.brandDisplayName=Gürbakır') `
         -Name 'projection preserves UTF-8 display identity'
+    Assert-True -Condition ($lines -ccontains 'shopify.homeDefinitionContract=gate7-v1') `
+        -Name 'Gurbakir projection preserves the exact Gate 7 Home contract id'
 
     $projectionPath = Join-Path $repoRoot 'config\onboarding\generated\gurbakir\development.properties'
     Test-OnboardingProjection -Path $projectionPath -ExpectedLines $lines
     Add-TestResult -Name 'tracked development projection is byte exact' -Passed $true -Evidence 'matched'
+
+    $trialLines = Get-OnboardingProjectionLines `
+        -Registry $registry `
+        -ApplicationRecord $trial.Application `
+        -ProfileRecord $trial.Profile `
+        -RegistrySha256 $sha
+    foreach ($expectedTrialLine in @(
+        'app.brandKey=multi-brand-trial',
+        'app.databaseName=trial-store-local.db',
+        'android.applicationId.debug=com.projectapp134.multibrandtrial.dev.debug',
+        'android.applicationId.release=com.projectapp134.multibrandtrial.dev',
+        'shopify.storefrontDomain=multi-brand-trial-store.myshopify.com',
+        'shopify.storefrontApiVersion=2026-07',
+        'shopify.catalogMenuHandle=main-menu',
+        'shopify.homeRootType=mobile_home_v2',
+        'shopify.homeContentSchemaVersion=2',
+        'shopify.homeDefinitionContract=pilot-media-v2',
+        'web.legalSupportOrigin=https://multi-brand-trial-store.myshopify.com',
+        'web.legalSupportPath.support=/pages/trial-destek',
+        'web.legalSupportPath.privacy=/pages/trial-gizlilik',
+        'web.legalSupportPath.terms=/pages/trial-kullanim-kosullari',
+        'web.legalSupportPath.shipping=/pages/trial-kargo',
+        'web.legalSupportPath.returns=/pages/trial-iade',
+        'web.legalSupportPath.legalNotice=/pages/trial-yasal-bildirim',
+        'firebase.ownershipKey=multi-brand-trial-development'
+    )) {
+        Assert-True -Condition ($trialLines -ccontains $expectedTrialLine) `
+            -Name "Trial projection owns $expectedTrialLine"
+    }
+    $trialProjectionPath = Join-Path $repoRoot 'config\onboarding\generated\trial\development.properties'
+    Test-OnboardingProjection -Path $trialProjectionPath -ExpectedLines $trialLines
+    Add-TestResult -Name 'tracked Trial development projection is byte exact' -Passed $true -Evidence 'matched'
 
     $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gate8-registry-' + [guid]::NewGuid().ToString('N'))
     [void](New-Item -ItemType Directory -Path $temporaryRoot)
@@ -347,8 +416,8 @@ function Invoke-RegistrySuite {
             -AllowFixtureRecords
         Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.key -ceq 'future-fixture' }).Count -eq 1) `
             -Name 'future real-brand fixture is accepted only in explicit fixture mode'
-        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 2) `
-            -Name 'fixture registry exercises two independently enrolled real application records'
+        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 3) `
+            -Name 'fixture registry preserves both enrolled real applications while adding an independent fixture record'
         $futureSelected = Get-OnboardingApplicationProfile `
             -Registry $acceptedFixture -Application 'future-fixture' -Profile 'conformance'
         Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
@@ -402,7 +471,36 @@ function Invoke-RegistrySuite {
         Assert-Throws `
             -Action { Import-OnboardingRegistry -Path $wrongHomePath -RepositoryRoot $repoRoot } `
             -Pattern 'HOME_CONTRACT_MISMATCH' `
-            -Name 'enabled Home profile cannot redefine the closed Gate 7 root type'
+            -Name 'enabled Home profile cannot redefine a closed Home contract tuple'
+
+        foreach ($invalidHomeMutation in @(
+            @{
+                Name = 'v1 type with v2 contract is rejected'
+                Old = '"definitionContract": "gate7-v1"'
+                New = '"definitionContract": "pilot-media-v2"'
+            },
+            @{
+                Name = 'v2 type with v1 schema version is rejected'
+                Old = '"contentSchemaVersion": 2'
+                New = '"contentSchemaVersion": 1'
+            },
+            @{
+                Name = 'unknown Home definition contract is rejected'
+                Old = '"definitionContract": "pilot-media-v2"'
+                New = '"definitionContract": "pilot-media-v3"'
+            }
+        )) {
+            $invalidHomePath = Join-Path $temporaryRoot (([string]$invalidHomeMutation.Name -replace '[^a-z0-9]+', '-') + '.json')
+            [System.IO.File]::WriteAllText(
+                $invalidHomePath,
+                $raw.Replace([string]$invalidHomeMutation.Old, [string]$invalidHomeMutation.New),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Assert-Throws `
+                -Action { Import-OnboardingRegistry -Path $invalidHomePath -RepositoryRoot $repoRoot } `
+                -Pattern 'HOME_CONTRACT_MISMATCH' `
+                -Name ([string]$invalidHomeMutation.Name)
+        }
 
         $unsafeBoundaryPath = Join-Path $temporaryRoot 'unsafe-boundary.json'
         [System.IO.File]::WriteAllText(
@@ -595,6 +693,55 @@ function Invoke-RegistrySuite {
         $receipt = Import-OnboardingReceipt -Path $receiptPath
         Assert-True -Condition ($receipt.operationContractVersion -ceq 'gate8-v1') `
             -Name 'closed Plan receipt is accepted'
+        $gate9ReceiptPath = Join-Path $temporaryRoot 'gate9-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $gate9ReceiptPath,
+            $receiptJson.Replace('"operationContractVersion": "gate8-v1"', '"operationContractVersion": "gate9-v2"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $gate9Receipt = Import-OnboardingReceipt -Path $gate9ReceiptPath
+        Assert-True -Condition ($gate9Receipt.operationContractVersion -ceq 'gate9-v2') `
+            -Name 'closed Gate 9 Plan receipt version is accepted without widening unknown versions'
+        $gate9ActionReceiptPath = Join-Path $temporaryRoot 'gate9-action-receipt.json'
+        $gate9ActionJson = $receiptJson.Replace(
+            '"operationContractVersion": "gate8-v1"',
+            '"operationContractVersion": "gate9-v2"'
+        ).Replace(
+                '"actions": []',
+                '"actions": [{"ordinal":1,"resourceKind":"SHOPIFY_HOME_DEFINITION","resourceKey":"mobile_home_image_v1","managementMode":"CREATE_IF_MISSING","beforeClassification":"ABSENT","intendedAction":"CREATE","beforeFingerprint":"0000000000000000000000000000000000000000000000000000000000000000","providerResourceId":null,"status":"PLANNED","afterClassification":"UNKNOWN","afterFingerprint":"0000000000000000000000000000000000000000000000000000000000000000"}]'
+        )
+        [System.IO.File]::WriteAllText(
+            $gate9ActionReceiptPath,
+            $gate9ActionJson,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $gate9ActionReceipt = Import-OnboardingReceipt -Path $gate9ActionReceiptPath
+        Assert-True `
+            -Condition (
+                [string]$gate9ActionReceipt.operationContractVersion -ceq 'gate9-v2' -and
+                [string]$gate9ActionReceipt.actions[0].resourceKey -ceq 'mobile_home_image_v1'
+            ) `
+            -Name 'Gate 9 Plan receipt round-trips a v2 image definition action'
+        $gate8V2ActionReceiptPath = Join-Path $temporaryRoot 'gate8-v2-action-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $gate8V2ActionReceiptPath,
+            $gate9ActionJson.Replace('"operationContractVersion": "gate9-v2"', '"operationContractVersion": "gate8-v1"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingReceipt -Path $gate8V2ActionReceiptPath } `
+            -Pattern 'INVALID_RESOURCE_KEY' `
+            -Name 'Gate 8 receipt cannot admit a Gate 9 definition key'
+        $unknownReceiptPath = Join-Path $temporaryRoot 'unknown-receipt.json'
+        [System.IO.File]::WriteAllText(
+            $unknownReceiptPath,
+            $receiptJson.Replace('"operationContractVersion": "gate8-v1"', '"operationContractVersion": "future-v3"'),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -Action { Import-OnboardingReceipt -Path $unknownReceiptPath } `
+            -Pattern 'UNSUPPORTED_RECEIPT_VERSION' `
+            -Name 'unknown operator receipt versions remain rejected'
 
         $stringReceiptSchemaPath = Join-Path $temporaryRoot 'string-receipt-schema.json'
         [System.IO.File]::WriteAllText(
@@ -688,6 +835,14 @@ function Invoke-ConfigurationSuite {
         (Join-Path $repoRoot 'storefront\build.gradle.kts'),
         [System.Text.Encoding]::UTF8
     )
+    $trialBuild = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'apps\trial\build.gradle.kts'),
+        [System.Text.Encoding]::UTF8
+    )
+    $ownedConfiguration = [System.IO.File]::ReadAllText(
+        (Join-Path $repoRoot 'storefront\src\test\kotlin\com\gurbakir\storefront\OwnedOnboardingConfiguration.kt'),
+        [System.Text.Encoding]::UTF8
+    )
     $manifest = [System.IO.File]::ReadAllText(
         (Join-Path $repoRoot 'app\src\main\AndroidManifest.xml'),
         [System.Text.Encoding]::UTF8
@@ -701,6 +856,24 @@ function Invoke-ConfigurationSuite {
         -Name 'app build reads deterministic profile projections'
     Assert-True -Condition ($appBuild.Contains('config/local/gurbakir')) `
         -Name 'app build scopes controlled client values by application and profile'
+    foreach ($reader in @(
+        @{ Name = 'Gurbakir Gradle reader'; Source = $appBuild },
+        @{ Name = 'Trial Gradle reader'; Source = $trialBuild },
+        @{ Name = 'Storefront Gradle reader'; Source = $storefrontBuild },
+        @{ Name = 'owned Storefront proof reader'; Source = $ownedConfiguration }
+    )) {
+        Assert-True `
+            -Condition ([string]$reader.Source).Contains('shopify.homeDefinitionContract') `
+            -Name "$($reader.Name) consumes the strict Home definition contract projection"
+    }
+    Assert-True `
+        -Condition (
+            $appBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
+            $trialBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")') -and
+            $storefrontBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
+            $storefrontBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")')
+        ) `
+        -Name 'all Gradle readers keep the two Home contract tuples closed and exact'
     Assert-True `
         -Condition (
             -not $appBuild.Contains('check(selectedApplication == "gurbakir")') -and
@@ -1055,8 +1228,26 @@ public sealed class Gate8BlockingReadStream : Stream
     $registry = Import-OnboardingRegistry -Path (Join-Path $repoRoot 'config\onboarding\application-registry.v1.json') -RepositoryRoot $repoRoot
     $selected = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'development'
     $stagingSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'gurbakir' -Profile 'staging'
+    $trialSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'trial' -Profile 'development'
     $syntheticSelection = Get-OnboardingApplicationProfile -Registry $registry -Application 'synthetic' -Profile 'conformance'
     Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
+    $gurbakirHomeOperatorContract = & (Get-Module Onboarding.Operator) {
+        param($Selected)
+        Get-OnboardingHomeOperatorContract ([pscustomobject]@{ Selected = $Selected })
+    } $selected
+    $trialHomeOperatorContract = & (Get-Module Onboarding.Operator) {
+        param($Selected)
+        Get-OnboardingHomeOperatorContract ([pscustomobject]@{ Selected = $Selected })
+    } $trialSelection
+    Assert-True `
+        -Condition (
+            [string]$gurbakirHomeOperatorContract.ContractId -ceq 'gate7-v1' -and
+            [string]$gurbakirHomeOperatorContract.OperationContractVersion -ceq 'gate8-v1' -and
+            [string]$trialHomeOperatorContract.ContractId -ceq 'pilot-media-v2' -and
+            [string]$trialHomeOperatorContract.OperationContractVersion -ceq 'gate9-v2' -and
+            [string]$trialHomeOperatorContract.SchemaRelativePath -ceq 'config/onboarding/shopify-home-schema.v2.json'
+        ) `
+        -Name 'operator dispatches Gürbakır v1 and Trial v2 from the closed profile contract tuple'
     $disabledFirebaseState = & (Get-Module Onboarding.Operator) {
         param($Context)
         Get-OnboardingFirebaseInspectionState `
@@ -1277,6 +1468,114 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition ((& $getHomeState $missingChildDisplayName).Classification -ceq 'INCOMPATIBLE') `
         -Name 'nullable display-name equivalence is not applied to title-based child definitions'
+
+    $v2Schema = Import-ShopifyHomeSchemaContract -ContractId 'pilot-media-v2'
+    $v2DefinitionIds = @{
+        mobile_home_collection_grid = 'gid://shopify/MetaobjectDefinition/11'
+        mobile_home_featured_product = 'gid://shopify/MetaobjectDefinition/12'
+        mobile_home_image_v1 = 'gid://shopify/MetaobjectDefinition/13'
+        mobile_home_video_v1 = 'gid://shopify/MetaobjectDefinition/14'
+        mobile_home_v2 = 'gid://shopify/MetaobjectDefinition/15'
+    }
+    $liveV2CompatibleDefinitions = @(
+        foreach ($contract in @($v2Schema.definitions)) {
+            $input = ConvertTo-ShopifyHomeDefinitionCreateInput `
+                -Contract $contract `
+                -DefinitionIdsByType $v2DefinitionIds
+            @{
+                id = [string]$v2DefinitionIds[[string]$contract.type]
+                type = [string]$contract.type
+                name = [string]$input.name
+                displayNameKey = if ($input.ContainsKey('displayNameKey')) { [string]$input.displayNameKey } else { $null }
+                fieldDefinitions = @(
+                    foreach ($field in @($input.fieldDefinitions)) {
+                        @{
+                            key = [string]$field.key
+                            name = [string]$field.name
+                            type = @{ name = [string]$field.type }
+                            required = [bool]$field.required
+                            validations = @($field.validations)
+                        }
+                    }
+                )
+                capabilities = @{ publishable = @{ enabled = $true } }
+                access = @{ admin = 'PUBLIC_READ_WRITE'; storefront = 'PUBLIC_READ' }
+            }
+        }
+    )
+    $getV2HomeState = {
+        param($definitions)
+        $fixtureTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            [pscustomobject]@{ StatusCode = 200; Data = @{ data = @{ metaobjectDefinitions = @{
+                nodes = $definitions
+                pageInfo = @{ hasNextPage = $false; endCursor = $null }
+            } } } }
+        }.GetNewClosure()
+        Get-ShopifyHomeDefinitionState `
+            $binding 'fixture-admin-token' $fixtureTransport `
+            -ContractId 'pilot-media-v2'
+    }.GetNewClosure()
+    $v2HomeState = & $getV2HomeState $liveV2CompatibleDefinitions
+    Assert-True `
+        -Condition (
+            [string]$v2HomeState.Classification -ceq 'COMPATIBLE' -and
+            (@($v2HomeState.ManagedTypes) -join ',') -ceq 'mobile_home_collection_grid,mobile_home_featured_product,mobile_home_image_v1,mobile_home_video_v1,mobile_home_v2'
+        ) `
+        -Name 'Home v2 provider definitions map to the exact pilot-media-v2 contract'
+    $imageInput = @(
+        $liveV2CompatibleDefinitions | Where-Object { [string]$_.type -ceq 'mobile_home_image_v1' }
+    )[0]
+    $presentationValidation = @(
+        $imageInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'presentation' }
+    )[0].validations
+    $imageFileValidation = @(
+        $imageInput.fieldDefinitions | Where-Object { [string]$_.key -ceq 'media' }
+    )[0].validations
+    Assert-True `
+        -Condition (
+            @($presentationValidation).Count -eq 1 -and
+            [string]$presentationValidation[0].name -ceq 'choices' -and
+            [string]$presentationValidation[0].value -ceq '["banner","photo"]' -and
+            @($imageFileValidation).Count -eq 1 -and
+            [string]$imageFileValidation[0].name -ceq 'file_type_options' -and
+            [string]$imageFileValidation[0].value -ceq '["Image"]'
+        ) `
+        -Name 'Home v2 semantic media validations compile to documented Shopify provider names'
+    $wrongV2FileType = Copy-TestValue $liveV2CompatibleDefinitions
+    $wrongV2FileTypeField = @(
+        ($wrongV2FileType | Where-Object { [string]$_.type -ceq 'mobile_home_video_v1' }).fieldDefinitions |
+            Where-Object { [string]$_.key -ceq 'media' }
+    )[0]
+    $wrongV2FileTypeField.validations[0].value = '["IMAGE"]'
+    Assert-True `
+        -Condition ((& $getV2HomeState $wrongV2FileType).Classification -ceq 'INCOMPATIBLE') `
+        -Name 'Home v2 rejects a provider media definition with the wrong file type'
+    $v2Actions = & (Get-Module Onboarding.Operator) {
+        param($HomeState)
+        New-OnboardingExpectedActions `
+            -HomeState $HomeState `
+            -ProbeState ([pscustomobject]@{ Classification = 'ABSENT'; Fingerprint = ('0' * 64) })
+    } ([pscustomobject]@{
+        Classification = 'ABSENT'
+        Fingerprint = ('1' * 64)
+        MissingTypes = @($v2Schema.definitions.type)
+        ManagedTypes = @($v2Schema.definitions.type)
+    })
+    Assert-True `
+        -Condition ((@($v2Actions | ForEach-Object { [string]$_.resourceKey }) -join ',') -ceq (@($v2Schema.definitions.type) -join ',')) `
+        -Name 'Home v2 definition plan preserves dependency order and keeps the root last'
+    $legacyManagedTypes = & (Get-Module Onboarding.Operator) {
+        param($HomeState)
+        @(Get-OnboardingManagedHomeTypes -HomeState $HomeState)
+    } ([pscustomobject]@{
+        Classification = 'ABSENT'
+        Fingerprint = ('1' * 64)
+        MissingTypes = @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    })
+    Assert-True `
+        -Condition (($legacyManagedTypes -join ',') -ceq 'mobile_home_collection_grid,mobile_home_featured_product,mobile_home') `
+        -Name 'legacy Home state fallback is shared by Plan and Apply definition ordering'
 
     $compatibleProbe = @{
         id = 'gid://shopify/Metaobject/99'

@@ -1,0 +1,205 @@
+query HomeContentV2Metaobject($handle: MetaobjectHandleInput!) {
+  metaobject(handle: $handle) {
+    id
+    handle
+    type
+    updatedAt
+    schemaVersion: field(key: "schema_version") {
+      key
+      type
+      value
+    }
+    declaredSectionCount: field(key: "declared_section_count") {
+      key
+      type
+      value
+    }
+    sections: field(key: "sections") {
+      key
+      type
+      value
+      references(first: 6) {
+        nodes {
+          __typename
+          ... on Metaobject {
+            id
+            handle
+            type
+            updatedAt
+            title: field(key: "title") {
+              key
+              type
+              value
+            }
+            presentation: field(key: "presentation") {
+              key
+              type
+              value
+            }
+            collections: field(key: "collections") {
+              key
+              type
+              value
+              references(first: 7) {
+                nodes {
+                  __typename
+                  ... on Collection {
+                    id
+                    handle
+                    title
+                    image {
+                      id
+                      altText
+                      url
+                      width
+                      height
+                    }
+                    products(first: 1) {
+                      nodes {
+                        featuredImage {
+                          id
+                          altText
+                          url
+                          width
+                          height
+                        }
+                      }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                }
+              }
+            }
+            product: field(key: "product") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on Product {
+                  id
+                  handle
+                  title
+                  availableForSale
+                  featuredImage {
+                    id
+                    altText
+                    url
+                    width
+                    height
+                  }
+                  priceRange {
+                    minVariantPrice {
+                      amount
+                      currencyCode
+                    }
+                  }
+                }
+              }
+            }
+            media: field(key: "media") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on MediaImage {
+                  id
+                  alt
+                  mediaContentType
+                  image {
+                    id
+                    altText
+                    url
+                    width
+                    height
+                  }
+                }
+                ... on Video {
+                  id
+                  alt
+                  mediaContentType
+                  previewImage {
+                    id
+                    altText
+                    url
+                    width
+                    height
+                  }
+                  sources {
+                    format
+                    height
+                    mimeType
+                    url
+                    width
+                  }
+                }
+              }
+            }
+            poster: field(key: "poster") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on MediaImage {
+                  id
+                  alt
+                  mediaContentType
+                  image {
+                    id
+                    altText
+                    url
+                    width
+                    height
+                  }
+                }
+              }
+            }
+            altText: field(key: "alt_text") {
+              key
+              type
+              value
+            }
+            caption: field(key: "caption") {
+              key
+              type
+              value
+            }
+            productTarget: field(key: "product_target") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on Product {
+                  id
+                  handle
+                  title
+                }
+              }
+            }
+            collectionTarget: field(key: "collection_target") {
+              key
+              type
+              value
+              reference {
+                __typename
+                ... on Collection {
+                  id
+                  handle
+                  title
+                }
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+        }
+      }
+    }
+  }
+}

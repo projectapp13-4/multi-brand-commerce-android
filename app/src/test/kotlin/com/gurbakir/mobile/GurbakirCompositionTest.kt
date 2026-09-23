@@ -22,6 +22,7 @@ import com.gurbakir.mobile.home.HomeRemoteSource
 import com.gurbakir.mobile.navigation.GurbakirDeepLinkConfiguration
 import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.order.GurbakirTrackingUrlPolicy
+import com.gurbakir.storefront.HomeContentContractId
 import java.util.Locale
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -61,7 +62,8 @@ class GurbakirCompositionTest {
             HomeConfiguration(
                 BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
                     HomeRemoteSource.ShopifyMetaobject(
-                        com.gurbakir.storefront.HomeDocumentSelector("mobile_home", handle)
+                        com.gurbakir.storefront.HomeDocumentSelector("mobile_home", handle),
+                        HomeContentContractId.GATE7_V1
                     )
                 } ?: HomeRemoteSource.Disabled,
                 HomePackagedFallback(

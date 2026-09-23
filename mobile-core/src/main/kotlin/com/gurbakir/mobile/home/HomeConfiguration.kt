@@ -1,6 +1,7 @@
 package com.gurbakir.mobile.home
 
 import androidx.annotation.StringRes
+import com.gurbakir.storefront.HomeContentContractId
 import com.gurbakir.storefront.HomeDocumentSelector
 
 const val HOME_EDITORIAL_TTL_MILLIS = 86_400_000L
@@ -23,7 +24,7 @@ data class HomeFeaturedProductConfiguration(
 sealed interface HomeRemoteSource {
     data object Disabled : HomeRemoteSource
 
-    data class ShopifyMetaobject(val selector: HomeDocumentSelector, val supportedContentVersion: Int = 1) :
+    data class ShopifyMetaobject(val selector: HomeDocumentSelector, val contractId: HomeContentContractId) :
         HomeRemoteSource
 }
 

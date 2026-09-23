@@ -5,6 +5,9 @@
         <activity
             android:name="com.gurbakir.mobile.localization.AppLocaleProbeActivity"
             android:exported="false" />
+        <activity
+            android:name="com.gurbakir.mobile.home.OwnedHomeVideoRotationActivity"
+            android:exported="false" />
         <!-- OAuth callbacks belong to the app; this standalone harness uses inert content. -->
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"

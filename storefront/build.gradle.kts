@@ -105,6 +105,7 @@ val projectionKeyInventory = setOf(
     "web.checkoutHostPolicy", "web.assetLinksMode", "web.manifestAutoVerify", "shopify.storefrontMode",
     "shopify.storefrontDomain", "shopify.storefrontApiVersion", "shopify.storefrontMediaOrigins",
     "shopify.catalogMenuHandle", "shopify.homeRootType", "shopify.homeRootHandle", "shopify.homeContentSchemaVersion",
+    "shopify.homeDefinitionContract",
     "firebase.mode", "firebase.ownershipKey", "firebase.configPath.debug", "firebase.configPath.release"
 )
 fun readCanonicalUtf8(path: String, allowedKeys: Set<String>, allowAbsent: Boolean = false): Properties {
@@ -161,6 +162,21 @@ val storefrontDomain = selectedProjection?.getProperty("shopify.storefrontDomain
 val storefrontApiVersion = selectedProjection?.getProperty("shopify.storefrontApiVersion", "")?.trim().orEmpty()
 val storefrontPublicToken = selectedLocal?.getProperty("shopify.storefrontPublicToken", "")?.trim().orEmpty()
 if (selectedProjection != null) {
+    val homeContractTuple =
+        Triple(
+            selectedProjection.getProperty("shopify.homeRootType"),
+            selectedProjection.getProperty("shopify.homeContentSchemaVersion"),
+            selectedProjection.getProperty("shopify.homeDefinitionContract")
+        )
+    check(
+        homeContractTuple in
+            setOf(
+                Triple("mobile_home", "1", "gate7-v1"),
+                Triple("mobile_home_v2", "2", "pilot-media-v2")
+            )
+    ) {
+        "HOME_CONTRACT_MISMATCH"
+    }
     check(
         selectedProjection.getProperty("onboarding.schemaVersion") == "1" &&
             selectedProjection.getProperty("onboarding.sourceRegistrySha256") == registryDigest &&
@@ -174,12 +190,36 @@ if (selectedProjection != null) {
 val storefrontSchemaFile = file("src/main/graphql/com/gurbakir/storefront/schema.graphqls")
 val runOwnedStorefrontProof =
     providers.gradleProperty("gurbakirRunOwnedStorefrontProof").orNull?.toBooleanStrictOrNull() ?: false
-val runOwnedCartProof =
-    providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull() ?: false
+val requestedOwnedCartProof =
+    providers.gradleProperty("onboardingRunOwnedStorefrontCartProof").orNull?.toBooleanStrictOrNull()
+val requestedLegacyOwnedCartProof =
+    providers.gradleProperty("gurbakirRunOwnedCartProof").orNull?.toBooleanStrictOrNull()
+check(
+    requestedOwnedCartProof == null ||
+        requestedLegacyOwnedCartProof == null ||
+        requestedOwnedCartProof == requestedLegacyOwnedCartProof
+) {
+    "Conflicting owned Storefront cart proof switches."
+}
+val runOwnedCartProof = requestedOwnedCartProof ?: requestedLegacyOwnedCartProof ?: false
 val runOwnedHomeReadback =
     providers.gradleProperty("onboardingRunOwnedHomeReadback").orNull?.toBooleanStrictOrNull() ?: false
-check(!(runOwnedStorefrontProof || runOwnedCartProof || runOwnedHomeReadback) || selectedApplication != null) {
+val runOwnedHomeV2Readback =
+    providers.gradleProperty("onboardingRunOwnedHomeV2Readback").orNull?.toBooleanStrictOrNull() ?: false
+check(
+    !(runOwnedStorefrontProof || runOwnedCartProof || runOwnedHomeReadback || runOwnedHomeV2Readback) ||
+        selectedApplication != null
+) {
     "Opted-in Storefront proofs require explicit onboardingApplication and onboardingProfile."
+}
+if (runOwnedHomeV2Readback) {
+    check(
+        selectedProjection?.getProperty("shopify.homeRootType") == "mobile_home_v2" &&
+            selectedProjection.getProperty("shopify.homeContentSchemaVersion") == "2" &&
+            selectedProjection.getProperty("shopify.homeDefinitionContract") == "pilot-media-v2"
+    ) {
+        "Owned Home v2 proof requires the exact pilot-media-v2 contract."
+    }
 }
 
 val validateOnboardingProjections by tasks.registering(Exec::class) {
@@ -243,7 +283,9 @@ android {
                 it.systemProperty("onboarding.registrySha256", registryDigest)
                 it.systemProperty("gurbakir.runOwnedStorefrontProof", runOwnedStorefrontProof.toString())
                 it.systemProperty("gurbakir.runOwnedCartProof", runOwnedCartProof.toString())
+                it.systemProperty("onboarding.runOwnedStorefrontCartProof", runOwnedCartProof.toString())
                 it.systemProperty("onboarding.runOwnedHomeReadback", runOwnedHomeReadback.toString())
+                it.systemProperty("onboarding.runOwnedHomeV2Readback", runOwnedHomeV2Readback.toString())
                 it.systemProperty("onboarding.application", selectedApplication.orEmpty())
                 it.systemProperty("onboarding.profile", selectedProfile.orEmpty())
             }
@@ -297,6 +339,7 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.serialization.json)
     testImplementation(libs.mockwebserver)
     testImplementation(libs.apollo.testing)
 

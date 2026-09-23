@@ -23,8 +23,10 @@ class OwnedOnboardingConfigurationTest {
         withOnboardingProperties(projection, local) {
             val configuration = loadOwnedOnboardingConfiguration()
             assertEquals("future.invalid", configuration.storefront.domain)
+            assertEquals("USD", configuration.marketCurrencyCode)
             assertEquals("future-menu", configuration.menuHandle)
             assertEquals("future-home", configuration.homeHandle)
+            assertEquals(HomeContentContractId.GATE7_V1, configuration.homeContractId)
         }
     }
 
@@ -72,11 +74,14 @@ class OwnedOnboardingConfigurationTest {
         onboarding.application=future
         onboarding.profile=development
         app.brandDisplayName=Future 🚀
+        app.marketCurrencyCode=USD
         shopify.storefrontDomain=future.invalid
         shopify.storefrontApiVersion=2026-07
         shopify.catalogMenuHandle=future-menu
         shopify.homeRootType=mobile_home
         shopify.homeRootHandle=future-home
+        shopify.homeContentSchemaVersion=1
+        shopify.homeDefinitionContract=gate7-v1
         """.trimIndent() + "\n"
 
     private fun withOnboardingProperties(projection: File, local: File, block: () -> Unit) {

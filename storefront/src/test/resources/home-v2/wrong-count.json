@@ -1,0 +1,18 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/222",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:22:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "2" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/322\"]",
+        "references": { "nodes": [], "pageInfo": { "hasNextPage": false } }
+      }
+    }
+  }
+}

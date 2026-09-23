@@ -25,12 +25,20 @@ class AndroidHomeContentStoreTest {
             .edit()
             .clear()
             .commit()
+        context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME_V2, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
         store = AndroidHomeContentStore(context, HomeContentCodec(), Dispatchers.IO)
     }
 
     @After
     fun tearDown() {
         context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME_V2, Context.MODE_PRIVATE)
             .edit()
             .clear()
             .commit()
@@ -94,6 +102,29 @@ class AndroidHomeContentStoreTest {
         )
     }
 
+    @Test
+    fun v2UsesAnIndependentAtomicPreferenceFileAndSurvivesStoreRecreation() = runBlocking {
+        val v2Partition = partition.copy(rootType = "mobile_home_v2")
+        val snapshot = v2Stored(v2Partition)
+        val marker = HomeEstablishmentRecord(v2Partition, 1_000L, 2, HOME_CONTENT_STORAGE_VERSION_V2)
+
+        assertEquals(HomeStoreWrite.CONFIRMED, store.replace(marker, snapshot))
+        assertEquals(
+            emptySet<String>(),
+            context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME, Context.MODE_PRIVATE).all.keys
+        )
+        assertEquals(
+            setOf(HOME_ESTABLISHMENT_KEY, HOME_SNAPSHOT_KEY),
+            context.getSharedPreferences(HOME_CONTENT_PREFERENCES_NAME_V2, Context.MODE_PRIVATE).all.keys
+        )
+
+        val recreated = AndroidHomeContentStore(context, HomeContentCodec(), Dispatchers.IO)
+        assertEquals(
+            HomeStoreRead.Established(marker, snapshot, HomeSnapshotRecovery.AVAILABLE),
+            recreated.read(v2Partition, supportedContentVersion = 2, nowMillis = 2_000L)
+        )
+    }
+
     private val partition =
         HomeContentPartition(
             applicationId = "com.gurbakir.mobile.core.test",
@@ -131,5 +162,24 @@ class AndroidHomeContentStoreTest {
                         )
                     )
             )
+    )
+
+    private fun v2Stored(v2Partition: HomeContentPartition) = HomeStoredSnapshot(
+        partition = v2Partition,
+        acceptedAtMillis = 1_000L,
+        expiresAtMillis = 86_401_000L,
+        snapshot =
+            RemoteHomeSnapshot(
+                rootGid = "gid://shopify/Metaobject/root-v2",
+                rootType = "mobile_home_v2",
+                rootHandle = "primary",
+                rootUpdatedAt = "2026-09-17T20:00:00Z",
+                contentVersion = 2,
+                sections = emptyList(),
+                declaredSectionCount = 0,
+                sectionRevisionDigest = "b".repeat(64),
+                quality = HomeDocumentQuality.COMPLETE
+            ),
+        storageVersion = HOME_CONTENT_STORAGE_VERSION_V2
     )
 }

@@ -1,0 +1,96 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/206",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:06:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "2" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/306\",\"gid://shopify/Metaobject/307\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/306",
+              "handle": "valid-photo",
+              "type": "mobile_home_image_v1",
+              "updatedAt": "2026-09-17T07:59:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "At the table" },
+              "presentation": { "key": "presentation", "type": "single_line_text_field", "value": "photo" },
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/MediaImage/506",
+                "reference": {
+                  "__typename": "MediaImage",
+                  "id": "gid://shopify/MediaImage/506",
+                  "alt": "A shared meal",
+                  "mediaContentType": "IMAGE",
+                  "image": {
+                    "id": "gid://shopify/ImageSource/506",
+                    "altText": "A shared meal",
+                    "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/shared-meal.jpg",
+                    "width": 1200,
+                    "height": 1200
+                  }
+                }
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "A shared meal" },
+              "caption": null,
+              "productTarget": null,
+              "collectionTarget": {
+                "key": "collection_target",
+                "type": "collection_reference",
+                "value": "gid://shopify/Collection/706",
+                "reference": {
+                  "__typename": "Collection",
+                  "id": "gid://shopify/Collection/706",
+                  "handle": "tableware",
+                  "title": "Tableware"
+                }
+              }
+            },
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/307",
+              "handle": "video-with-image",
+              "type": "mobile_home_video_v1",
+              "updatedAt": "2026-09-17T07:59:30Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Rejected video" },
+              "presentation": null,
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/MediaImage/507",
+                "reference": {
+                  "__typename": "MediaImage",
+                  "id": "gid://shopify/MediaImage/507",
+                  "alt": "Not a video",
+                  "mediaContentType": "IMAGE",
+                  "image": {
+                    "id": "gid://shopify/ImageSource/507",
+                    "altText": "Not a video",
+                    "url": "https://cdn.shopify.com/s/files/1/0000/0001/files/not-video.jpg",
+                    "width": 1200,
+                    "height": 800
+                  }
+                }
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "Not a video" },
+              "caption": null,
+              "productTarget": null,
+              "collectionTarget": null
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

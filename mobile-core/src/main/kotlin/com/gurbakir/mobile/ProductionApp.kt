@@ -363,7 +363,12 @@ private fun HomeDestination(
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onHomeResumed() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        if (activity?.isChangingConfigurations != true) viewModel.onHomeHidden()
+    }
     val cartViewModel: CartViewModel = hiltViewModel()
     val cartState by cartViewModel.state.collectAsStateWithLifecycle()
     val wishlist = if (applicationComposition.capabilities.isEnabled(
@@ -392,7 +397,8 @@ private fun HomeDestination(
                     },
                 openCollection = { handle -> navController.navigate(CollectionRoute(handle)) },
                 openProduct = navController::navigateProduct,
-                onSetWishlist = wishlist?.onSetSaved
+                onSetWishlist = wishlist?.onSetSaved,
+                playbackCoordinator = viewModel.playbackCoordinator
             ),
         wishlist = wishlist?.state,
         cartQuantity = cartState.badgeQuantity

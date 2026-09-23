@@ -403,11 +403,14 @@ function Assert-OnboardingProfile {
                     throw (New-OnboardingContractError -Code 'MISSING_FIELD' -Field "$field.storefront.home.$required")
                 }
             }
-            if ([string]$Profile.storefront.home.rootType -cne 'mobile_home' -or
+            $homeRootType = [string]$Profile.storefront.home.rootType
+            $homeContentSchemaVersion = Assert-OnboardingJsonInteger `
+                -Value $Profile.storefront.home.contentSchemaVersion `
+                -Field "$field.storefront.home.contentSchemaVersion"
+            $homeDefinitionContract = [string]$Profile.storefront.home.definitionContract
+            $homeTuple = "$homeRootType|$homeContentSchemaVersion|$homeDefinitionContract"
+            if ($homeTuple -cnotin @('mobile_home|1|gate7-v1', 'mobile_home_v2|2|pilot-media-v2') -or
                 [string]$Profile.storefront.home.rootHandle -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$' -or
-                (Assert-OnboardingJsonInteger -Value $Profile.storefront.home.contentSchemaVersion -Field "$field.storefront.home.contentSchemaVersion") -ne
-                    (Assert-OnboardingJsonInteger -Value $ProviderContracts.gate7HomeContentSchemaVersion -Field 'providerContracts.gate7HomeContentSchemaVersion') -or
-                [string]$Profile.storefront.home.definitionContract -cne 'gate7-v1' -or
                 [string]$Profile.storefront.home.definitionManagementMode -cne 'create-if-missing' -or
                 [string]$Profile.storefront.home.entryManagementMode -cne 'validate-only' -or
                 [string]$Profile.storefront.home.sourceMode -cne 'shopify-metaobject') {
@@ -493,6 +496,12 @@ function Assert-OnboardingNativeCompositionCompatibility {
             wishlist = 'DISABLED'
             customerAccount = 'DISABLED'
             primaryNavigation = @('SEARCH', 'HOME', 'CATEGORIES')
+        }
+        trial = [ordered]@{
+            search = 'ENABLED'
+            wishlist = 'ENABLED'
+            customerAccount = 'ENABLED'
+            primaryNavigation = @('HOME', 'CATEGORIES', 'SEARCH', 'WISHLIST', 'ACCOUNT')
         }
     }
     $applicationKey = [string]$Application.key
@@ -790,7 +799,7 @@ function Import-OnboardingReceipt {
     )
     Assert-OnboardingObjectFields -Object $receipt -Allowed $topFields -Required $topFields -Field '$'
     if ((Assert-OnboardingJsonInteger -Value $receipt.receiptSchemaVersion -Field '$.receiptSchemaVersion') -ne 1 -or
-        [string]$receipt.operationContractVersion -cne 'gate8-v1') {
+        [string]$receipt.operationContractVersion -cnotin @('gate8-v1', 'gate9-v2')) {
         throw (New-OnboardingContractError -Code 'UNSUPPORTED_RECEIPT_VERSION' -Field '$')
     }
     Assert-OnboardingEnum -Value ([string]$receipt.kind) -Allowed @('PLAN', 'RESULT', 'RECOVERY') -Field '$.kind'
@@ -863,6 +872,18 @@ function Import-OnboardingReceipt {
     Assert-OnboardingEnum -Value ([string]$receipt.overallStatus) `
         -Allowed @('PLANNED', 'SUCCEEDED', 'BLOCKED', 'FAILED', 'PARTIAL') `
         -Field '$.overallStatus'
+    $operationContractVersion = [string]$receipt.operationContractVersion
+    $allowedHomeDefinitionKeys = if ($operationContractVersion -ceq 'gate8-v1') {
+        @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')
+    } else {
+        @(
+            'mobile_home_collection_grid',
+            'mobile_home_featured_product',
+            'mobile_home_image_v1',
+            'mobile_home_video_v1',
+            'mobile_home_v2'
+        )
+    }
     $actions = @(Assert-OnboardingArray -Value $receipt.actions -Field '$.actions' -MaximumCount 16)
     $actionOrdinals = [System.Collections.Generic.HashSet[int]]::new()
     foreach ($action in $actions) {
@@ -887,9 +908,9 @@ function Import-OnboardingReceipt {
         $resourceKind = [string]$action.resourceKind
         $resourceKey = [string]$action.resourceKey
         if (($resourceKind -ceq 'SHOPIFY_HOME_DEFINITION' -and
-                $resourceKey -cnotin @('mobile_home_collection_grid', 'mobile_home_featured_product', 'mobile_home')) -or
+                $resourceKey -cnotin $allowedHomeDefinitionKeys) -or
             ($resourceKind -ceq 'SHOPIFY_HOME_ACCEPTANCE_PROBE' -and
-                $resourceKey -cne 'gate8-operator-acceptance-v1')) {
+                ($operationContractVersion -cne 'gate8-v1' -or $resourceKey -cne 'gate8-operator-acceptance-v1'))) {
             throw (New-OnboardingContractError -Code 'INVALID_RESOURCE_KEY' -Field '$.actions.resourceKey')
         }
         if ($null -ne $action.providerResourceId -and [string]$action.providerResourceId -cnotmatch '^gid://shopify/[A-Za-z][A-Za-z0-9]{0,64}/[0-9]+$') {
@@ -1051,6 +1072,7 @@ function Get-OnboardingProjectionLines {
         Add-OnboardingProjectionLine $lines 'shopify.homeRootType' ([string]$profile.storefront.home.rootType)
         Add-OnboardingProjectionLine $lines 'shopify.homeRootHandle' ([string]$profile.storefront.home.rootHandle)
         Add-OnboardingProjectionLine $lines 'shopify.homeContentSchemaVersion' ([string]$profile.storefront.home.contentSchemaVersion)
+        Add-OnboardingProjectionLine $lines 'shopify.homeDefinitionContract' ([string]$profile.storefront.home.definitionContract)
     }
     Add-OnboardingProjectionLine $lines 'firebase.mode' ([string]$profile.firebase.mode)
     if ([string]$profile.firebase.mode -cne 'disabled') {

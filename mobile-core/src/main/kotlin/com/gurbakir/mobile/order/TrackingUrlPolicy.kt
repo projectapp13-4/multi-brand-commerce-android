@@ -14,8 +14,11 @@ private const val MAX_TRACKING_URL_LENGTH = 2_048
 
 class TrackingUrlPolicy(private val allowedHosts: Set<String>) {
     init {
-        require(allowedHosts.isNotEmpty())
         require(allowedHosts.all { it == it.lowercase(Locale.ROOT) && !it.startsWith('.') })
+    }
+
+    companion object {
+        fun denyAll(): TrackingUrlPolicy = TrackingUrlPolicy(emptySet())
     }
 
     fun isAllowed(rawUrl: String): Boolean = rawUrl.length <= MAX_TRACKING_URL_LENGTH && runCatching {

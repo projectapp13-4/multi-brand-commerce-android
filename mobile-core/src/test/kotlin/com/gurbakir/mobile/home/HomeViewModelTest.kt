@@ -1,5 +1,8 @@
 package com.gurbakir.mobile.home
 
+import com.gurbakir.storefront.StorefrontMediaPolicy
+import com.gurbakir.storefront.StorefrontVideoSource
+import java.net.URI
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,7 +27,7 @@ class HomeViewModelTest {
         withMainDispatcher(StandardTestDispatcher(testScheduler)) {
             val replacement = CompletableDeferred<HomeLoadResult>()
             val repository = QueueRepository(mutableListOf(accepted("initial")), replacement)
-            val viewModel = HomeViewModel(repository, HomeLoadingClock(), FixedClock())
+            val viewModel = HomeViewModel(repository, HomeLoadingClock(), FixedClock(), playbackCoordinator())
             advanceUntilIdle()
 
             viewModel.refreshContent()
@@ -47,7 +50,7 @@ class HomeViewModelTest {
         withMainDispatcher(StandardTestDispatcher(testScheduler)) {
             val clock = FixedClock(now = 100L)
             val repository = PendingAfterInitial(accepted("fresh", expiresAt = 200L))
-            val viewModel = HomeViewModel(repository, HomeLoadingClock(), clock)
+            val viewModel = HomeViewModel(repository, HomeLoadingClock(), clock, playbackCoordinator())
             runCurrent()
             assertEquals("fresh", viewModel.state.value.presentation?.renderedSections?.single()?.stableId)
 
@@ -76,7 +79,8 @@ class HomeViewModelTest {
                 HomeViewModel(
                     QueueRepository(mutableListOf(accepted("initial", expiresAt = 200L)), refresh),
                     HomeLoadingClock(),
-                    clock
+                    clock,
+                    playbackCoordinator()
                 )
             runCurrent()
             assertEquals(1, clock.waits)
@@ -93,6 +97,27 @@ class HomeViewModelTest {
         }
     }
 
+    @Test
+    fun `accepted content removal terminates the old video attempt`() = runTest {
+        withMainDispatcher(StandardTestDispatcher(testScheduler)) {
+            val coordinator = playbackCoordinator()
+            val repository =
+                QueueRepository(
+                    mutableListOf(acceptedVideo(), accepted("replacement")),
+                    CompletableDeferred()
+                )
+            val viewModel = HomeViewModel(repository, HomeLoadingClock(), FixedClock(), coordinator)
+            advanceUntilIdle()
+            val video = viewModel.state.value.presentation?.renderedSections?.single() as HomeRenderedSection.Video
+            val attempt = coordinator.session(video).play()
+
+            viewModel.refreshContent()
+            advanceUntilIdle()
+
+            assertEquals(HomePlaybackTerminalReason.SOURCE_CHANGED, attempt.terminalReason)
+        }
+    }
+
     private fun accepted(id: String, expiresAt: Long? = null): HomeLoadResult.Accepted = HomeLoadResult.Accepted(
         HomePresentation(
             editorial = HomeEditorialState.Packaged,
@@ -105,6 +130,41 @@ class HomeViewModelTest {
         ),
         HomePersistenceStatus.NOT_APPLICABLE
     )
+
+    private fun acceptedVideo(): HomeLoadResult.Accepted = HomeLoadResult.Accepted(
+        HomePresentation(
+            editorial = HomeEditorialState.NonEmpty(emptyList()),
+            renderedSections =
+                listOf(
+                    HomeRenderedSection.Video(
+                        stableId = "video",
+                        title = HomeText.Remote("Video"),
+                        sources =
+                            listOf(
+                                StorefrontVideoSource(
+                                    URI("https://cdn.shopify.com/videos/video.mp4"),
+                                    "video/mp4",
+                                    "mp4",
+                                    1280,
+                                    720
+                                )
+                            ),
+                        poster = null,
+                        altText = "Video",
+                        caption = null,
+                        target = null,
+                        revisionKey = "revision-one"
+                    )
+                ),
+            source = HomeContentSource.REMOTE,
+            resourceStatus = HomeResourceStatus.COMPLETE,
+            editorialExpiresAtMillis = null
+        ),
+        HomePersistenceStatus.CONFIRMED
+    )
+
+    private fun playbackCoordinator(): HomePlaybackCoordinator =
+        HomePlaybackCoordinator(StorefrontMediaPolicy("example.com"), HomePlaybackClock { 0 })
 
     private suspend fun withMainDispatcher(dispatcher: TestDispatcher, block: suspend () -> Unit) {
         Dispatchers.setMain(dispatcher)

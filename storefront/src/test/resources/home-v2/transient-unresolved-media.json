@@ -1,0 +1,42 @@
+{
+  "data": {
+    "metaobject": {
+      "id": "gid://shopify/Metaobject/202",
+      "handle": "primary",
+      "type": "mobile_home_v2",
+      "updatedAt": "2026-09-17T08:02:00Z",
+      "schemaVersion": { "key": "schema_version", "type": "number_integer", "value": "2" },
+      "declaredSectionCount": { "key": "declared_section_count", "type": "number_integer", "value": "1" },
+      "sections": {
+        "key": "sections",
+        "type": "list.mixed_reference",
+        "value": "[\"gid://shopify/Metaobject/302\"]",
+        "references": {
+          "nodes": [
+            {
+              "__typename": "Metaobject",
+              "id": "gid://shopify/Metaobject/302",
+              "handle": "workshop-video",
+              "type": "mobile_home_video_v1",
+              "updatedAt": "2026-09-17T07:56:00Z",
+              "title": { "key": "title", "type": "single_line_text_field", "value": "Inside the workshop" },
+              "presentation": null,
+              "media": {
+                "key": "media",
+                "type": "file_reference",
+                "value": "gid://shopify/Video/601",
+                "reference": null
+              },
+              "poster": null,
+              "altText": { "key": "alt_text", "type": "single_line_text_field", "value": "A craftsperson shaping a copper pan" },
+              "caption": null,
+              "productTarget": null,
+              "collectionTarget": null
+            }
+          ],
+          "pageInfo": { "hasNextPage": false }
+        }
+      }
+    }
+  }
+}

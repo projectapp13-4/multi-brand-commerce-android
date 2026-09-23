@@ -39,6 +39,8 @@ enum class HomeDocumentRejection {
 sealed interface HomeDocumentValidation {
     data class Accepted(val snapshot: RemoteHomeSnapshot) : HomeDocumentValidation
 
+    data class NoneRenderable(val rejectedSectionCount: Int) : HomeDocumentValidation
+
     data class Rejected(val reason: HomeDocumentRejection) : HomeDocumentValidation
 }
 
@@ -55,6 +57,9 @@ class HomeContentValidator(private val json: Json = Json) {
         observation: HomeDocumentObservation,
         supportedContentVersion: Int
     ): HomeDocumentValidation {
+        if (selector.type == "mobile_home_v2" && supportedContentVersion == 2) {
+            return HomeV2ContentValidator(json).validate(selector, observation)
+        }
         if (
             selector.type != ROOT_TYPE ||
             observation.rootType != selector.type ||

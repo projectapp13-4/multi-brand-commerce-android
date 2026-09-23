@@ -5,6 +5,7 @@ package com.gurbakir.mobile.home
 import com.gurbakir.storefront.HomeCollectionReferencesObservation
 import com.gurbakir.storefront.HomeCollectionSummary
 import com.gurbakir.storefront.HomeCollectionsFieldObservation
+import com.gurbakir.storefront.HomeContentContractId
 import com.gurbakir.storefront.HomeDocumentObservation
 import com.gurbakir.storefront.HomeDocumentSelector
 import com.gurbakir.storefront.HomeFieldObservation
@@ -94,7 +95,38 @@ class HomeCombinedContentRepositoryTest {
             DefaultHomeContentRepository(
                 gateway,
                 HomeConfiguration(
-                    HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", "INVALID")),
+                    HomeRemoteSource.ShopifyMetaobject(
+                        HomeDocumentSelector("mobile_home", "INVALID"),
+                        HomeContentContractId.GATE7_V1
+                    ),
+                    homeTestPackagedFallback
+                ),
+                HomeContentValidator(),
+                store,
+                HomeContentAcceptanceCoordinator(store),
+                FixedClock(NOW),
+                PARTITION
+            )
+
+        val result = assertInstanceOf(HomeLoadResult.Failed::class.java, repository.load(HomeLoadTrigger.INITIAL))
+
+        assertEquals(HomeLoadFailureCategory.CONFIGURATION, result.failure.category)
+        assertEquals(0, gateway.documentCalls)
+        assertEquals(0, store.reads)
+    }
+
+    @Test
+    fun `selector and contract mismatch performs no storefront or cache request`() = runTest {
+        val gateway = FakeGateway(StorefrontResult.Success(null))
+        val store = FakeStore(HomeStoreRead.NeverEstablished)
+        val repository =
+            DefaultHomeContentRepository(
+                gateway,
+                HomeConfiguration(
+                    HomeRemoteSource.ShopifyMetaobject(
+                        HomeDocumentSelector("mobile_home", "primary"),
+                        HomeContentContractId.PILOT_MEDIA_V2
+                    ),
                     homeTestPackagedFallback
                 ),
                 HomeContentValidator(),
@@ -232,7 +264,11 @@ class HomeCombinedContentRepositoryTest {
     )
 
     private fun remoteConfiguration() = HomeConfiguration(
-        remoteSource = HomeRemoteSource.ShopifyMetaobject(HomeDocumentSelector("mobile_home", "primary")),
+        remoteSource =
+            HomeRemoteSource.ShopifyMetaobject(
+                HomeDocumentSelector("mobile_home", "primary"),
+                HomeContentContractId.GATE7_V1
+            ),
         packagedFallback = homeTestPackagedFallback
     )
 
@@ -336,6 +372,8 @@ class HomeCombinedContentRepositoryTest {
                 when (it) {
                     is RemoteHomeSection.CollectionGrid -> "grid"
                     is RemoteHomeSection.FeaturedProduct -> "featured"
+                    is RemoteHomeSection.Image -> "image"
+                    is RemoteHomeSection.Video -> "video"
                 }
             }
         }
