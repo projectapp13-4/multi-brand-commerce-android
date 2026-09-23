@@ -120,9 +120,12 @@ kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
   korundu, sonra yalnız Trial satırı kaldırıldı ve empty readback alındı. Bu logged-out
   cart/process-death izolasyonunu kapatır. 23 Eylül'deki ikinci gerçek Trial OTP
   callback'i ve force-stop/relaunch sonrasında Trial authenticated kaldı; aynı cihazdaki
-  Gürbakır staging Account ise signed-out kaldı. Bu, authenticated session'ın marka
-  partition'ını aşmadığını kanıtlar; iki uygulama authenticated iken tek-app logout
-  karşılaştırması henüz çalıştırılmadığı için A9 bütünü **PARTIAL**dır.
+  Gürbakır staging Account ise signed-out kaldı. Ardından Gürbakır da user-assisted
+  callback ile authenticated edildi, her iki app restart restore verdi ve yalnız
+  Gürbakır'dan çıkış yapıldı. Ayrı force-stop/relaunch sonrası Gürbakır `Sign in`,
+  Trial `Sign out/Profile/Orders/Addresses` durumunu korudu. Veri silinmedi; redakte
+  receipt SHA-256 `168ba834ee56954a59c1de68aee8de3062b2614491f80a49078d8d2632cc8204`;
+  A9 **PASS**tır.
 - Trial debug runtime, tek doğru Firebase app/project binding'i, kapalı Messaging
   auto-init, gerçek Remote Config fetch/activate ve yalnız açık test eylemiyle FCM
   register→unregister/consent cleanup akışında Samsung'da **2/2 PASS** verdi. JUnit
@@ -139,7 +142,10 @@ kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
   zorlanmadı. 23 Eylül'de ikinci user-assisted callback ve force-stop/relaunch da
   authenticated döndü; yeni Bogus sipariş reserved guest e-postayla oluşturulduğundan
   Customer Account Orders yine gerçek empty ve Order Detail `NOT RUN` kaldı. A5 bütünü
-  doğal expiry ve Order Detail nedeniyle **PARTIAL**dır.
+  doğal expiry ve Order Detail nedeniyle **PARTIAL**dır. Exact adayda token
+  `expires_in` parse, near/expired restore refresh, rotated-field retention, transient
+  retention, terminal clear ve cart-protection kaynak sözleşmesi ayrıca 23/23 JVM
+  testle geçti; bu deterministic kanıt canlı doğal-expiry yerine kullanılmaz.
 - Aynı `80597a5` Trial release ve aynı payload/retained-cache şartında A12 yeniden
   ölçüldü. Cold-start ms `[405,417,405,395,408]`, median `405`, max `417`;
   UI warm-cycle ms `[11038,10882,10909,10867,10895]`, median `10895`, max `11038`;
@@ -274,11 +280,11 @@ Gürbakır staging ledger SHA-256
 | A2 | **PASS** | Korunmuş gerçek Trial v1 Plan→Apply→Readback ve zero-write tekrar; yeniden üretilmedi |
 | A3 | **PASS (identity smoke only)** | Trial debug identity launch alt satırı geçti; geniş commerce parent'ı bu etiketle kapatılmaz |
 | A4 | **PASS** | Exact cart lifecycle ve fiziksel add/cart/Checkout Kit korunur; parola kapısı sonrası gerçek form/reopen, açık Test Payment Gateway confirmation, app callback ve completed-cart cleanup geçti; yalnız sentetik Trial verisi |
-| A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address/order read, iki ayrı process-restart restore, logout ve post-logout restart PASS; address/order empty, guest Bogus order Customer Account'a ait değil, Order Detail NOT RUN; natural token expiry NOT RUN |
+| A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address/order read, iki ayrı process-restart restore, logout ve post-logout restart PASS; deterministic expiry/refresh/fail-closed 23/23 PASS; address/order empty, guest Bogus order Customer Account'a ait değil, Order Detail ve canlı natural token expiry NOT RUN |
 | A6 | **PASS** | Exact v2 codegen/actual-client ve strict Gürbakır-v1/Trial-v2 cutover korunur |
 | A7 | **PASS** | HTTP/attempt/cache/revision kaynak, JVM ve gerçek data-source kanıtı korunur |
 | A8 | **PARTIAL** | Gerçek video/focus/visibility/pause/mute/completion/rotation korunur; `a2c4ded` gerçek-player first-frame + post-frame stall/deadline/cancellation ve birleşik Samsung grubu 15/15 PASS; bu 15/15 debug instrumentation satırıdır, ayrı minified release smoke A10b'dedir; fiziksel noisy/headphone route-change NOT RUN |
-| A9 | **PARTIAL** | Same-handle, ayrı ürün/price/cart ve Trial process-death/cleanup PASS; authenticated Trial release session Gürbakır staging'e taşmadı; iki-app authenticated logout karşılaştırması NOT RUN |
+| A9 | **PASS** | Same-handle ayrı ürün/price/cart/process-death korunur; iki app authenticated restore sonrası yalnız Gürbakır logout edildi ve ayrı restart'larda Gürbakır signed-out/Trial authenticated kaldı; veri silinmedi |
 | A10a | **PASS** | Trial v1 minified baseline ve kendi nonproduction imzası korunur |
 | A10b | **PASS** | Korunmuş v1→v2 kanıtına ek olarak exact `a2c4ded` minified Trial artifact'i; aynı package/nonproduction imza/version ile normal update, UID/first-install ve release medya smoke sürekliliği |
 | A10c | **PASS** | Gerçek configured Gürbakır staging exact `a2c4ded` candidate; aynı package/nonproduction imza/UID/first-install ve Search sentinel sürekliliği; merchant write yok |
@@ -288,8 +294,7 @@ Gürbakır staging ledger SHA-256
 | A14 | **NOT RUN** | Push/PR/merge yetkisi verilmedi; H/M ve hosted exact-SHA CI yok |
 
 Gate 9 hâlâ AÇIK; A5 doğal-expiry/Order Detail alt satırları, A8'in fiziksel
-noisy/headphone route-change alt satırı, A9 iki-app authenticated logout izolasyonu,
-hosted exact-SHA CI ve owner
+noisy/headphone route-change alt satırı, hosted exact-SHA CI ve owner
 merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
 
 ## Sonuç özeti
@@ -334,11 +339,11 @@ merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
   değişmeyen renderer collection'ın first-product image fallback'ini de kullandı.
   Samsung'da refresh sonrası beş section ve gerçek product/collection CTA'ları
   görüldü. Task 8 anında A4 aynı approved token ile yine `ACCESS_DENIED`, A8/A9
-  PARTIAL idi; daha yeni current-candidate matrisi A4'ü PASS, A8/A9'u PARTIAL kaydeder.
+  PARTIAL idi; daha yeni current-candidate matrisi A4 ve A9'u PASS, A8'i PARTIAL kaydeder.
 
 Gate 9 bu dalda kapanmaz. A5 doğal-expiry/Order Detail, A8 fiziksel route-change,
-A9 iki-app authenticated logout, PR-head exact-SHA CI, owner merge ve merged-main
-exact-SHA CI tamamlanmadan closure verilemez. P3-16 ayrıca başlamamıştır.
+PR-head exact-SHA CI, owner merge ve merged-main exact-SHA CI tamamlanmadan closure
+verilemez. P3-16 ayrıca başlamamıştır.
 
 ## Mimari ve uygulama ayrımı
 
@@ -518,11 +523,11 @@ anlamına gelir.
 | **A2 PASS** | Trial development, provider'da v2 öncesi v1 yok | V1 Plan→Apply→Readback; tekrar Plan empty/Apply zero-write | Ignored bounded provider helper; Shopify CLI authenticated development session | `b4cdc45f696a314252a6be4d597c336774d65b97`; initial 15 write, repeat 0; receipts ve V1 root GID |
 | **A3 PASS (identity smoke)** | Trial `developmentDebug`; Samsung API33 ve ayrı API30/API23 managed cihazlar | Trial-owned application/package/composition launch, Gürbakır olmadığı | `TrialLaunchTest`; Task 7 explicit serial, Task 8 registered managed lanes | İlk `OK (0 tests)` kabul edilmedi. Samsung, API30 ve API23'te ayrı ayrı 1 executed, 0 skipped/failure; release update ile karıştırılmaz |
 | **A4 PASS** | Aynı approved Trial Headless public client; checkout/customer-read scope readback edildi | Catalogue/availability/TRY/cart, parola kapısı sonrası gerçek checkout formu, retained-cart reopen, Test Payment Gateway confirmation, app callback ve cleanup | Actual cart proof + Samsung configured minified release | Cart 1/1 PASS; yalnız reserved `example.com` ve sentetik Trial verisiyle test confirmation; `Checkout completed`; receipt SHA-256 `02a58d518896b4ec6d0bd037d73675d184bc5ebebf9fa8b60f040ba316c7702b`; gerçek kart/ödeme/müşteri ve Gürbakır yazısı yok |
-| **A5 PARTIAL** | Trial Customer Account client; iki user-assisted yetkili OTP oturumu | Login/callback/profile/address/order-empty, iki ayrı process-restart restore, logout ve post-logout restart geçti; natural expiry ve Order Detail açık | Gerçek Samsung release akışı; PII receipt'e alınmadı | Profile read-only, address/order empty; Bogus sipariş guest olduğundan Orders yine empty; Order Detail NOT RUN, natural expiry NOT RUN; yazma/silme yok |
+| **A5 PARTIAL** | Trial Customer Account client; iki user-assisted yetkili OTP oturumu | Login/callback/profile/address/order-empty, iki ayrı process-restart restore, logout ve post-logout restart geçti; deterministic expiry/refresh/fail-closed 23/23; canlı natural expiry ve Order Detail açık | Gerçek Samsung release akışı + `CustomerAccountSessionCoordinatorTest`, token parser ve `AccountControllerTest`; PII receipt'e alınmadı | JVM 23/23, 0 failure/error/skip; profile read-only, address/order empty; Bogus sipariş guest olduğundan Orders yine empty; Order Detail ve canlı natural expiry NOT RUN; yazma/silme yok |
 | **A6 PASS** | Trial v2 projection + aynı gerçek approved public client | Exact schema/query/codegen, strict readers, Gürbakır-v1/Trial-v2 aynı compile; actual Home v2 readback | Task 8 `OwnedHomeV2ReadProofTest`, force-rerun/no-build-cache | `f92857c`; executed 1, skipped 0, failure 0; `E8/owned-a4-a6-junit/` ve exact contract hash tablosu |
 | **A7 PASS** | Source/JVM fixtures; gerçek data-source instrumentation için Infinix X6817 | Wrong-type/PARTIAL/cache/revision; same-URL Range/seek/one retry; rejected rendition/redirect/budget/deadline/rebuild | JVM `Home*` suites + `HomePlaybackDataSourceTest` physical | `5354f5fad98622e1e09f5904656004cecb961df2`; JVM media suites PASS; physical data-source 3/3 PASS, serial evidence local |
 | **A8 PARTIAL** | Trial gerçek video; Samsung API33 | Frame/time/pause/mute/completion/focus/visibility/rotation ile kontrollü gerçek-player first-frame ve post-frame stall/deadline/iptal geçti; fiziksel noisy/headphone açık | `OwnedHomeVideoPlayerTest` + `OwnedHomeVideoRotationTest` + `HomeVideoPlayerDeadlineTest` + data-source runner | `a2c4ded` birleşik grup 15/15, 0 skip/failure/error; timeout sonrası otomatik attempt yok, açık Retry yeni attempt açtı. Debug instrumentation'dır; minified release veya fiziksel route-change PASS değildir |
-| **A9 PARTIAL** | Gürbakır staging + Trial release side-by-side; Samsung API33 | Same-handle iki gerçek ürün/GID/fiyat, ayrı logged-out cart, Trial process-death/cleanup ve authenticated partition geçti | Configured release UI/provider readback | Trial TRY299, Gürbakır TRY680; Trial quantity 1 iken Gürbakır empty; Trial restart restore authenticated iken Gürbakır signed-out kaldı; iki uygulama authenticated iken tek-app logout karşılaştırması NOT RUN |
+| **A9 PASS** | Gürbakır staging + Trial release side-by-side; Samsung API33 | Same-handle iki gerçek ürün/GID/fiyat, ayrı cart/process-death; iki app authenticated restore; yalnız Gürbakır logout; iki app restart | Configured release UI/provider readback + redakte generic-control receipt | Trial TRY299/Gürbakır TRY680 ve cart partition korunur; final Gürbakır `Sign in`, Trial `Sign out/Profile/Orders/Addresses`; veri silinmedi; receipt `168ba834...cc8204` |
 | **A10a PASS** | Trial v1 release, source `b4cdc45...` | Minified v1 baseline ve nonproduction imza | `:trial:assembleDevelopmentRelease`, R8/package/signature runner | APK SHA-256 `3836e475...6f0bc`; cert `4a8a0f0f...dfc77`; package/code/name `com.projectapp134.multibrandtrial.dev / 1 / 0.1.0-trial-v1` |
 | **A10b PASS (local continuity)** | Trial v1 `b4cdc45...` → v2 ve exact `a2c4ded`; Samsung API33 | Minified v2, code 1→2, sonra aynı-code corrective update; aynı package/imza, `install -r`, veri silmeden | Sealed release ledger + explicit-serial install/package/Home/video readback | Latest APK `0e526074...aa0a5`; aynı cert/UID `10279`/firstInstallTime; release Home ve owned-video Play smoke geçti. Full customer/cart migration kanıtı değildir |
 | **A10c PASS** | Gürbakır configured staging eski candidate → exact `a2c4ded`; Samsung API33 | Aynı package/nonproduction imza ile veri silmeden update | Sealed unsigned/update-test ledger + explicit-serial install/package/sentinel readback | Signed APK `6c175ab2...23363`; aynı UID `10284`, firstInstallTime `2026-09-17 19:09:35`; `gate9-gurbakir-continuity` korundu; merchant write yok |
@@ -785,14 +790,13 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
 | 4. V2 provider/root-last | Tamam | Gerçek Trial definitions/content/media/root-last/rollback receipt |
 | 5. Mapper/validator/cache | Tamam | Sonuç matrisi, child freshness, atomic v2 store |
 | 6. HTTP/player | Kaynak/JVM ve kontrollü real-player deadline tamam; cihaz kısmi | A7 PASS; A8 PARTIAL; `a2c4ded` Samsung birleşik grup 15/15; fiziksel noisy/headphone route-change açık |
-| 7. Release/two-app/device | Release update/local continuity ve bounded ölçümler tamam; acceptance kısmi | A3/A10a–c/A12 scoped PASS; A8/A9 PARTIAL |
-| 8. Full validation/owner/handoff | Kısmi | A4 ve A13 tamam; A5/A8/A9 ile hosted exact-SHA CI açık |
+| 7. Release/two-app/device | Release update/local continuity, iki-app commerce/session izolasyonu ve bounded ölçümler tamam; player cihaz kabulü kısmi | A3/A9/A10a–c/A12 scoped PASS; A8 PARTIAL |
+| 8. Full validation/owner/handoff | Kısmi | A4/A9/A13 tamam; A5/A8 ile hosted exact-SHA CI açık |
 
 ## Gate 9'u kapatmak için kalanlar
 
-1. Veri silmeden A8'in kalan physical noisy/headphone route-change koşulunu ve A9
-   authenticated session/logout izolasyonunu tamamla. Yerel API23/API30/API33
-   credential-free lane'leri geçti; koşullu proof skip'leri
+1. Veri silmeden A8'in kalan physical noisy/headphone route-change koşulunu tamamla.
+   Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu proof skip'leri
    kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
 2. Trial'ın mevcut şifreli müşteri oturumunda cihaz saatini/token dosyasını
    değiştirmeden gerçek token süresi dolumunu bekle; normal force-stop/relaunch ile

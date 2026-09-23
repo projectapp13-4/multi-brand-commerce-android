@@ -20,8 +20,9 @@ Trial bugün ürün/koleksiyon/Menu, Home v1 geçmiş checkpoint'i, Home v2 imag
 Account bileşimi, legal/support sayfaları ve bağımsız Firebase yapılandırmasını taşır.
 Home v2 kaynak, validator, cache ve player sözleşmeleri uygulanmıştır. Samsung
 `SM_A225F` / API33 (`R68RC006LPE`) üzerinde veri silmeden minified update, ayrı
-yerel geçmiş, bounded player ve beşer cold/warm ölçüm kanıtı vardır. Tam player
-ve iki-app cart/session/logout kabulü hâlâ `PARTIAL`dır. Trial Home refresh sonrası
+yerel geçmiş, bounded player ve beşer cold/warm ölçüm kanıtı vardır. İki-app
+cart/session/logout kabulü PASS; tam player kabulü fiziksel route-change nedeniyle
+`PARTIAL`dır. Trial Home refresh sonrası
 beş section ve product/collection CTA'ları ayrıca doğrulandı. Ayrıntılı sınırlar
 ve tarihsel ilk test flake'i Gate 9 handoff'unda korunur.
 
@@ -61,6 +62,12 @@ veya Keystore state'i değiştirilmez; token/PII rapora çıkarılmaz. Release u
 non-debuggable olduğu için hosttan exact `expiresAt` okunamıyorsa bu alt satır `NOT RUN`
 kalır. Gerçek uzak deletion, merchant acknowledgement/SLA ve customer mutation
 ayrıca kapsamlandırılır.
+
+Exact adayın deterministic kaynak kanıtı ayrıdır: `CustomerAccountSessionCoordinatorTest`,
+Shopify token-response parser ve `AccountControllerTest` birlikte 23/23, sıfır
+failure/error/skip geçti. Bu testler near/expired refresh, token alanı rotasyonu,
+transient retention, terminal clear ve cart-protection sözleşmesini kanıtlar;
+gerçek provider zamanının dolduğunu kanıtlamaz.
 
 ## Shopify katalog ve Menu işletimi
 
@@ -246,7 +253,7 @@ bu recovery yürütülmedi, File silinmez. Cihazda beş section ve iki CTA gör�
 `writeCount=0`, `drift=false` gösterir. Task 8 receipt digest'i exact public child-node
 query JSON'ının SHA-256'sıdır; Android canonical `sectionRevisionDigest` veya eski
 operator digest'iyle byte-eşit varsayılmaz (`digest-provenance.json`). Provider
-rehearsal PASS, customer/cart veya tüm A8/A9 kabulü PASS demek değildir.
+rehearsal PASS, customer/cart veya A8/A9 kabulünü kendi başına PASS yapmaz.
 
 ## Player ve ağ işletim sınırları
 
@@ -418,8 +425,8 @@ Task 7/8 SHA ve APK digest'leri bu yeni adayı tanımlamaz. Yeni adayın exact s
 APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
-izolasyonunu PASS yapmaz. 23 Eylül current-candidate durumunda A4 PASS; A5/A8/A9
-PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
+izolasyonunu kendi başına PASS yapmaz. 23 Eylül current-candidate durumunda A4/A9
+PASS; A5/A8 PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
@@ -427,8 +434,13 @@ P95 veya first-frame SLO iddiası yoktur. Gerçek configured Gürbakır staging 
 aynı package/nonproduction imza/UID/first-install ile veri silmeden güncellendi ve
 sentinel korundu. Aynı handle iki mağazada farklı ürün/fiyat verdi; Trial cart quantity
 1 iken Gürbakır cart empty kaldı ve Trial process restart sonrasında quantity 1 korundu.
-Sonraki Trial authenticated restore Gürbakır signed-out partition'ına taşmadı;
-iki uygulama authenticated iken tek-app logout karşılaştırması yine `NOT RUN`dır.
+Sonraki Trial authenticated restore Gürbakır signed-out partition'ına taşmadı.
+Ardından Gürbakır da user-assisted callback ile authenticated edildi; iki app restart
+restore sonrası yalnız Gürbakır logout edildi. Ayrı force-stop/relaunch'ta Gürbakır
+`Sign in`, Trial `Sign out/Profile/Orders/Addresses` durumunu korudu. Veri silinmedi,
+PII/token/OTP kaydedilmedi; ignored receipt SHA-256
+`168ba834ee56954a59c1de68aee8de3062b2614491f80a49078d8d2632cc8204`.
+A9 `PASS`tır.
 
 Aynı gün `91ae165` androidTest checkpoint'inde gerçek Samsung/API33 Activity
 rotation'ı player'ı yeniden kurarken aynı PlaybackAttempt, ilk-kare ve kümülatif byte

@@ -54,11 +54,11 @@ history, protected bootstrap, and historical-archive cutover evidence.
   API 23/API 30 lanes keep the normal identity test running and report the two provider
   proofs as skipped/not requested, while configured opt-in still executes both proofs.
   Real Trial PKCE/profile/address/order-empty/restart/logout acceptance passes its
-  executed substeps; a second authenticated restore remains isolated from signed-out
-  Gürbakır staging. Physical Home-video rotation/rebuild plus controlled real-player
+  executed substeps. Two-app authenticated restore, single-app logout and independent
+  restart prove Gürbakır/Trial session isolation. Physical Home-video rotation/rebuild plus controlled real-player
   first-frame and post-frame deadline/cancellation pass at `a2c4ded`. Natural token
-  expiry/Order Detail, two-app authenticated logout, physical noisy/headphone route
-  change and hosted exact-SHA CI remain partial or not run. Gate 9 therefore remains open; see
+  expiry/Order Detail, physical noisy/headphone route change and hosted exact-SHA CI
+  remain partial or not run. Gate 9 therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
