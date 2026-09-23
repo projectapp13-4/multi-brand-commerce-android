@@ -400,8 +400,8 @@ Task 7/8 SHA ve APK digest'leri bu yeni adayı tanımlamaz. Yeni adayın exact s
 APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
-izolasyonunu PASS yapmaz. A4 FAIL, A5 NOT RUN/EXTERNALLY BLOCKED, A8/A9 PARTIAL,
-A14 NOT RUN ve Gate 9 AÇIK sınırları değişmedi.
+izolasyonunu PASS yapmaz. Güncel durumda A4/A5/A8/A9 PARTIAL, A14 NOT RUN ve Gate 9
+AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
@@ -417,7 +417,19 @@ durumunu korudu; dönüş paused kaldı ve açık Play gerektirdi. Gerçek video
 visibility/pause/mute/completion + rotation grubu 7/7 geçti. Shell ile noisy broadcast
 göndermek Android 13 system-only route-change olayı değildir; bu deneme PASS
 sayılmadı. Fiziksel kulaklık çıkarma ve kasıtlı gerçek stall/deadline satırları
-çalıştırılmadığından A8 hâlâ PARTIAL'dır.
+bu checkpoint'te çalıştırılmamıştı. Sonraki `a2c4ded` controlled-data-source/
+real-player koşusu first-frame ve post-frame stall/deadline/iptal satırlarını kapattı;
+Samsung/API33 birleşik grup 15/15 geçti. Bu debug instrumentation'dır, minified
+release yolculuğu değildir. Fiziksel kulaklık çıkarma/route-change hâlâ `NOT RUN`
+olduğundan A8 PARTIAL'dır. Ayrıca `a2c4ded` production player düzeltmesi içerdiği
+için korunmuş `80597a5` APK kendi exact release kanıtı olarak kalır; yeni kaynağın
+artifact'i diye yeniden adlandırılmaz. Normal `build/outputs` APK'sı ledger seçimi
+yerine kullanılamaz. Exact `a2c4ded` için ayrı sealed Trial minified artifact'i
+üretildi; aynı nonproduction imza/package/version ile `install -r`, Home/video smoke
+ve beş cold/beş warm A12 ölçümü geçti. Aynı kaynak için gerçek configured Gürbakır
+staging unsigned + nonproduction update-test artifact'leri de ayrı ledger'a alındı;
+UID/first-install/Search sentinel korundu ve merchant/provider yazısı yapılmadı.
+Bu local artifact'lerin hiçbiri production signing veya Play-ready kanıtı değildir.
 
 ## Sorun ayırma rehberi
 

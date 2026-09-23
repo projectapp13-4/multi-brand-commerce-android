@@ -65,7 +65,7 @@ architecture.
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 | 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
-| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: A4 FAIL/setup required; bounded Samsung evidence and A13 provider rehearsal exist; A5/A8/A9/CI remain incomplete |
+| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [candidate handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Open: A4/A5/A8/A9 remain PARTIAL; real-player deadline, latest-source Trial/Gürbakır update and A13 provider rehearsal evidence exist; physical route-change, authenticated cross-app isolation and hosted exact-SHA CI remain incomplete |
 
 ## Gate 6 closure evidence
 
