@@ -58,7 +58,8 @@ history, protected bootstrap, and historical-archive cutover evidence.
   restart prove Gürbakır/Trial session isolation. Physical Home-video rotation/rebuild plus controlled real-player
   first-frame and post-frame deadline/cancellation pass at `a2c4ded`; owner-attested
   wired and Bluetooth route-change pause/no-auto-resume closes A8 without being
-  misrepresented as agent-captured evidence. Natural token expiry/Order Detail and
+  misrepresented as agent-captured evidence. Authenticated account-linked Bogus order,
+  Orders/Order Detail and data-preserving reopen pass; exact natural token expiry and
   hosted exact-SHA CI remain partial or not run. Gate 9 therefore remains open; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.

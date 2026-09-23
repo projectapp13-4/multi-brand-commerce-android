@@ -134,15 +134,24 @@ kanıtı olarak kullanılmaz. Ham/redakte kanıt kökü
 - User-assisted OTP ile gerçek Trial Customer Account PKCE callback'i uygulamaya
   döndü. Account, Profile ve Addresses gerçek client üzerinden okundu; profil
   alanları değiştirilmedi, adres listesi empty olduğundan yazma/silme yapılmadı.
-  Orders gerçek empty döndü; güvenli order olmadığı için Order Detail `NOT RUN`.
-  Force-stop/relaunch sonrasında oturum ve Account işlemleri geri geldi; Sign out
-  ardından ikinci relaunch signed-out `Sign in` durumunu korudu. E-posta/OTP/token
-  receipt'e alınmadı; kişisel değer içeren ara UI dump'ları kanıt özetinden sonra
-  yerel ve cihaz geçici yollarından kaldırıldı. Doğal token-expiry beklenmedi veya
-  zorlanmadı. 23 Eylül'de ikinci user-assisted callback ve force-stop/relaunch da
-  authenticated döndü; yeni Bogus sipariş reserved guest e-postayla oluşturulduğundan
-  Customer Account Orders yine gerçek empty ve Order Detail `NOT RUN` kaldı. A5 bütünü
-  doğal expiry ve Order Detail nedeniyle **PARTIAL**dır. Exact adayda token
+  İlk Orders readback'i gerçek empty idi. Force-stop/relaunch sonrasında oturum ve
+  Account işlemleri geri geldi; Sign out ardından ikinci relaunch signed-out `Sign in`
+  durumunu korudu. E-posta/OTP/token receipt'e alınmadı; kişisel değer içeren ara UI
+  dump'ları kanıt özetinden sonra yerel ve cihaz geçici yollarından kaldırıldı.
+  23 Eylül'de ikinci callback/relaunch authenticated döndü. İlk Bogus sipariş guest
+  checkout olduğu için Orders'a bağlanmadı; bu tarihsel sonuç Order Detail sayılmadı.
+  Daha sonra mevcut authenticated Trial oturumunda cart'ın hesaba bağlı olduğu ve
+  Checkout Kit'in kayıtlı müşteri kimliğini kullandığı görüldü; yalnız Test Payment
+  Gateway ve sentetik teslimat verisiyle sipariş onaylandı. İlk gönderim eksik şehir
+  doğrulamasına takıldı ve PASS sayılmadı; alan tamamlandıktan sonraki gönderim başarılı
+  oldu. Customer Account Orders non-empty döndü ve Order Detail'de beklenen Trial ürünü,
+  TRY tutarı, durum ve teslimat bölümü görüldü. Veri silmeden force-stop/relaunch sonrası
+  authenticated oturum, Orders ve aynı Order Detail tekrar okundu. PII/order ID/token
+  receipt'e alınmadı; redakte receipt SHA-256
+  `9ff23c5c15fac48ef089274dec1c13299e3f1c5a10addc7f329aee67e47175fb`.
+  Order Detail alt satırı **PASS**tır. Gerçek `expires_in`/`expiresAt` release dışından
+  güvenle okunamadığından uzun süre sonra başarılı restore doğal-expiry kanıtı olarak
+  yükseltilmez; A5 bütünü yalnız bu alt satır nedeniyle **PARTIAL** kalır. Exact adayda token
   `expires_in` parse, near/expired restore refresh, rotated-field retention, transient
   retention, terminal clear ve cart-protection kaynak sözleşmesi ayrıca 23/23 JVM
   testle geçti; bu deterministic kanıt canlı doğal-expiry yerine kullanılmaz.
@@ -280,7 +289,7 @@ Gürbakır staging ledger SHA-256
 | A2 | **PASS** | Korunmuş gerçek Trial v1 Plan→Apply→Readback ve zero-write tekrar; yeniden üretilmedi |
 | A3 | **PASS (identity smoke only)** | Trial debug identity launch alt satırı geçti; geniş commerce parent'ı bu etiketle kapatılmaz |
 | A4 | **PASS** | Exact cart lifecycle ve fiziksel add/cart/Checkout Kit korunur; parola kapısı sonrası gerçek form/reopen, açık Test Payment Gateway confirmation, app callback ve completed-cart cleanup geçti; yalnız sentetik Trial verisi |
-| A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address/order read, iki ayrı process-restart restore, logout ve post-logout restart PASS; deterministic expiry/refresh/fail-closed 23/23 PASS; address/order empty, guest Bogus order Customer Account'a ait değil, Order Detail ve canlı natural token expiry NOT RUN |
+| A5 | **PARTIAL** | Gerçek PKCE + user-assisted OTP, profile/address read, iki ayrı process-restart restore, logout/post-logout restart ve account-linked Bogus order → Orders → Order Detail → veri silmeden reopen PASS; deterministic expiry/refresh/fail-closed 23/23 PASS; yalnız exact canlı natural token expiry `UNCONFIRMED` |
 | A6 | **PASS** | Exact v2 codegen/actual-client ve strict Gürbakır-v1/Trial-v2 cutover korunur |
 | A7 | **PASS** | HTTP/attempt/cache/revision kaynak, JVM ve gerçek data-source kanıtı korunur |
 | A8 | **PASS (owner-attested physical route-change)** | Gerçek video/focus/visibility/pause/mute/completion/rotation korunur; `a2c4ded` gerçek-player first-frame + post-frame stall/deadline/cancellation ve birleşik Samsung grubu 15/15 PASS; minified release smoke A10b'de; owner gerçek playback sırasında hem kablolu kulaklık çıkarma hem Bluetooth kesme sonrası pause/no-auto-resume davranışını manuel PASS bildirdi |
@@ -291,9 +300,9 @@ Gürbakır staging ledger SHA-256
 | A11 | **PARTIAL** | `a2c4ded` focused static/JVM/build PASS; credential-free exact-source API23/API30/API33 normal lane'lerinin her birinde identity PASS + iki canlı proof SKIP ve izole `Suite All` 240/240 PASS; önceki configured API33 opt-in 2/2 PASS/negative controls korunur; hosted exact-SHA CI yok |
 | A12 | **PASS (bounded current measurement)** | Exact `a2c4ded` Trial minified artifact'inde beş cold/beş warm raw/median/max ve matching player lifetime; P95/first-frame SLO yok |
 | A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipts korunur; silme veya yeniden prova yok |
-| A14 | **NOT RUN** | Push/PR/merge yetkisi verilmedi; H/M ve hosted exact-SHA CI yok |
+| A14 | **NOT RUN** | Push/PR owner tarafından yetkilendirildi ancak henüz yürütülmedi; H ve hosted exact-SHA CI yok. Merge yalnız owner'ın nokta-onayıyla yapılabilir; M yok |
 
-Gate 9 hâlâ AÇIK; A5 doğal-expiry/Order Detail alt satırları, hosted exact-SHA CI ve owner
+Gate 9 hâlâ AÇIK; A5 doğal-expiry alt satırı, hosted exact-SHA CI ve owner
 merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
 
 ## Sonuç özeti
@@ -342,7 +351,7 @@ merge/merged-main kanıtı tamamlanmadı. P3-16 ayrı ve başlamamıştır.
   son fiziksel route-change alt satırı owner'ın doğrudan manuel beyanıdır; agent
   tarafından yeniden çalıştırılmış veya artifact ile yakalanmış gibi sunulmaz.
 
-Gate 9 bu dalda kapanmaz. A5 doğal-expiry/Order Detail, PR-head exact-SHA CI,
+Gate 9 bu dalda kapanmaz. A5 exact doğal-expiry, PR-head exact-SHA CI,
 owner merge ve merged-main exact-SHA CI tamamlanmadan closure
 verilemez. P3-16 ayrıca başlamamıştır.
 
@@ -524,7 +533,7 @@ anlamına gelir.
 | **A2 PASS** | Trial development, provider'da v2 öncesi v1 yok | V1 Plan→Apply→Readback; tekrar Plan empty/Apply zero-write | Ignored bounded provider helper; Shopify CLI authenticated development session | `b4cdc45f696a314252a6be4d597c336774d65b97`; initial 15 write, repeat 0; receipts ve V1 root GID |
 | **A3 PASS (identity smoke)** | Trial `developmentDebug`; Samsung API33 ve ayrı API30/API23 managed cihazlar | Trial-owned application/package/composition launch, Gürbakır olmadığı | `TrialLaunchTest`; Task 7 explicit serial, Task 8 registered managed lanes | İlk `OK (0 tests)` kabul edilmedi. Samsung, API30 ve API23'te ayrı ayrı 1 executed, 0 skipped/failure; release update ile karıştırılmaz |
 | **A4 PASS** | Aynı approved Trial Headless public client; checkout/customer-read scope readback edildi | Catalogue/availability/TRY/cart, parola kapısı sonrası gerçek checkout formu, retained-cart reopen, Test Payment Gateway confirmation, app callback ve cleanup | Actual cart proof + Samsung configured minified release | Cart 1/1 PASS; yalnız reserved `example.com` ve sentetik Trial verisiyle test confirmation; `Checkout completed`; receipt SHA-256 `02a58d518896b4ec6d0bd037d73675d184bc5ebebf9fa8b60f040ba316c7702b`; gerçek kart/ödeme/müşteri ve Gürbakır yazısı yok |
-| **A5 PARTIAL** | Trial Customer Account client; iki user-assisted yetkili OTP oturumu | Login/callback/profile/address/order-empty, iki ayrı process-restart restore, logout ve post-logout restart geçti; deterministic expiry/refresh/fail-closed 23/23; canlı natural expiry ve Order Detail açık | Gerçek Samsung release akışı + `CustomerAccountSessionCoordinatorTest`, token parser ve `AccountControllerTest`; PII receipt'e alınmadı | JVM 23/23, 0 failure/error/skip; profile read-only, address/order empty; Bogus sipariş guest olduğundan Orders yine empty; Order Detail ve canlı natural expiry NOT RUN; yazma/silme yok |
+| **A5 PARTIAL** | Trial Customer Account client; user-assisted yetkili OTP oturumları; Samsung API33 | Login/callback/profile/address, restore/logout; authenticated cart ile yalnız Bogus test order; Orders/Order Detail; veri silmeden relaunch; deterministic expiry/refresh/fail-closed 23/23; canlı natural expiry açık | Gerçek Trial release/Checkout Kit/Customer Account akışı + `CustomerAccountSessionCoordinatorTest`, token parser ve `AccountControllerTest`; PII receipt'e alınmadı | JVM 23/23, 0 failure/error/skip; account-linked order confirmation, non-empty Orders ve ürün/TRY/status/address içeren Order Detail ilk okumada ve relaunch sonrasında PASS; receipt `9ff23c5c...e47175fb`; gerçek ödeme yok. Exact natural expiry `UNCONFIRMED` |
 | **A6 PASS** | Trial v2 projection + aynı gerçek approved public client | Exact schema/query/codegen, strict readers, Gürbakır-v1/Trial-v2 aynı compile; actual Home v2 readback | Task 8 `OwnedHomeV2ReadProofTest`, force-rerun/no-build-cache | `f92857c`; executed 1, skipped 0, failure 0; `E8/owned-a4-a6-junit/` ve exact contract hash tablosu |
 | **A7 PASS** | Source/JVM fixtures; gerçek data-source instrumentation için Infinix X6817 | Wrong-type/PARTIAL/cache/revision; same-URL Range/seek/one retry; rejected rendition/redirect/budget/deadline/rebuild | JVM `Home*` suites + `HomePlaybackDataSourceTest` physical | `5354f5fad98622e1e09f5904656004cecb961df2`; JVM media suites PASS; physical data-source 3/3 PASS, serial evidence local |
 | **A8 PASS (owner-attested physical route-change)** | Trial gerçek video; Samsung API33 | Frame/time/pause/mute/completion/focus/visibility/rotation; kontrollü first/post-frame stall/deadline/iptal; gerçek playback'te kablolu ve Bluetooth route loss pause/no-auto-resume | `OwnedHomeVideoPlayerTest` + `OwnedHomeVideoRotationTest` + `HomeVideoPlayerDeadlineTest` + data-source runner; son route-change owner tarafından manuel | `a2c4ded` birleşik debug grubu 15/15, 0 skip/failure/error; A10b ayrı minified release smoke; 23 Eylül owner beyanı iki fiziksel route için PASS, ayrı agent artifact'i yok |
@@ -535,7 +544,7 @@ anlamına gelir.
 | **A11 PARTIAL (local lanes PASS)** | Tüm module/app'ler; local Windows runner | Static/JVM/assemble/package/manifest/DEX/permission/secret/projection; API23/30 ve exact-SHA CI | Registry-driven Gradle lanes + PowerShell validators | Önceki geniş `fcbbe84` lane korunur; `a2c4ded` focused static/JVM/build PASS, provider-free API23/API30/API33 normal matrixinde her lane 1 executed identity + 2 explicit live-proof SKIP, izole Suite All 240/240; hosted exact-SHA CI NOT RUN |
 | **A12 PASS (bounded current measurement)** | Samsung API33; sealed `a2c4ded` Trial release; retained cache | 5 process-cold + 5 UI warm playback; raw/median/max; P95 yok | `am start -W`, UI cycle ve matching ExoPlayer Init/Release | Cold median384/max463ms; UI cycle median10895/max10969ms; player median8674/max8738ms; thermal 0; first-frame/performance-SLO değildir |
 | **A13 PASS (bounded rehearsal)** | Trial gerçek Admin CLI + approved public client + owner guide | Child revision; root-last publish/change/remove/exact rollback; zero-write Plan; simulation | E8 altı rehearsal yazısı, ardından ayrı bir catalog association; final readback/Plan | Parent updatedAt sabit/child digest değişti; rollback exact ordered refs/digest; resource deletion yok. Shared/brand-only flow açık SIMULATION_ONLY, sıfır Git/provider yazısı |
-| **A14 NOT RUN** | Branch local; PR/merge yetkisi yok | PR head H exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | PR/push/merge yapılmadı; H/M yok |
+| **A14 NOT RUN** | Branch local; push/PR owner tarafından yetkilendirildi, merge nokta-onayı bekler | PR head H exact-SHA CI; merge M için H ancestry/tree + M exact-SHA CI | GitHub protected workflow | PR/push henüz yapılmadı; H/M yok. Merge otomatik değildir |
 
 ### Tarihsel A4 başarısızlığının sınıflandırması
 
@@ -563,10 +572,11 @@ kanıtı değildir.
 Bu tarihsel düzeltme daha sonra current-candidate tazelemesinde tamamlandı:
 checkout/customer-read scope readback edildi, aynı approved client ile cart proof
 1/1 geçti ve Samsung add/cart/Checkout Kit/retained-cart/cleanup çalıştı. 23 Eylül
-2026'da owner'ın yalnız Bogus Gateway için verdiği açık test yetkisiyle parola kapısı
+ 2026'da owner'ın yalnız Bogus Gateway için verdiği açık test yetkisiyle parola kapısı
 sonrası gerçek form, retained-cart reopen, `Test Payment Gateway` confirmation,
 uygulamaya dönüş ve completed-cart cleanup da geçti. Böylece A4 `PASS`tır; bu sonuç
-gerçek ödeme veya customer-account Order Detail kanıtı değildir.
+gerçek ödeme değildir. Bu guest checkout'un tek başına vermediği Customer Account
+Order Detail kanıtı, daha sonraki ayrı authenticated account-linked testte sağlandı.
 
 ### Debug, release ve cihaz kanıtı ayrımı
 
@@ -792,22 +802,23 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
 | 5. Mapper/validator/cache | Tamam | Sonuç matrisi, child freshness, atomic v2 store |
 | 6. HTTP/player | Tamam | A7 PASS; `a2c4ded` Samsung debug grubu 15/15, ayrı minified release smoke ve owner-attested kablolu/Bluetooth route-change ile A8 PASS |
 | 7. Release/two-app/device | Tamam | A3/A8/A9/A10a–c/A12 scoped PASS |
-| 8. Full validation/owner/handoff | Kısmi | A4/A8/A9/A13 tamam; A5 ile hosted exact-SHA CI açık |
+| 8. Full validation/owner/handoff | Kısmi | A4/A8/A9/A13 ve A5 Order Detail tamam; A5 exact natural expiry ile hosted exact-SHA CI açık |
 
 ## Gate 9'u kapatmak için kalanlar
 
 1. Trial'ın mevcut şifreli müşteri oturumunda cihaz saatini/token dosyasını
    değiştirmeden gerçek token süresi dolumunu bekle; normal force-stop/relaunch ile
-   refresh veya fail-closed sonucu gözle. Guest Bogus sipariş Customer Account
-   Order Detail değildir; güvenli account-linked test order yoksa bu alt satırı
-   `NOT RUN` koru.
+   refresh veya fail-closed sonucu gözle. Account-linked Bogus order ile Orders ve
+   Order Detail ilk okuma + veri silmeden relaunch artık PASS'tır; exact expiry
+   kanıtlanana kadar yalnız natural-expiry alt satırını `UNCONFIRMED` koru.
 2. Yerel API23/API30/API33 credential-free lane'leri geçti; koşullu provider-proof
    skip'leri kendi prerequisites ve ayrı acceptance kapsamları olmadan PASS yapılmaz.
 3. Task 8 A13 gerçek rollback ve katalog image önkoşulu tamamdır; yeni resource
    deletion veya mevcut receipt'i aşan provider yazısı gerekli sayılmaz.
 4. Zorunlu satırlarda failure/skip/NOT RUN kalmazsa final review ve exact candidate
    source/artifact kanıtını tazele.
-5. Owner seçerse PR açılır; PR head `H` exact-SHA CI geçer. Merge ayrı owner eylemidir.
+5. Owner push/PR'ı yetkilendirdi; PR head `H` exact-SHA CI geçer. Merge için işlem
+   anında ayrı owner onayı alınır.
 6. Merge `M`, `H` ile eşit olmak zorunda değildir; `H` ancestry/tree karşılaştırması
    ve `M` exact-SHA validate/API30/API23 post-merge CI gerekir.
 

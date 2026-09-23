@@ -52,7 +52,14 @@ kişisel değer taşıyan geçici UI dump'ları doğrulama özetinden sonra kald
 23 Eylül'deki ikinci user-assisted callback ve force-stop/relaunch da authenticated
 döndü. Aynı cihazdaki Gürbakır staging Account signed-out kaldı; Trial oturumu marka
 partition'ını aşmadı. Bogus sipariş reserved guest e-postayla oluşturulduğundan
-Customer Account Orders yine gerçek empty'dir ve Order Detail `NOT RUN` kalır.
+Customer Account Orders yine gerçek empty kalmış ve bu sipariş Order Detail kanıtı
+sayılmamıştır. Daha sonraki ayrı testte authenticated cart'ın hesaba bağlı olduğu ve
+Checkout Kit'in kayıtlı müşteri kimliğini kullandığı doğrulandı. Yalnız Test Payment
+Gateway ve sentetik teslimat verisiyle onaylanan sipariş Orders'ta göründü; ürün, TRY
+tutarı, durum ve teslimat bölümü içeren Order Detail ilk okumada ve veri silmeden
+force-stop/relaunch sonrasında tekrar PASS verdi. E-posta, OTP, adres, order ID ve token
+receipt'e alınmadı; gerçek ödeme kullanılmadı. Redakte receipt SHA-256
+`9ff23c5c15fac48ef089274dec1c13299e3f1c5a10addc7f329aee67e47175fb`.
 
 Bu doğal token expiry kanıtı değildir. Güvenli doğrulama mevcut şifreli Trial oturumunu
 korur, sadece gözlenen UTC zamanı ve token'dan türetilen `expiresAt` değerini kaydeder,
@@ -137,7 +144,8 @@ Checkout kapatılınca uygulama `Checkout completed` gösterip completed-cart li
 yerelden temizledi. Gerçek kart/ödeme/müşteri verisi ve Gürbakır yazısı yoktur.
 Ignored receipt SHA-256
 `02a58d518896b4ec6d0bd037d73675d184bc5ebebf9fa8b60f040ba316c7702b`;
-A4 `PASS`tır. Guest sipariş Customer Account Order Detail kanıtı değildir.
+A4 `PASS`tır. Bu guest sipariş tek başına Customer Account Order Detail kanıtı değildir;
+ayrı authenticated account-linked prova Orders/Order Detail'i sonradan PASS etmiştir.
 
 ## Home v1 ve Home v2 içerik modeli
 
@@ -427,7 +435,8 @@ APK SHA-256, nonproduction certificate ve normal-update kanıtı handoff'un
 final-review kaydına ve ignored `out/evidence/gate9/final-fix/` ledger'ına bağlıdır.
 20-test focused Android regression GREEN, A8'in tamamını veya A9 commerce/session
 izolasyonunu kendi başına PASS yapmaz. 23 Eylül current-candidate durumunda A4/A8/A9
-PASS; A5 PARTIAL, A14 NOT RUN ve Gate 9 AÇIK kalır.
+ve A5 Order Detail PASS; A5 exact natural-expiry nedeniyle PARTIAL, A14 NOT RUN ve
+Gate 9 AÇIK kalır.
 
 22 Eylül 2026 current-candidate tazelemesinde Trial `80597a5` release için beş cold
 start ve beş full warm playback cycle yeniden ölçüldü; raw/median/max handoff'tadır,
