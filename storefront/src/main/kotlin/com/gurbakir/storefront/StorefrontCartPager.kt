@@ -128,15 +128,22 @@ private data class CartPageProgress(val cart: CartReference, val endCursor: Curs
 
 private fun CartReference.merge(page: CartLinePage): StorefrontResult<CartPageProgress> {
     val combined = lines + page.lines
-    return if (combined.map(CartLineSummary::id).distinct().size != combined.size) {
-        graphQlFailure("DUPLICATE_CART_LINE_PAGE")
-    } else {
-        StorefrontResult.Success(
-            CartPageProgress(
-                cart = copy(lines = combined, hasMoreLines = page.hasNextPage),
-                endCursor = page.endCursor
+    val cartCurrency = total?.currencyCode
+    return when {
+        cartCurrency == null -> graphQlFailure("INVALID_CART_MONEY")
+
+        page.lines.any { !it.hasCartCurrency(cartCurrency) } -> graphQlFailure("CART_CURRENCY_MISMATCH")
+
+        combined.map(CartLineSummary::id).distinct().size != combined.size ->
+            graphQlFailure("DUPLICATE_CART_LINE_PAGE")
+
+        else ->
+            StorefrontResult.Success(
+                CartPageProgress(
+                    cart = copy(lines = combined, hasMoreLines = page.hasNextPage),
+                    endCursor = page.endCursor
+                )
             )
-        )
     }
 }
 

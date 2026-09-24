@@ -21,6 +21,8 @@ internal fun CartSnapshotFields.toMappedCart(
 
         mappedLines.size != lines.nodes.size -> graphQlFailure("UNSUPPORTED_CART_LINE")
 
+        mappedLines.any { !it.hasCartCurrency(total.currencyCode) } -> graphQlFailure("CART_CURRENCY_MISMATCH")
+
         lines.pageInfo.hasNextPage && lines.pageInfo.endCursor == null ->
             graphQlFailure("MISSING_CART_LINE_CURSOR")
 
@@ -44,6 +46,9 @@ internal fun CartSnapshotFields.toMappedCart(
             )
     }
 }
+
+internal fun CartLineSummary.hasCartCurrency(currencyCode: String): Boolean =
+    unitPrice?.currencyCode == currencyCode && totalPrice?.currencyCode == currencyCode
 
 internal fun CartLineFields.toDomainLine(mediaPolicy: StorefrontMediaPolicy): CartLineSummary? {
     val variant = merchandise.onProductVariant
