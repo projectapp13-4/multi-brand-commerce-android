@@ -1,6 +1,7 @@
 # Gate 9 İkinci Mağaza ve Sınırlı Medya Pilot Handoff'u
 
-Durum: **IMPLEMENTATION MERGED; GATE 9 KABULÜ AÇIK**
+Durum: **IMPLEMENTATION MERGED; GATE 9 KABULÜ KAPALI (tanımlı nonproduction pilot kapsamı)**
+Güncel kapanış uzlaştırması: 2026-09-24 (aşağıda); önceki AÇIK/PARTIAL kayıtları tarihsel checkpoint'lerdir.
 Tarihsel provider/kabul kanıtı: 2026-09-17; final-review düzeltmesi: 2026-09-22; son kaynak kabul deltası: 2026-09-23 (Europe/Istanbul)
 Exact taban: `5c402241e22a45001bdc57da6d08a83d2ce407cc`  
 İlk handoff kaynağı: `033b69f38cd9df34f5a4b7a4d639afcbd4dce0c3`
@@ -21,6 +22,47 @@ Gürbakır merchant içeriğine yazma veya yıkıcı provider işlemi yapılmad�
 Dokümantasyon commit'i kendi SHA'sını içeremez. Final review/PR adayı bu dosyanın
 bulunduğu commit'i ve aşağıdaki implementation SHA'larını ancestor olarak
 göstermelidir.
+
+## Formal Gate 9 closure reconciliation — 2026-09-24
+
+**Karar:** Gate 9 A1–A14, tanımlı Gürbakır staging + development-only Trial ikinci gerçek mağaza/Home-v2 medya pilotu kapsamında **PASS; Gate 9 KAPALI**. Bu kararın runtime/source tabanı `8214217988b9ad911ce7a68d37da2003eb1db652`, tree `693079d3aaa76f1826246fc211997fd31c6d313e`'dir. Aşağıdaki 2026-09-22/23 aday ve merge bölümleri kendi tarihlerindeki A5 PARTIAL/Gate 9 AÇIK durumunu korur; bu bölüm onların **güncel statüsünü** supersede eder. RUN B3 ve odaklı lifecycle kanıtları daha sonra, exact main üzerinde elde edilmiştir.
+
+### Güncel A1–A14 kabul matrisi
+
+| ID | Güncel Gate 9 sonucu | Exact-main etkisi ve kanıt sınırı |
+|---|---|---|
+| A1 | **PASS** | İzole pilot/provenance; sonraki kaynak değişiklikleri uygulama kimliklerini değiştirmedi. |
+| A2 | **PASS** | Trial v1 Plan→Apply→Readback ve zero-write tekrar korunmuş provider receipt'idir; yeniden provider yazısı yapılmadı. |
+| A3 | **PASS (identity smoke)** | Trial debug kimlik/launch alt satırı; geniş commerce iddiası A4/A9 ile sınırlıdır. |
+| A4 | **PASS** | Önceki gerçek Trial cart/Checkout Kit/Test Payment Gateway callback ve completed-cart cleanup kanıtı korunur. Araya giren cart failure/invalid-money düzeltmeleri current-source kontrollü testlerle doğrulandı; RUN B3 yeni sipariş/ödeme yapmadı. |
+| A5 | **PASS** | Önceki PKCE/OTP, private Profile/Address, Orders/Order Detail, restore/logout ve 23/23 deterministic expiry testlerine **ayrı** exact-main doğal expiry/refresh/private-read/restart kanıtı, iki yeni hosted Sign in ve bir explicit Sign out tanığı eklendi. Yalnız test edilen Trial development istemcisi. |
+| A6 | **PASS** | Gürbakır v1/Trial v2 schema, codegen ve strict cutover; araya giren değişiklikler bu sözleşmeyi değiştirmedi. |
+| A7 | **PASS** | HTTP/attempt/cache/revision ve gerçek data-source kanıtı korunur; ilgili Home davranışı değişmedi. |
+| A8 | **PASS (owner-attested route change)** | Gerçek player ve kontrollü first-frame/stall/deadline/cancellation ile owner'ın fiziksel audio-route tanığı korunur; yeni capture yapılmadı. |
+| A9 | **PASS (Gate 9 kabul kapsamı)** | Önceki yan yana iki-app cart/session/logout kanıtı; current package/config/secure-store bölmeleri korunur. Sonraki account/cart failure handling testleri ve RUN B3 staging/Trial runtime readback bunu destekler. Exact-current iki-cart/iki-session negatif rerun **NOT RUN**; DYN-017 PARTIAL kalır. |
+| A10a–c | **PASS** | Trial v1/v2 ve Gürbakır staging minified/update continuity korunur; RUN B3 exact-source Trial release same-cert update ve private read ekledi. |
+| A11 | **PASS (canonical kapsam)** | Önceki API 23/30/33/focused test kapsamı ve exact `8214217` merged-main `validate`, `instrumentation`, `minimum-sdk-instrumentation` CI başarılı; koşullu live proof skip'leri PASS sayılmaz. |
+| A12 | **PASS (bounded measurement)** | Tarihsel exact-media beş cold/beş warm raw/median/max; P95/first-frame SLO iddiası yok. |
+| A13 | **PASS (bounded rehearsal)** | Root-last/change/remove/rollback/zero-write receipt'leri korunur; yeni provider mutation yapılmadı. |
+| A14 | **PASS** | Implementation PR #14 exact-head ve merged-main üç zorunlu CI job'ı geçmişti. Sonraki `8214217` merged-main CI de geçti; bu dokümantasyon kapanışı için ayrı PR/CI gereklidir. |
+
+### A5 doğal expiry ve Customer Account lifecycle
+
+RUN B3'te Trial debug şifreli oturumunun kayıtlı access-token expiry'si `2026-09-24T17:38:34.893Z` idi. Cihaz/sistem saati, token, expiry veya provider state değiştirilmeden `17:39:06` UTC kontrolünde aynı **geçmiş** expiry ve refresh-field varlığı gözlendi. Normal Account/private path sonrası saklanan expiry `2026-09-24T18:39:30.461Z` oldu; Profile yüklendi, gösterilen test kimliği sürekliliği korundu ve force-stop/relaunch sonrası kimlik doğrulanmış durum kaldı. Bu canlı elapsed tanık, deterministic expiry testlerinden ayrıdır ve A5'in tek eski açık alt satırını kapatır.
+
+Odaklı exact-main yaşam döngüsünde başlangıç signed-out restart encrypted payload olmadan signed-out kaldı. İlk ve ikinci Sign in, source'un her `prepare()` çağrısında oluşturduğu ayrı yeni state/nonce/S256 PKCE authorization transaction üzerinden Shopify hosted ekranına gitti; kullanıcı her iki akışta email + OTP istendiğini doğruladı, değerler kaydedilmedi. Protected session ve sonraki expiry yalnız hosted callback/code-exchange yolu sonrasında görüldü; authenticated restart/Profile private read geçti. Normal Account → Sign out yerel encrypted session'ı temizledi; ikinci signed-out restart'ta Profile/Orders/Addresses durumu dönmedi. Sonraki Sign in eski app oturumunu geri yüklemedi. Önceki RUN B3 promptless hosted completion için sebep **doğrudan gözlenmedi**; provider-side hosted-session reuse ile tutarlıdır, browser cookie/session gözlemi değildir. Ayrı `Remember me` seçeneği Gate 9 için gerekli görülmedi: encrypted app-session persistence, token renewal ve hosted browser/provider oturumu farklı katmanlardır.
+
+Trial'ın gerçek kaydı shop-configured Headless/Public Mobile Customer Account client'tır; iki yeni token yanıtında `refresh_token` **alan varlığı=true** olarak gözlendi. Bu istemci için uygulamanın refresh-token grant'i ve canlı natural renewal Shopify sözleşmesiyle uyumludur. Gürbakır staging current binding kayıtlı ayrı Headless Public Mobile registration ile eşleşir; bu odaklı koşuda taze staging token exchange yapılmadı. Shopify app `customer_authentication` app-client'ları refresh token almaz ve `prompt=none` ile yeniden authorization code flow gerektirir; bu test edilen Trial istemci kategorisi değildir. [Shopify Customer Account API](https://shopify.dev/docs/api/customer/latest) (erişim: 2026-09-24).
+
+Geçerli code-flow uygulaması ID token'ın beklenen algoritmasını, issuer, audience/authorized-party, zaman ve ilk yanıt nonce claim'lerini denetler. **Bağımsız JWKS/JWS imza doğrulaması yapmaz.** ID token doğrudan TLS-korumalı Token Endpoint'ten geldiği bu akışta issuer için authenticated TLS'ye dayanır; [OpenID Connect Core §3.1.3.7](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation) buna izin verir. Mobil logout discovered `end_session_endpoint`'e `id_token_hint` ile gider. Uygulama sonucu `remoteLogoutConfirmed=true` idi; exact source yalnız HTTP 200'ü başarı sayar. Bu **application-result inference**'tır, ham HTTP packet/status capture değildir. Remote geçici hata halinde yerel temizleme yapılır ve `REMOTE_LOGOUT_UNVERIFIED` korunur.
+
+### Kanıt bütünlüğü ve açık dış sınırlar
+
+Kamuya eklenmeyen sanitized yerel kanıtların SHA-256'sı: `RUNB3-8214217-report.md` `d3405036368086df675d076322e3bfc0d1b7844915a371268b6b1470db12d4f0`; `B35-natural-expiry-and-B36-local-clear.txt` `f6a1969c587a7414a93561c9f62f95e63760ecd2963e23683d365b2364c48395`; `CUSTOMER-ACCOUNT-LIFECYCLE-VERIFICATION.md` `de693e33481262391970070b75432bbf188d2b4148a22f2e30cad652fa06bfea`.
+
+RUN B3 DYN-012 **PARTIAL**: kontrollü conflict/ownership testleri ve live private read, live profile/address mutation veya ikinci müşterinin order'ına negatif erişim tanığı değildir. DYN-016 **PARTIAL**: seçilen Search-history clear + Trial debug sign-out yerel işlemlerdi; Cart/Wishlist seçilmedi ve korundu; remote deletion request yapılmadı, merchant acknowledgement/SLA/retention/actual remote deletion **UNVERIFIED**. RUNB3-NEW-002 Checkout Kit `visitorConsent` aktarım boşluğu ayrı bulgu olarak kalır; hosted tracking sonucu gözlenmedi. DYN-017 **PARTIAL**: exact-current package/config/Firebase/Search/update izolasyonu ve tarihsel Gate 9 A9 iki-app kanıtı vardır; current-source iki-cart/iki-session negatif rerun yapılmadı. RUNB3-NEW-001 ignored Gürbakır **development** provider-binding drift'i staging + Trial kabul tuple'ı dışındadır ve çözülmüş sayılmaz.
+
+Trial yalnız development/nonproduction pilotudur. Gate 9 kapanışı production identity/signing/Play, production Shopify/Firebase/callback/App Links, Data Safety, remote deletion, support/rollback veya gerçek release kabulü değildir. **P3-16 NOT STARTED.** RUN B4 ve DYN-020 başlamadı.
 
 ## Korumalı merge ve exact-main uzlaştırması — 2026-09-23
 
@@ -308,7 +350,7 @@ Trial release ledger SHA-256
 Gürbakır staging ledger SHA-256
 `2f2ba7357f10facf8c58af971199e39f3dda25dd8d78a12f9d8d7a4a52640d37`.
 
-### Current-candidate A1–A14 matrisi
+### 2026-09-23 current-candidate A1–A14 checkpoint matrisi (tarihsel)
 
 | ID | Güncel durum | Current-candidate kanıt ve kalan sınır |
 |---|---|---|
@@ -835,7 +877,7 @@ signing değildir. Trial/Gürbakır artifact'ları Play'e yüklenmedi.
 | 7. Release/two-app/device | Tamam | A3/A8/A9/A10a–c/A12 scoped PASS |
 | 8. Full validation/owner/handoff | Kısmi | A4/A8/A9/A13, A5 Order Detail, final H CI, owner merge/ancestry/tree ve merged-main CI tamam; yalnız A5 exact natural expiry açık |
 
-## Gate 9'u kapatmak için kalanlar
+## 2026-09-23 checkpoint'inde Gate 9'u kapatmak için kalanlar (tarihsel; A5 sonraki RUN B3 ile tamamlandı)
 
 1. Trial'ın mevcut şifreli müşteri oturumunda cihaz saatini/token dosyasını
    değiştirmeden gerçek token süresi dolumunu bekle; normal force-stop/relaunch ile

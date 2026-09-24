@@ -4,6 +4,11 @@ Durum tarihi: 2026-09-17
 Kapsam: Gürbakır gerçek mağaza uygulaması ile development-only Multi Brand Trial pilotu  
 Yetki sınırı: Bu rehber merge, Play yükleme/yayını, production signing, gerçek ödeme/sipariş/müşteri değişikliği veya Gürbakır merchant içeriğine yazma yetkisi vermez.
 
+Güncel Gate 9 kabulü 2026-09-24'te tanımlı nonproduction pilot kapsamında
+kapandı; aşağıdaki 23 Eylül A5 PARTIAL/AÇIK satırları o günün tarihsel
+checkpoint'idir. [Gate 9 handoff](../multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md)
+güncel A1–A14 kararını ve P3-16/remote-deletion sınırlarını kaydeder.
+
 ## Bugün hangi uygulama ne yapıyor?
 
 | Uygulama | Rol | Shopify Home | Android kimliği | Production durumu |

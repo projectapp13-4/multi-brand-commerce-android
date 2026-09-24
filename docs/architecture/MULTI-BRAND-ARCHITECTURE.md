@@ -1,10 +1,10 @@
 # Multi-Brand Architecture
 
-Status: **Canonical architecture; Gates 1–8 closed; Gate 9 implementation merged with cumulative acceptance open**
+Status: **Canonical architecture; Gates 1–9 closed within their recorded scopes**
 
 This document defines the repository's accepted multi-brand architecture. Current source remains authoritative for what is implemented today.
 
-Gate 0 established the design in documentation. Gates 1–7 established the reusable-core, synthetic-conformance, application-owned composition/provider, bounded Menu and Home-v1 contracts. Gate 8 added bounded enrollment/operator automation. Gate 9 added an independent development-only `:trial` application bound to a separate Trial Shopify store/Firebase identity, plus the finite Home-v2 image/video contract and two-application acceptance path. Gürbakır remains the first production-intended validation brand; Trial is a real development pilot, not a production application. Gate 9 cumulative acceptance remains open because exact natural Customer Account token expiry is still `UNCONFIRMED`.
+Gate 0 established the design in documentation. Gates 1–7 established the reusable-core, synthetic-conformance, application-owned composition/provider, bounded Menu and Home-v1 contracts. Gate 8 added bounded enrollment/operator automation. Gate 9 added an independent development-only `:trial` application bound to a separate Trial Shopify store/Firebase identity, plus the finite Home-v2 image/video contract and two-application acceptance path. Gürbakır remains the first production-intended validation brand; Trial is a real development pilot, not a production application. Gate 9's defined pilot acceptance closed on the later exact-main natural-expiry and Customer Account lifecycle evidence recorded in its handoff; P3-16 remains separate.
 
 ## Context and development line
 
@@ -167,6 +167,6 @@ Gate 7 implemented bounded Shopify-driven Home editorial content using an applic
 
 Gate 8 implemented bounded provisioning/onboarding contracts and operator validation; its historical pre-merge evidence remains in the [Gate 8 handoff](../multi-brand/GATE-8-COMPLETION-HANDOFF.md). Gate 8 is technically closed.
 
-Gate 9 implemented the independent development-only `:trial` application/store pilot, strict Home-v1/Home-v2 dispatch, bounded image/video rendering and lifecycle policy, isolated persistence/provider identities, two-app/update acceptance and owner operations flow. Protected PR #14 approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911` and exact merged-main run `35877081839` passed validate, API 30 and API 23. The exact evidence and remaining A5 boundary are in the [Gate 9 handoff](../multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md). Gate 9 remains open because exact natural token expiry is `UNCONFIRMED`.
+Gate 9 implemented the independent development-only `:trial` application/store pilot, strict Home-v1/Home-v2 dispatch, bounded image/video rendering and lifecycle policy, isolated persistence/provider identities, two-app/update acceptance and owner operations flow. Protected PR #14 approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911` and exact merged-main run `35877081839` passed validate, API 30 and API 23. The [Gate 9 handoff](../multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) preserves that checkpoint and the 2026-09-24 formal closure: RUN B3 natural expiry on exact main and the focused Customer Account lifecycle closed A5 for the defined nonproduction pilot.
 
 Runtime market/language switching, Storefront `@inContext`, generalized page building, production signing/publication and P3-16 remain unstarted or separately governed unless later evidence and approval establish otherwise.
