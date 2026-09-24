@@ -23,17 +23,18 @@ neutral lessons that remain useful are preserved in
 
 ## Current status
 
-- Multi-Brand Gates 0–6 are complete and Gates 3–6 are technically closed.
-  Gate 6 replaced compiled merchant Categories with bounded,
-  application-selected Shopify Menu discovery while keeping selector ownership
-  in each application and shared projection/provider contracts brand-neutral.
+- Multi-Brand Gates 0–9 are complete or technically closed within their
+  recorded scopes. Gate 7 added bounded remote Home editorial content; Gate 8
+  closed the onboarding/operator contracts; Gate 9 accepted the development-only
+  second real store and bounded Home-v2 media pilot. See the
+  [current Gate index](docs/multi-brand/README.md) for evidence limits.
 - `:mobile-core` owns reusable Android application/features/navigation/local
   data; `:app` owns Gürbakır composition, identity, resources, configuration,
   and provider selection; non-production `:synthetic` proves independent
   composition and remains fail-closed and Firebase-free.
-- The Multi-Brand migration is unfinished. No second real merchant application
-  exists, and future gates must continue from the current architecture and
-  Gate 1–6 evidence.
+- `:trial` is the second real application/store pilot and remains development
+  only. `:synthetic` remains a nonproduction conformance application. Production
+  onboarding, signing and publication remain separately governed.
 - Phase 3 functional implementation and integrated acceptance are complete
   through **P3-15**. The account-deletion request/local-cleanup boundary is
   implemented, but merchant acknowledgement, retention/SLA execution, and
@@ -44,10 +45,10 @@ neutral lessons that remain useful are preserved in
   declarations, support/rollback ownership, or release readiness.
 
 Start with the [documentation authority map](docs/README.md),
-[Multi-Brand architecture](docs/architecture/MULTI-BRAND-ARCHITECTURE.md), and
-[Gate 6 completion handoff](docs/multi-brand/GATE-6-COMPLETION-HANDOFF.md). The
-handoff remains an accurate pre-merge record; current indexes carry the later
-technical-closure status.
+[Multi-Brand architecture](docs/architecture/MULTI-BRAND-ARCHITECTURE.md),
+[current Gate index](docs/multi-brand/README.md), and
+[Gate 9 pilot handoff](docs/multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
+The handoff preserves older checkpoints alongside its dated closure decision.
 
 The [public repository migration handoff](docs/PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md)
 records the sanitized baseline, publication-rights boundary, protected
@@ -58,6 +59,8 @@ bootstrap, and authority cutover evidence.
 - `app`: Gürbakır application/composition shell, Android entry points, build
   variants, packaged identity/resources, concrete brand policies, provider
   bindings, and app-owned dependency injection.
+- `trial` (physical path `apps/trial`): development-only second real store
+  application with separate identity, provider bindings and protected storage.
 - `synthetic` (physical path `apps/synthetic`): non-production conformance app
   with separate identity/resources/storage, fail-closed service configuration,
   Firebase-free composition, and reduced capabilities/navigation.

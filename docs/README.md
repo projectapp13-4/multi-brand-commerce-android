@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-23
+Status date: 2026-09-24
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -17,7 +17,8 @@ history, protected bootstrap, and historical-archive cutover evidence.
   ViewModel/`StateFlow` unidirectional data flow, Hilt, Apollo Kotlin, Room,
   DataStore, Android Keystore-backed protected state, Shopify Storefront and
   Customer Account APIs, Checkout Kit, and bounded Firebase infrastructure.
-- Multi-Brand Gates 0–7 are complete. Gate 7 is technically closed: protected
+- Multi-Brand Gates 0–9 are complete/closed within their recorded scopes.
+  Gate 7's historical technical closure: protected
   PR #6 merged the final candidate `e0a62e9047f2cc6d3241bdb3b4c963fdbdae27e0`
   as merge commit `3b22707f27f71973383cf176503f8d967ece9b05`,
   and exact merged-main push run `34816195929` completed `validate`, API 30
@@ -63,7 +64,11 @@ history, protected bootstrap, and historical-archive cutover evidence.
   `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as
   `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911`
   and exact merged-main run `35877081839` passed `validate`, API 30 and API 23.
-  Exact natural token expiry remains `UNCONFIRMED`, so Gate 9 remains open; see
+  RUN B3 on exact main `8214217` then observed naturally elapsed Trial token
+  expiry, private-path refresh/read and restart. A focused lifecycle run verified
+  two fresh hosted OTP sign-ins, encrypted-session persistence, explicit logout
+  and signed-out restart. Gate 9 acceptance is **closed for its defined
+  nonproduction staging + Trial pilot scope**; see
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
@@ -103,7 +108,7 @@ scope. They do not override current source or later accepted decisions.
 | [`architecture`](architecture) | Accepted Multi-Brand target, brand boundaries, onboarding, and migration-sensitive identities |
 | [`decisions`](decisions) | Accepted platform, navigation, SDK, and Multi-Brand ADRs |
 | [`multi-brand/README.md`](multi-brand/README.md) | Current Gate index and unfinished continuation point |
-| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Merged Gate 9 implementation, A1–A14 evidence and open A5 natural-expiry blocker |
+| [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) | Closed Gate 9 pilot acceptance on exact evidence source `8214217`, current A1–A14 matrix, and preserved historical checkpoints |
 | [`operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md`](operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Turkish Shopify/Firebase/content/release owner operations and rollback guide |
 | [`PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md`](PUBLIC-REPOSITORY-MIGRATION-HANDOFF.md) | Fresh-history public bootstrap, rights, protection, CI, and authority-cutover evidence |
 | [`phase3/README.md`](phase3/README.md) | Current functional status index |
@@ -138,10 +143,10 @@ archive and is not required for normal development.
 ## Historical Multi-Brand evidence
 
 The [`multi-brand`](multi-brand) directory retains accepted research and plans
-plus Gate 1–8 historical completion handoffs and the open Gate 9 candidate
-handoff. Handoffs preserve the
-evidence and lifecycle wording of their checkpoint; current closure status is
-recorded only in the current indexes.
+plus Gate 1–8 historical completion handoffs and the Gate 9 pilot handoff.
+Handoffs preserve the evidence and lifecycle wording of their checkpoints;
+current status is recorded in the indexes and the Gate 9 handoff's dated
+closure reconciliation.
 
 ## Historical phase relationship
 

@@ -1,13 +1,13 @@
 # Multi-Brand Documentation
 
-Status: **Gates 0–8 technically closed; Gate 9 implementation merged, cumulative acceptance open**
+Status: **Gates 0–9 complete/technically closed within their recorded scopes; Gate 9 development pilot acceptance closed**
 
 ## Purpose
 
 This directory preserves accepted architecture reasoning, approved execution
-plans, Gate 1–8 implementation/evidence records, and the merged Gate 9 implementation
-for evolving the Gürbakır
-application into a multi-brand Android monorepo. It is a navigation and status
+plans, Gate 1–8 implementation/evidence records, and the closed Gate 9 pilot
+for evolving the Gürbakır application into a multi-brand Android monorepo.
+It is a navigation and status
 index, not a duplicate architecture specification.
 
 ## Authority model
@@ -19,7 +19,7 @@ durable rationale -> ../decisions/*
 investigation/history -> research/*
 approved gate execution -> plans/* or recorded owner-approved scope
 historical gate outcome -> GATE-1 through GATE-8 completion handoffs
-current Gate 9 implementation/open acceptance -> GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md
+current Gate 9 pilot closure and historical implementation -> GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md
 current lifecycle status -> this index and ../README.md
 product/release boundary -> ../phase3/*
 ```
@@ -65,7 +65,7 @@ architecture.
 | 6 | [Plan](plans/GATE-6-SHOPIFY-NAVIGATION-DISCOVERY-IMPLEMENTATION-PLAN.md), [handoff](GATE-6-COMPLETION-HANDOFF.md) | Technically closed |
 | 7 | [Plan](plans/GATE-7-BOUNDED-HOME-CONTENT-IMPLEMENTATION-PLAN.md), [handoff](GATE-7-COMPLETION-HANDOFF.md) | Technically closed |
 | 8 | [Plan](plans/GATE-8-PROVISIONING-AND-ONBOARDING-IMPLEMENTATION-PLAN.md), [handoff](GATE-8-COMPLETION-HANDOFF.md) | Technically closed |
-| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | Implementation merged; cumulative acceptance open. A4 Bogus checkout, A8 player (physical route-change owner-attested), A9 two-app commerce/session/logout and A5 authenticated Orders/Order Detail/reopen PASS; A5 remains PARTIAL only for exact natural expiry. PR-head run `35851940911` and merged-main run `35877081839` passed all three required jobs. This is not Gate 9 closure, P3-16 or production readiness |
+| 9 | [Approved plan](plans/GATE-9-SECOND-STORE-MEDIA-PILOT-IMPLEMENTATION-PLAN.md), [handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md), [owner guide](../operations/MULTI-BRAND-OWNER-OPERATIONS-TR.md) | **Closed for the defined Gürbakır staging + development-only Trial pilot.** RUN B3 on `8214217` observed natural Trial token expiry/renewal; focused lifecycle verified fresh hosted sign-ins, protected persistence, logout, and signed-out restart. Historical A1–A14 scopes and separate DYN-012/016/017 limits remain recorded in the handoff. Trial is nonproduction; P3-16 is NOT STARTED. |
 
 ## Gate 6 closure evidence
 
@@ -193,14 +193,14 @@ planned from current source and architecture. They must preserve:
 - bounded merchant-content authority with native executable behavior retained by Android; and
 - honest separation between reusable contracts and concrete brand behavior.
 
-The second merchant/store implementation now exists as a development-only Gate 9
-implementation on `main`, but Gate 9 cumulative conformance is not closed. Protected
-PR #14 approved HEAD `bbf8ab82c644ce29782ab7037e4a9ca6ea2cfa9a` merged normally as
-`c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`; exact PR-head run `35851940911`
-and exact merged-main run `35877081839` passed `validate`, API 30 and API 23.
-A5 exact natural token expiry remains `UNCONFIRMED`. Bounded Samsung
-commerce/player/two-app/update/performance evidence and Trial root-last rollback
-rehearsal are recorded, not substitutes for that remaining acceptance. Production
-onboarding/configuration/signing/publication and P3-16 remain separately governed.
+The second real merchant/store application `:trial` is a development-only pilot;
+Gate 9 acceptance is closed for its defined staging + Trial scope. Protected
+implementation PR #14 merged as `c77afedaa3c89735c4f1ea06d1fdeaf2820e7f94`
+after exact-head CI; RUN B3 exact-main natural expiry and the focused Customer
+Account lifecycle closed the prior A5 gap on `8214217`. The
+[Gate 9 handoff](GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md) retains historical
+checkpoints and the dated formal closure reconciliation. Production
+onboarding, signing, publication and P3-16 remain separately governed; remote
+account deletion remains unverified.
 
 The repository-wide authority map remains [docs/README.md](../README.md).
