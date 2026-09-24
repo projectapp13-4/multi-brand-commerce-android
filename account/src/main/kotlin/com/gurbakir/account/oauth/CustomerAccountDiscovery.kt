@@ -2,6 +2,7 @@ package com.gurbakir.account.oauth
 
 import java.io.IOException
 import java.net.URI
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -169,33 +170,32 @@ private sealed interface DiscoveryDocumentFetch {
 
 private suspend fun Call.awaitDiscoveryDocument(): DiscoveryDocumentFetch =
     suspendCancellableCoroutine { continuation ->
-        continuation.invokeOnCancellation { cancel() }
+        val completed = AtomicBoolean(false)
+        fun complete(result: DiscoveryDocumentFetch) {
+            if (completed.compareAndSet(false, true)) {
+                continuation.resumeWith(Result.success(result))
+            }
+        }
+        continuation.invokeOnCancellation {
+            completed.set(true)
+            cancel()
+        }
         enqueue(
             object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    if (continuation.isActive) {
-                        continuation.resumeWith(
-                            Result.success(
-                                DiscoveryDocumentFetch.Failure(CustomerAccountDiscoveryFailure.NETWORK)
-                            )
-                        )
-                    }
+                    complete(DiscoveryDocumentFetch.Failure(CustomerAccountDiscoveryFailure.NETWORK))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    response.use {
-                        val body = response.body
-                        val result =
+                    val result = try {
+                        response.use {
+                            val body = response.body
                             when {
                                 !response.isSuccessful ->
-                                    DiscoveryDocumentFetch.Failure(
-                                        CustomerAccountDiscoveryFailure.HTTP_REJECTED
-                                    )
+                                    DiscoveryDocumentFetch.Failure(CustomerAccountDiscoveryFailure.HTTP_REJECTED)
 
                                 body.contentLength() > MAXIMUM_DISCOVERY_DOCUMENT_BYTES ->
-                                    DiscoveryDocumentFetch.Failure(
-                                        CustomerAccountDiscoveryFailure.DOCUMENT_TOO_LARGE
-                                    )
+                                    DiscoveryDocumentFetch.Failure(CustomerAccountDiscoveryFailure.DOCUMENT_TOO_LARGE)
 
                                 else -> {
                                     val source = body.source()
@@ -209,8 +209,11 @@ private suspend fun Call.awaitDiscoveryDocument(): DiscoveryDocumentFetch =
                                     }
                                 }
                             }
-                        if (continuation.isActive) continuation.resumeWith(Result.success(result))
+                        }
+                    } catch (_: IOException) {
+                        DiscoveryDocumentFetch.Failure(CustomerAccountDiscoveryFailure.NETWORK)
                     }
+                    complete(result)
                 }
             }
         )

@@ -255,6 +255,7 @@
     <string name="account_failure_callback">Giri&#351; tamamlanamad&#305;. Oturum olu&#351;turulmad&#305;.</string>
     <string name="account_failure_connection">Hesab&#305;n&#305;z g&#252;ncellenemedi. Ba&#287;lant&#305;n&#305;z&#305; kontrol edip yeniden deneyin.</string>
     <string name="account_failure_session">Oturumunuz do&#287;rulanamad&#305;. Yeniden giri&#351; yap&#305;n.</string>
+    <string name="account_failure_secure_storage">G&#252;venli oturum depolama alan&#305;na eri&#351;ilemiyor. L&#252;tfen yeniden deneyin.</string>
     <string name="account_failure_service">Hesap bilgileri &#351;u anda kullan&#305;lam&#305;yor. Yeniden deneyin.</string>
     <string name="account_manage_addresses">Adresler</string>
     <string name="address_list_title">Adresler</string>

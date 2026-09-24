@@ -551,6 +551,8 @@ private fun AccountNotice.messageResourceId(): Int = when (this) {
 }
 
 private fun AccountFailure.messageResourceId(): Int = when (this) {
+    AccountFailure.SECURE_STORAGE -> R.string.account_failure_secure_storage
+
     AccountFailure.DISCOVERY -> R.string.account_failure_discovery
 
     AccountFailure.CALLBACK -> R.string.account_failure_callback

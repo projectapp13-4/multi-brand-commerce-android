@@ -186,7 +186,7 @@ private fun AccountResult.toUiState(previousSummary: AccountSummary?): AccountUi
         )
 
     is AccountResult.Failed -> {
-        if (sessionRetained && previousSummary != null) {
+        if (reason != AccountFailure.SECURE_STORAGE && sessionRetained && previousSummary != null) {
             AccountUiState(
                 phase = AccountPhase.AUTHENTICATED,
                 summary = previousSummary,

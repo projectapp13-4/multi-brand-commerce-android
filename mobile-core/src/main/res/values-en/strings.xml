@@ -255,6 +255,7 @@
     <string name="account_failure_callback">We couldn\'t complete sign-in. No session was created.</string>
     <string name="account_failure_connection">We couldn\'t update your account. Check your connection and try again.</string>
     <string name="account_failure_session">Your session could not be verified. Sign in again.</string>
+    <string name="account_failure_secure_storage">Secure session storage is unavailable. Please try again.</string>
     <string name="account_failure_service">Account information is unavailable right now. Try again.</string>
     <string name="account_manage_addresses">Addresses</string>
     <string name="address_list_title">Addresses</string>

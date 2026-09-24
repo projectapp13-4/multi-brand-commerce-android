@@ -16,6 +16,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -76,6 +77,16 @@ class CustomerAccountSessionCoordinator(
     private val idTokenValidator = (capability as? CustomerAccountCapability.Enabled)
         ?.let { CustomerIdTokenValidator(it.configuration, clock) }
 
+    // Storage implementations fail through platform, crypto, and commit exceptions.
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun <T> withSessionStore(operation: suspend CustomerSessionStore.() -> T): T = try {
+        sessionStore.operation()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (failure: Exception) {
+        throw CustomerSessionStorageException(failure)
+    }
+
     init {
         require(refreshLeadTime >= Duration.ZERO) { "Refresh lead time must not be negative." }
     }
@@ -84,19 +95,19 @@ class CustomerAccountSessionCoordinator(
         if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerSessionResolution.SignedOut
         when (val result = tokenClient.exchange(grant)) {
             is CustomerTokenResult.Failure -> {
-                sessionStore.clear()
+                withSessionStore { clear() }
                 CustomerSessionResolution.Failed(result.reason, false)
             }
 
             is CustomerTokenResult.Success -> {
                 when (val validation = result.payload.toInitialSession(grant.expectedNonce)) {
                     is InitialSessionValidation.Failure -> {
-                        sessionStore.clear()
+                        withSessionStore { clear() }
                         CustomerSessionResolution.Failed(validation.reason, false)
                     }
 
                     is InitialSessionValidation.Success -> {
-                        sessionStore.write(validation.session)
+                        withSessionStore { write(validation.session) }
                         CustomerSessionResolution.Authenticated(validation.session)
                     }
                 }
@@ -106,7 +117,7 @@ class CustomerAccountSessionCoordinator(
 
     suspend fun restore(): CustomerSessionResolution = lock.withLock {
         if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerSessionResolution.SignedOut
-        val stored = sessionStore.read() ?: return@withLock CustomerSessionResolution.SignedOut
+        val stored = withSessionStore { read() } ?: return@withLock CustomerSessionResolution.SignedOut
         if (stored.expiresAt.isAfter(clock.instant().plus(refreshLeadTime))) {
             return@withLock CustomerSessionResolution.Authenticated(stored)
         }
@@ -115,20 +126,20 @@ class CustomerAccountSessionCoordinator(
 
     suspend fun refresh(): CustomerSessionResolution = lock.withLock {
         if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerSessionResolution.SignedOut
-        val stored = sessionStore.read() ?: return@withLock CustomerSessionResolution.SignedOut
+        val stored = withSessionStore { read() } ?: return@withLock CustomerSessionResolution.SignedOut
         refreshLocked(stored)
     }
 
     suspend fun clearForLogout() = lock.withLock {
-        if (capability != CustomerAccountCapability.Disabled) sessionStore.clear()
+        if (capability != CustomerAccountCapability.Disabled) withSessionStore { clear() }
     }
 
     suspend fun logout(): CustomerLogoutResolution = lock.withLock {
         if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerLogoutResolution.SignedOut
-        val stored = sessionStore.read() ?: return@withLock CustomerLogoutResolution.SignedOut
+        val stored = withSessionStore { read() } ?: return@withLock CustomerLogoutResolution.SignedOut
         val result = stored.idToken?.let { logoutClient.logout(it) }
             ?: CustomerLogoutResult.Failure(CustomerTokenFailure.InvalidResponse)
-        sessionStore.clear()
+        withSessionStore { clear() }
         when (result) {
             CustomerLogoutResult.Success -> CustomerLogoutResolution.Completed
             is CustomerLogoutResult.Failure -> CustomerLogoutResolution.RemoteFailed(result.reason)
@@ -138,24 +149,24 @@ class CustomerAccountSessionCoordinator(
     private suspend fun refreshLocked(stored: CustomerSession): CustomerSessionResolution {
         val refreshToken = stored.refreshToken
         return if (refreshToken == null) {
-            sessionStore.clear()
+            withSessionStore { clear() }
             CustomerSessionResolution.Failed(CustomerTokenFailure.Rejected, false)
         } else {
             when (val result = tokenClient.refresh(refreshToken)) {
                 is CustomerTokenResult.Success -> {
                     val refreshed = result.payload.toRefreshedSession(stored)
                     if (refreshed == null) {
-                        sessionStore.clear()
+                        withSessionStore { clear() }
                         CustomerSessionResolution.Failed(CustomerTokenFailure.InvalidResponse, false)
                     } else {
-                        sessionStore.write(refreshed)
+                        withSessionStore { write(refreshed) }
                         CustomerSessionResolution.Authenticated(refreshed)
                     }
                 }
 
                 is CustomerTokenResult.Failure -> {
                     val retain = result.reason == CustomerTokenFailure.Transient
-                    if (!retain) sessionStore.clear()
+                    if (!retain) withSessionStore { clear() }
                     CustomerSessionResolution.Failed(result.reason, retain)
                 }
             }
