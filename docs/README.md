@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-24
+Status date: 2026-09-26
 
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
@@ -72,17 +72,21 @@ history, protected bootstrap, and historical-archive cutover evidence.
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
-  through **P3-15**. Account-deletion merchant acknowledgement,
-  retention/SLA execution, and actual remote deletion remain externally
-  unverified.
+  through **P3-15**. A later no-order synthetic deletion case verified the public
+  request path, merchant intake and accepted merchant-to-Shopify erasure handoff.
+  The owner reports sending an acknowledgement; its delivery is not independently
+  witnessed. Shopify's case-specific processing is pending, not a project wait
+  gate. Production operator, restricted-record, processor/retention and notice
+  governance remain P3-16 release inputs.
 - **P3-16 production/release readiness is not started.** Repository migration,
   builds, tests, public CI and Multi-Brand Gate closure do not constitute
   production-release proof.
 - A scoped pre-P3-16 [account deletion route/process continuation](phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
   adds a dedicated merchant page and typed application route. Public form
-  rendering and one synthetic form submission are verified; the owner supplied
-  matching merchant inbox receipt evidence, while acknowledgement and remote
-  completion remain open.
+  rendering, two test-only submissions and merchant receipt are witnessed. The
+  no-order synthetic customer's erasure handoff was accepted by Shopify. Its
+  final redaction is unobserved; the scheduled provider date does not block
+  engineering preparation. Production merchant-process governance remains open.
 
 ## Authority order
 

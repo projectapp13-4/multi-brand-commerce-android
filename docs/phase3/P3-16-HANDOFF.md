@@ -2,6 +2,8 @@
 
 Date: 2026-08-13 (Europe/Istanbul)
 
+> **Current evidence reconciliation (2026-09-26):** This dated entry audit and its table below preserve what was known on 2026-08-13. The later [account-deletion continuation](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md) verifies the dedicated Android/public request route, merchant intake and an accepted Shopify personal-data-erasure handoff on a no-order synthetic customer. Its final redaction remains unobserved under Shopify's asynchronous lifecycle, but the scheduled processing date is **not** a P3-16 start or engineering wait gate. The remaining deletion-related release inputs are permanent operator/case ownership, processor and retention review, response and notice rules, support escalation and truthful Data Safety/privacy disclosures. Production identity, signing, Play, service bindings and App Links remain separate missing inputs. P3-16 remains **NOT STARTED**; the historical `EXTERNALLY_BLOCKED` row below does not mean the Shopify handoff is still unverified.
+
 Status: **ENTRY BLOCKED / P3-16 NOT STARTED**
 
 Branch: `main`

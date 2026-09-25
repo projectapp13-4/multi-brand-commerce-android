@@ -4,6 +4,8 @@
 
 > **Integrated evidence note (2026-08-13):** [P3-15 Integrated Product Acceptance and Hardening Handoff](P3-15-HANDOFF.md) is the current row-by-row implementation, device, migration, accessibility, localization, performance, proof-removal, and explicit-blocker ledger. It preserves the final status distribution below; it does not convert P3-13 remote deletion or P3-16 release provisioning into a local PASS.
 
+> **Current group 17 reconciliation (2026-09-26):** The `EXTERNALLY_BLOCKED` row below is the P3-00 product-scope classification and remains unchanged for provenance. Later [account-deletion process evidence](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md) verifies the dedicated Android/public request route, merchant intake and an accepted Shopify personal-data-erasure handoff on a no-order synthetic customer. Final redaction of that case is unobserved, but Shopify's scheduled processing date is not a project wait gate. The current release condition is accountable merchant operations: restricted cases, processor/retention review, response/notice rules and support ownership. P-18 remains partial for those governance inputs; the Android capability and Shopify handoff are no longer unverified.
+
 Date: 2026-08-06
 
 Status: **FINAL PRODUCT-SCOPE MATRIX**
