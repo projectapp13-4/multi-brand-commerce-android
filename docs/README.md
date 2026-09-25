@@ -72,17 +72,18 @@ history, protected bootstrap, and historical-archive cutover evidence.
   [`multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md`](multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md).
   Trial is never a production application.
 - Phase 3 functional implementation and integrated acceptance are complete
-  through **P3-15**. Account-deletion merchant acknowledgement,
-  retention/SLA execution, and actual remote deletion remain externally
-  unverified.
+  through **P3-15**. A later synthetic deletion case has owner-reported merchant
+  acknowledgement and an accepted Shopify erasure request scheduled for
+  2026-10-05; acknowledgement delivery, retention/processor execution and actual
+  remote completion remain externally unverified.
 - **P3-16 production/release readiness is not started.** Repository migration,
   builds, tests, public CI and Multi-Brand Gate closure do not constitute
   production-release proof.
 - A scoped pre-P3-16 [account deletion route/process continuation](phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
   adds a dedicated merchant page and typed application route. Public form
-  rendering and one synthetic form submission are verified; the owner supplied
-  matching merchant inbox receipt evidence, while acknowledgement and remote
-  completion remain open.
+  rendering, two test-only submissions and merchant receipt are witnessed. The
+  no-order synthetic customer's erasure is pending at Shopify; provider outcome,
+  final notice and full merchant process acceptance remain open.
 
 ## Authority order
 
