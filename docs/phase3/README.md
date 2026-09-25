@@ -4,6 +4,8 @@ Current checkpoint purpose: controlled product implementation through P3-00 to P
 
 Active approval policy: [Owner Authority and Approval Boundaries](../OWNER-AUTHORITY-AND-APPROVAL-BOUNDARIES.md). This policy supersedes older assumptions that ordinary reversible content/configuration decisions automatically require a new owner approval, while preserving architecture, clean-room, security, evidence, and roadmap rules.
 
+**Current deletion-status reconciliation (2026-09-26):** The dated P3-13/P3-15 paragraphs below preserve their implementation checkpoints. Later [merchant-process evidence](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md) verifies the dedicated public/Android request route, merchant intake and an accepted Shopify erasure handoff on a no-order synthetic case. Shopify's case-specific final redaction is unobserved; its scheduled processing date is not an engineering or P3-16 wait gate. Group 17 retains its historical matrix classification and P-18 remains partial for production operator, restricted case, processor/retention, notice and support governance. P3-16 is still **NOT STARTED** for its separate production/release inputs.
+
 ## Governing product and roadmap authority
 
 - [Phase 3 Product Decisions](PHASE-3-PRODUCT-DECISIONS.md)

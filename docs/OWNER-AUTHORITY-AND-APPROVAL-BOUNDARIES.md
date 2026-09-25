@@ -28,9 +28,9 @@ This policy does not supersede:
 
 Phase 3 functional implementation and integrated acceptance are complete through **P3-15**. The current functional status is recorded in `docs/phase3/README.md` and `docs/phase3/P3-15-HANDOFF.md`.
 
-The independently implementable P3-13 mobile account-deletion request/local-cleanup boundary is complete, but real merchant acknowledgement, SLA/retention execution, and actual remote deletion remain externally unverified. That unresolved external outcome must not be converted into a local PASS.
+The independently implementable P3-13 mobile account-deletion request/local-cleanup boundary is complete. Later project-controlled synthetic evidence verifies the dedicated public request path, merchant intake and accepted Shopify personal-data-erasure handoff. The owner reports sending an acknowledgement; its sent wording and delivery were not independently witnessed. Final redaction of that synthetic case remains unobserved under Shopify's asynchronous processing, but its scheduled date is not a project wait gate. Production operator, restricted-record, processor/retention, response and notice governance remain release inputs; no completed remote deletion is claimed.
 
-**P3-16 is not started.** Its production/release entry inputs remain outside the completed functional run: production package/application identity, signing and Play ownership, production Shopify/Firebase configuration, verified App Links/callbacks, Data Safety/privacy declarations, accountable release/support/rollback ownership, and the unresolved remote deletion process. The exact entry audit and resume conditions are in `docs/phase3/P3-16-HANDOFF.md`.
+**P3-16 is not started.** Its production/release entry inputs remain outside the completed functional run: production package/application identity, signing and Play ownership, production Shopify/Firebase configuration, verified App Links/callbacks, Data Safety/privacy declarations, accountable deletion/release/support/rollback ownership, and the remaining merchant privacy operations governance. The dated entry audit and its later evidence reconciliation are in `docs/phase3/P3-16-HANDOFF.md`.
 
 Later Product Quality/UI-refinement work is presentation and product-quality work on top of that functional baseline. It does not itself authorize production publication or change the P3-16 boundary.
 
