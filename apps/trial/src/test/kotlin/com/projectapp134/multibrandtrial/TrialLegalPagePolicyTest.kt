@@ -31,9 +31,9 @@ class TrialLegalPagePolicyTest {
     }
 
     @Test
-    fun `deletion adapter maps only privacy and support and preserves launch result`() {
+    fun `deletion adapter exposes privacy but rejects unprovisioned request`() {
         val pages = TrialDeletionPages(contract)
-        assertEquals(setOf(DeletionPageId.PRIVACY, DeletionPageId.SUPPORT), pages.pages().map { it.id }.toSet())
+        assertEquals(setOf(DeletionPageId.PRIVACY), pages.pages().map { it.id }.toSet())
         assertEquals(
             DeletionPageLaunchResult.OPENED,
             pages.launch(DeletionPageId.PRIVACY) { entry ->
@@ -42,8 +42,8 @@ class TrialLegalPagePolicyTest {
             }
         )
         assertEquals(
-            DeletionPageLaunchResult.NO_BROWSER,
-            pages.launch(DeletionPageId.SUPPORT) { DeletionPageLaunchResult.NO_BROWSER }
+            DeletionPageLaunchResult.REJECTED,
+            pages.launch(DeletionPageId.ACCOUNT_DELETION_REQUEST) { DeletionPageLaunchResult.NO_BROWSER }
         )
     }
 

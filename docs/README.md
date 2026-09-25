@@ -78,6 +78,11 @@ history, protected bootstrap, and historical-archive cutover evidence.
 - **P3-16 production/release readiness is not started.** Repository migration,
   builds, tests, public CI and Multi-Brand Gate closure do not constitute
   production-release proof.
+- A scoped pre-P3-16 [account deletion route/process continuation](phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
+  adds a dedicated merchant page and typed application route. Public form
+  rendering and one synthetic form submission are verified; the owner supplied
+  matching merchant inbox receipt evidence, while acknowledgement and remote
+  completion remain open.
 
 ## Authority order
 

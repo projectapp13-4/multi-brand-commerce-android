@@ -11,12 +11,20 @@ import javax.inject.Inject
 
 // App-owned adapter: retained with legal metadata and launcher when the deletion feature moves to core.
 internal class GurbakirDeletionPages @Inject constructor(repository: LegalSupportRepository) : DeletionPageSource {
-    private val metadata = repository.pages().filter { it.id == LegalPageId.PRIVACY || it.id == LegalPageId.SUPPORT }
+    private val metadata =
+        repository.pages().filter {
+            it.id == LegalPageId.PRIVACY || it.id == LegalPageId.ACCOUNT_DELETION_REQUEST
+        }
     private val launcher = OwnedPageLauncher(OwnedPagePolicy(metadata))
 
     override fun pages(): List<DeletionPageDescriptor> = metadata.map { page ->
         DeletionPageDescriptor(
-            id = if (page.id == LegalPageId.PRIVACY) DeletionPageId.PRIVACY else DeletionPageId.SUPPORT,
+            id =
+                if (page.id == LegalPageId.PRIVACY) {
+                    DeletionPageId.PRIVACY
+                } else {
+                    DeletionPageId.ACCOUNT_DELETION_REQUEST
+                },
             titleResourceId = page.titleResourceId
         )
     }
@@ -30,7 +38,7 @@ internal class GurbakirDeletionPages @Inject constructor(repository: LegalSuppor
     ): DeletionPageLaunchResult {
         val legalId = when (id) {
             DeletionPageId.PRIVACY -> LegalPageId.PRIVACY
-            DeletionPageId.SUPPORT -> LegalPageId.SUPPORT
+            DeletionPageId.ACCOUNT_DELETION_REQUEST -> LegalPageId.ACCOUNT_DELETION_REQUEST
         }
         val page = metadata.firstOrNull { it.id == legalId } ?: return DeletionPageLaunchResult.REJECTED
         return when (openPage(page)) {

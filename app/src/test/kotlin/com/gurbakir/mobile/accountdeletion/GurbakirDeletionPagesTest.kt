@@ -13,19 +13,26 @@ import org.junit.jupiter.api.Test
 
 class GurbakirDeletionPagesTest {
     @Test
-    fun `adapter exposes exact privacy support titles and launches original canonical metadata`() {
+    fun `adapter exposes exact privacy deletion titles and launches canonical metadata`() {
         val pages = PackagedLegalSupportRepository().pages()
         val adapter = GurbakirDeletionPages(repository(pages))
         assertEquals(
             listOf(
-                DeletionPageDescriptor(DeletionPageId.SUPPORT, R.string.legal_support_page_support),
+                DeletionPageDescriptor(
+                    DeletionPageId.ACCOUNT_DELETION_REQUEST,
+                    R.string.legal_support_page_account_deletion_request
+                ),
                 DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.legal_support_page_privacy)
             ),
             adapter.pages()
         )
         for ((id, legalId, url) in listOf(
             Triple(DeletionPageId.PRIVACY, LegalPageId.PRIVACY, "https://gurbakir.com/policies/privacy-policy"),
-            Triple(DeletionPageId.SUPPORT, LegalPageId.SUPPORT, "https://gurbakir.com/pages/contact")
+            Triple(
+                DeletionPageId.ACCOUNT_DELETION_REQUEST,
+                LegalPageId.ACCOUNT_DELETION_REQUEST,
+                "https://gurbakir.com/pages/uygulama-hesap-silme-talebi"
+            )
         )) {
             val result = adapter.launch(id) { page ->
                 assertSame(pages.single { it.id == legalId }, page)
@@ -71,7 +78,7 @@ class GurbakirDeletionPagesTest {
         )
         assertEquals(
             DeletionPageLaunchResult.REJECTED,
-            adapter.launch(DeletionPageId.SUPPORT) {
+            adapter.launch(DeletionPageId.ACCOUNT_DELETION_REQUEST) {
                 OwnedPageLaunchResult.REJECTED
             }
         )

@@ -17,6 +17,7 @@ val LEGAL_BASELINE_ADOPTION_DATE: LocalDate =
 
 enum class LegalPageId {
     SUPPORT,
+    ACCOUNT_DELETION_REQUEST,
     PRIVACY,
     TERMS,
     SHIPPING,

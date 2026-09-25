@@ -34,13 +34,16 @@ class AccountDeletionScreenTest {
     private val pages =
         listOf(
             DeletionPageDescriptor(DeletionPageId.PRIVACY, com.gurbakir.mobile.core.R.string.account_deletion_title),
-            DeletionPageDescriptor(DeletionPageId.SUPPORT, com.gurbakir.mobile.core.R.string.account_deletion_title)
+            DeletionPageDescriptor(
+                DeletionPageId.ACCOUNT_DELETION_REQUEST,
+                com.gurbakir.mobile.core.R.string.account_deletion_title
+            )
         )
     private val readyState =
         AccountDeletionUiState(
             phase = AccountDeletionPhase.READY,
             privacyPage = pages.first { it.id == DeletionPageId.PRIVACY },
-            requestPage = pages.first { it.id == DeletionPageId.SUPPORT }
+            requestPage = pages.first { it.id == DeletionPageId.ACCOUNT_DELETION_REQUEST }
         )
 
     @Test
@@ -92,7 +95,17 @@ class AccountDeletionScreenTest {
             .assertHasClickAction()
             .performDeterministicClick()
 
-        assertEquals(DeletionPageId.SUPPORT, openedPage)
+        assertEquals(DeletionPageId.ACCOUNT_DELETION_REQUEST, openedPage)
+    }
+
+    @Test
+    fun deletionRequestRemainsReachableAtTwoHundredPercentFontScale() {
+        setContent(readyState, fontScale = 2f)
+
+        composeRule
+            .onNodeWithTag(AccountDeletionTestTags.REQUEST)
+            .performScrollTo()
+            .assertHasClickAction()
     }
 
     @Test

@@ -43,6 +43,9 @@ neutral lessons that remain useful are preserved in
   publication, a successful build, or CI does not prove production identity,
   signing, service configuration, public associations/callbacks, privacy
   declarations, support/rollback ownership, or release readiness.
+- A [scoped account deletion route continuation](docs/phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
+  records the dedicated public request page and the merchant-process evidence
+  still needed before release readiness.
 
 Start with the [documentation authority map](docs/README.md),
 [Multi-Brand architecture](docs/architecture/MULTI-BRAND-ARCHITECTURE.md),

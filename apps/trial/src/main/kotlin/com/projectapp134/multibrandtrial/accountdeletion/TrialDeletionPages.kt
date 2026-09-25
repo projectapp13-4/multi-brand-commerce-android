@@ -16,10 +16,8 @@ import com.projectapp134.multibrandtrial.legal.TrialLegalRole
 class TrialDeletionPages(private val legal: TrialLegalContract) : DeletionPageSource {
     private val launcher = TrialLegalPageLauncher(TrialLegalPagePolicy(legal))
 
-    override fun pages(): List<DeletionPageDescriptor> = listOf(
-        DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.trial_legal_privacy),
-        DeletionPageDescriptor(DeletionPageId.SUPPORT, R.string.trial_legal_support)
-    )
+    override fun pages(): List<DeletionPageDescriptor> =
+        listOf(DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.trial_legal_privacy))
 
     fun open(context: Context, id: DeletionPageId): DeletionPageLaunchResult = launch(id) { entry ->
         when (launcher.open(context, entry)) {
@@ -32,12 +30,11 @@ class TrialDeletionPages(private val legal: TrialLegalContract) : DeletionPageSo
     internal fun launch(
         id: DeletionPageId,
         openPage: (TrialLegalEntry) -> DeletionPageLaunchResult
-    ): DeletionPageLaunchResult {
-        val role = when (id) {
-            DeletionPageId.PRIVACY -> TrialLegalRole.PRIVACY
-            DeletionPageId.SUPPORT -> TrialLegalRole.SUPPORT
-        }
-        val entry = legal.entries.singleOrNull { it.role == role } ?: return DeletionPageLaunchResult.REJECTED
-        return openPage(entry)
+    ): DeletionPageLaunchResult = when (id) {
+        DeletionPageId.PRIVACY ->
+            legal.entries.singleOrNull { it.role == TrialLegalRole.PRIVACY }?.let(openPage)
+                ?: DeletionPageLaunchResult.REJECTED
+
+        DeletionPageId.ACCOUNT_DELETION_REQUEST -> DeletionPageLaunchResult.REJECTED
     }
 }
