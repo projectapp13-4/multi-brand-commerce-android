@@ -63,10 +63,12 @@ class CoreResourceTest {
                 R.string.account_deletion_boundary to
                     "Uygulama Shopify müşteri hesabını doğrudan silemez. Destek kanalı üzerinden bir silme talebi iletebilir ve bu cihazdaki seçili verileri ayrıca temizleyebilirsiniz.",
                 R.string.account_deletion_request_explanation to
-                    "Gizlilik politikası, kişisel verilerin silinmesini destek kanalı üzerinden talep edebileceğinizi açıklar. İletişim formunda bu hesapta kullandığınız e-posta adresini yazın ve hesabınız ile kişisel verileriniz için silme talebinde bulunduğunuzu belirtin.",
+                    "Hesap silme talebi sayfası tarayıcıda açılır. Sayfayı açmak talep göndermez; gönderim ve kimlik doğrulaması ayrı adımlardır. Bazı bilgiler geçerli saklama yükümlülükleri kapsamında tutulabilir.",
                 R.string.account_deletion_identity_warning to
                     "Destek ekibi kimliğinizi doğrulamak için ek bilgi isteyebilir. Parolanızı veya tek kullanımlık doğrulama kodunuzu hiçbir forma ya da mesaja yazmayın.",
-                R.string.account_deletion_open_request to "İletişim formunu aç",
+                R.string.account_deletion_open_request to "Hesap silme talebi sayfasını aç",
+                R.string.account_deletion_request_unavailable to
+                    "Bu uygulama için hesap silme talebi sayfası henüz doğrulanmadı.",
                 R.string.account_deletion_confirm_message to
                     "Seçili yerel veriler geri alınamaz. Bu işlem uzak Shopify hesabını silmez ve destek kanalı üzerinden silme talebi göndermez.",
                 R.string.account_deletion_feedback_opening to "%1\$s destek sitesinde açılıyor.",
@@ -93,10 +95,12 @@ class CoreResourceTest {
                 R.string.account_deletion_boundary to
                     "The app cannot delete the Shopify customer account directly. You can send a deletion request through the support channel and separately clear selected data from this device.",
                 R.string.account_deletion_request_explanation to
-                    "The privacy policy explains that you can request deletion of personal data through the support channel. In the contact form, use the email address for this account and state that you request deletion of your account and personal data.",
+                    "The account deletion request page opens in your browser. Opening it does not submit a request; submission and identity verification are separate steps. Some information may be retained where applicable.",
                 R.string.account_deletion_identity_warning to
                     "Support may request more information to verify your identity. Never enter your password or one-time verification code in any form or message.",
-                R.string.account_deletion_open_request to "Open the contact form",
+                R.string.account_deletion_open_request to "Open the account deletion request page",
+                R.string.account_deletion_request_unavailable to
+                    "The account deletion request page has not yet been verified for this app.",
                 R.string.account_deletion_confirm_message to
                     "Selected local data cannot be recovered. This does not delete the remote Shopify account or send a deletion request through the support channel.",
                 R.string.account_deletion_feedback_opening to "%1\$s is opening on the support site.",
