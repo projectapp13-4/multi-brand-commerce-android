@@ -57,7 +57,7 @@ constructor(
         MutableStateFlow(
             AccountDeletionUiState(
                 privacyPage = pages[DeletionPageId.PRIVACY],
-                requestPage = pages[DeletionPageId.SUPPORT]
+                requestPage = pages[DeletionPageId.ACCOUNT_DELETION_REQUEST]
             )
         )
     val state: StateFlow<AccountDeletionUiState> = mutableState.asStateFlow()
@@ -110,7 +110,7 @@ constructor(
     }
 
     fun onLaunchResult(pageId: DeletionPageId, result: DeletionPageLaunchResult) {
-        if (!mutableState.value.ready || pageId !in setOf(DeletionPageId.PRIVACY, DeletionPageId.SUPPORT)) return
+        if (!mutableState.value.ready || pageId !in DeletionPageId.entries) return
         mutableState.update { current ->
             when (result) {
                 DeletionPageLaunchResult.OPENED ->

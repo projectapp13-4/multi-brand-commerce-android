@@ -149,6 +149,12 @@ function Invoke-RegistrySuite {
         -Name 'profile means registry profile rather than runtime enum'
     Assert-True -Condition ($resolved.Application.identity.brandKey -eq 'gurbakir') `
         -Name 'Gurbakir runtime brand key remains exact'
+    Assert-True `
+        -Condition (
+            [string]$resolved.Application.identity.webRoles.legalSupport.paths.accountDeletionRequest -ceq
+            '/pages/uygulama-hesap-silme-talebi'
+        ) `
+        -Name 'Gurbakir owns a dedicated brand-level deletion request path'
 
     $trial = Get-OnboardingApplicationProfile `
         -Registry $registry `
@@ -184,6 +190,9 @@ function Invoke-RegistrySuite {
             [string]$trial.Application.identity.webRoles.legalSupport.paths.legalNotice -ceq '/pages/trial-yasal-bildirim'
         ) `
         -Name 'Trial registry owns the provider-read development legal support pages'
+    Assert-True `
+        -Condition (-not $trial.Application.identity.webRoles.legalSupport.paths.Contains('accountDeletionRequest')) `
+        -Name 'Trial has no unprovisioned account-deletion request route'
 
     $sha = Get-OnboardingSha256 -Path $registryPath
     $lines = Get-OnboardingProjectionLines `
@@ -197,6 +206,9 @@ function Invoke-RegistrySuite {
         -Name 'projection preserves UTF-8 display identity'
     Assert-True -Condition ($lines -ccontains 'shopify.homeDefinitionContract=gate7-v1') `
         -Name 'Gurbakir projection preserves the exact Gate 7 Home contract id'
+    Assert-True `
+        -Condition ($lines -ccontains 'web.legalSupportPath.accountDeletionRequest=/pages/uygulama-hesap-silme-talebi') `
+        -Name 'Gurbakir projection carries the deletion route'
 
     $projectionPath = Join-Path $repoRoot 'config\onboarding\generated\gurbakir\development.properties'
     Test-OnboardingProjection -Path $projectionPath -ExpectedLines $lines
@@ -207,6 +219,9 @@ function Invoke-RegistrySuite {
         -ApplicationRecord $trial.Application `
         -ProfileRecord $trial.Profile `
         -RegistrySha256 $sha
+    Assert-True `
+        -Condition (@($trialLines | Where-Object { $_ -like 'web.legalSupportPath.accountDeletionRequest=*' }).Count -eq 0) `
+        -Name 'Trial projection omits the unprovisioned deletion route'
     foreach ($expectedTrialLine in @(
         'app.brandKey=multi-brand-trial',
         'app.databaseName=trial-store-local.db',
@@ -294,6 +309,29 @@ function Invoke-RegistrySuite {
             -Action { Import-OnboardingRegistry -Path $queryOriginPath -RepositoryRoot $repoRoot } `
             -Pattern 'UNSAFE_URL' `
             -Name 'App Link origins reject query components'
+
+        foreach ($case in @(
+            @{ Name = 'encoded traversal'; Value = '/pages/%2e%2e/contact'; Error = 'INVALID_LEGAL_PATH' },
+            @{ Name = 'query'; Value = '/pages/request?next=contact'; Error = 'INVALID_LEGAL_PATH' },
+            @{ Name = 'fragment'; Value = '/pages/request#done'; Error = 'INVALID_LEGAL_PATH' },
+            @{ Name = 'generic homepage'; Value = '/'; Error = 'INVALID_LEGAL_PATH' },
+            @{ Name = 'duplicate support route'; Value = '/pages/contact'; Error = 'DUPLICATE_LEGAL_PATH' },
+            @{ Name = 'non-page route'; Value = '/policies/account-deletion'; Error = 'INVALID_DELETION_PATH' }
+        )) {
+            $unsafeDeletionPath = Join-Path $temporaryRoot ('deletion-' + $case.Name.Replace(' ', '-') + '.json')
+            [System.IO.File]::WriteAllText(
+                $unsafeDeletionPath,
+                $raw.Replace(
+                    '"accountDeletionRequest": "/pages/uygulama-hesap-silme-talebi"',
+                    '"accountDeletionRequest": "' + $case.Value + '"'
+                ),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Assert-Throws `
+                -Action { Import-OnboardingRegistry -Path $unsafeDeletionPath -RepositoryRoot $repoRoot } `
+                -Pattern $case.Error `
+                -Name ("deletion path rejects " + $case.Name)
+        }
 
         $nativeMismatchPath = Join-Path $temporaryRoot 'native-composition-mismatch.json'
         [System.IO.File]::WriteAllText(

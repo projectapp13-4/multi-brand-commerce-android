@@ -117,6 +117,8 @@ P3-15 is complete at implementation checkpoint `f338ded`. The production entry/d
 
 ## P3-16 production/release readiness entry
 
+- [Pre-P3-16 account deletion route and merchant process continuation](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
+
 - [P3-16 Production and Release Readiness Entry Handoff](P3-16-HANDOFF.md)
 
 P3-16 is **not started** because its mandatory production inputs are not provisioned and the active owner policy keeps the separate release/security/publication campaign outside the functional application run. The entry audit confirms that the current release is the unsigned `com.gurbakir.mobile.dev` development artifact, the public App Links association is empty, no Play package exists at the proposed identity, and no production flavor/Firebase/signing/Data Safety/release-owner configuration is present. Feature group 17 also remains externally blocked. The handoff records the exact owner/provisioning inputs and safe ordered resume procedure without inventing release identity or exposing credentials.

@@ -411,10 +411,11 @@
     <string name="account_deletion_clearing">Clearing selected local data and signing out on this device.</string>
     <string name="account_deletion_unavailable">The account session cannot be verified safely right now. No data was cleared; check your connection and try again.</string>
     <string name="account_deletion_request_heading">Request for the remote account</string>
-    <string name="account_deletion_request_explanation">The privacy policy explains that you can request deletion of personal data through the support channel. In the contact form, use the email address for this account and state that you request deletion of your account and personal data.</string>
+    <string name="account_deletion_request_explanation">The account deletion request page opens in your browser. Opening it does not submit a request; submission and identity verification are separate steps. Some information may be retained where applicable.</string>
     <string name="account_deletion_identity_warning">Support may request more information to verify your identity. Never enter your password or one-time verification code in any form or message.</string>
     <string name="account_deletion_open_privacy">Open the privacy policy</string>
-    <string name="account_deletion_open_request">Open the contact form</string>
+    <string name="account_deletion_open_request">Open the account deletion request page</string>
+    <string name="account_deletion_request_unavailable">The account deletion request page has not yet been verified for this app.</string>
     <string name="account_deletion_request_not_verified">Returning from the form or to the app does not prove that a request was sent or the account was deleted. The app does not read or automatically submit the form.</string>
     <string name="account_deletion_local_heading">Separate cleanup on this device</string>
     <string name="account_deletion_local_explanation">This does not send a deletion request or delete the remote account. It signs out the customer session on this device; you choose which local data below is cleared.</string>

@@ -15,8 +15,14 @@ class LegalSupportRepositoryTest {
     fun `packaged baseline contains every approved owned route with immutable version metadata`() {
         assertEquals(LegalPageId.entries.toSet(), pages.map { it.id }.toSet())
         assertEquals(pages.size, pages.map { it.canonicalUrl }.toSet().size)
-        assertTrue(pages.all { it.baselineVersion == LEGAL_BASELINE_VERSION })
-        assertTrue(pages.all { it.adoptedAt == LocalDate.of(2026, 8, 11) })
+        assertTrue(
+            pages.filter { it.id != LegalPageId.ACCOUNT_DELETION_REQUEST }
+                .all { it.baselineVersion == LEGAL_BASELINE_VERSION && it.adoptedAt == LocalDate.of(2026, 8, 11) }
+        )
+        assertEquals(
+            "gurbakir-deletion-request-1",
+            pages.single { it.id == LegalPageId.ACCOUNT_DELETION_REQUEST }.baselineVersion
+        )
         assertTrue(
             pages.filter { it.source == LegalPageSource.SHOPIFY_POLICY }
                 .all { it.sourceEffectiveDate == LocalDate.of(2026, 4, 26) }
@@ -37,5 +43,7 @@ class LegalSupportRepositoryTest {
         assertFalse(policy.isAllowed("https://gurbakir.com/policies/privacy-policy/extra"))
         assertFalse(policy.isAllowed("http://gurbakir.com/policies/privacy-policy"))
         assertFalse(policy.isAllowed(privacy.copy(canonicalUrl = "https://example.test/privacy")))
+        val deletion = pages.single { it.id == LegalPageId.ACCOUNT_DELETION_REQUEST }
+        assertFalse(policy.isAllowed(deletion.copy(canonicalUrl = "https://gurbakir.com/pages/%2e%2e/contact")))
     }
 }

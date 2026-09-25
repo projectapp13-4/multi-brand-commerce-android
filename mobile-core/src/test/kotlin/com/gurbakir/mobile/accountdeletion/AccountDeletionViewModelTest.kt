@@ -36,12 +36,12 @@ class AccountDeletionViewModelTest {
             subject.onLaunchResult(DeletionPageId.PRIVACY, DeletionPageLaunchResult.OPENED)
             assertEquals(DeletionPageFeedbackType.OPENING, subject.state.value.externalFeedback?.type)
             assertEquals(DeletionPageId.PRIVACY, subject.state.value.pendingReturnPageId)
-            subject.onLaunchResult(DeletionPageId.SUPPORT, DeletionPageLaunchResult.NO_BROWSER)
+            subject.onLaunchResult(DeletionPageId.ACCOUNT_DELETION_REQUEST, DeletionPageLaunchResult.NO_BROWSER)
             assertEquals(DeletionPageFeedbackType.NO_BROWSER, subject.state.value.externalFeedback?.type)
             assertEquals(null, subject.state.value.pendingReturnPageId)
             subject.onActivityResumed()
             assertEquals(DeletionPageFeedbackType.NO_BROWSER, subject.state.value.externalFeedback?.type)
-            subject.onLaunchResult(DeletionPageId.SUPPORT, DeletionPageLaunchResult.REJECTED)
+            subject.onLaunchResult(DeletionPageId.ACCOUNT_DELETION_REQUEST, DeletionPageLaunchResult.REJECTED)
             assertEquals(DeletionPageFeedbackType.REJECTED, subject.state.value.externalFeedback?.type)
             assertEquals(null, subject.state.value.pendingReturnPageId)
         }
@@ -56,7 +56,7 @@ class AccountDeletionViewModelTest {
             val state = viewModel.state.value
             assertEquals(AccountDeletionPhase.READY, state.phase)
             assertEquals(DeletionPageId.PRIVACY, state.privacyPage?.id)
-            assertEquals(DeletionPageId.SUPPORT, state.requestPage?.id)
+            assertEquals(DeletionPageId.ACCOUNT_DELETION_REQUEST, state.requestPage?.id)
             assertTrue(state.clearSearchHistory)
             assertFalse(state.clearWishlist)
             assertTrue(state.discardCart)
@@ -108,7 +108,7 @@ class AccountDeletionViewModelTest {
             val viewModel = viewModel(FakeController())
             advanceUntilIdle()
 
-            viewModel.onLaunchResult(DeletionPageId.SUPPORT, DeletionPageLaunchResult.OPENED)
+            viewModel.onLaunchResult(DeletionPageId.ACCOUNT_DELETION_REQUEST, DeletionPageLaunchResult.OPENED)
             viewModel.onActivityResumed()
 
             assertEquals(
@@ -122,7 +122,10 @@ class AccountDeletionViewModelTest {
     private fun viewModel(controller: FakeController) = AccountDeletionViewModel(
         controller,
         DeletionPageSource {
-            listOf(DeletionPageDescriptor(DeletionPageId.PRIVACY, 1), DeletionPageDescriptor(DeletionPageId.SUPPORT, 2))
+            listOf(
+                DeletionPageDescriptor(DeletionPageId.PRIVACY, 1),
+                DeletionPageDescriptor(DeletionPageId.ACCOUNT_DELETION_REQUEST, 2)
+            )
         }
     )
 

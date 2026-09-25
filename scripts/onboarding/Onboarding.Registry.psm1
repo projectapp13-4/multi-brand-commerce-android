@@ -260,14 +260,22 @@ function Assert-OnboardingIdentity {
             -Allowed @('origin', 'paths') -Required @('origin', 'paths') -Field "$Field.webRoles.legalSupport"
         Assert-OnboardingHttpsOrigin -Value ([string]$Identity.webRoles.legalSupport.origin) -Field "$Field.webRoles.legalSupport.origin" -AllowInvalidTld:$permitInvalidTld
         Assert-OnboardingObjectFields -Object $Identity.webRoles.legalSupport.paths `
-            -Allowed @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice') `
+            -Allowed @('support', 'accountDeletionRequest', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice') `
             -Required @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice') `
             -Field "$Field.webRoles.legalSupport.paths"
-        foreach ($pathName in @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice')) {
+        foreach ($pathName in @($Identity.webRoles.legalSupport.paths.Keys)) {
             $pathValue = [string]$Identity.webRoles.legalSupport.paths[$pathName]
-            if ($pathValue -notmatch '^/[a-z0-9/-]+$' -or $pathValue.Contains('//')) {
+            if ($pathValue -notmatch '^/[a-z0-9/-]+$' -or $pathValue.Contains('//') -or $pathValue -ceq '/') {
                 throw (New-OnboardingContractError -Code 'INVALID_LEGAL_PATH' -Field "$Field.webRoles.legalSupport.paths.$pathName")
             }
+        }
+        if (@($Identity.webRoles.legalSupport.paths.Values | Select-Object -Unique).Count -ne
+            @($Identity.webRoles.legalSupport.paths.Values).Count) {
+            throw (New-OnboardingContractError -Code 'DUPLICATE_LEGAL_PATH' -Field "$Field.webRoles.legalSupport.paths")
+        }
+        if ($Identity.webRoles.legalSupport.paths.Contains('accountDeletionRequest') -and
+            [string]$Identity.webRoles.legalSupport.paths.accountDeletionRequest -notmatch '^/pages/[a-z0-9][a-z0-9-]*$') {
+            throw (New-OnboardingContractError -Code 'INVALID_DELETION_PATH' -Field "$Field.webRoles.legalSupport.paths.accountDeletionRequest")
         }
     }
     Assert-OnboardingObjectFields -Object $Identity.webRoles.checkout `
@@ -1050,6 +1058,9 @@ function Get-OnboardingProjectionLines {
         Add-OnboardingProjectionLine $lines 'web.legalSupportOrigin' ([string]$identity.webRoles.legalSupport.origin)
         foreach ($pathName in @('support', 'privacy', 'terms', 'shipping', 'returns', 'legalNotice')) {
             Add-OnboardingProjectionLine $lines "web.legalSupportPath.$pathName" ([string]$identity.webRoles.legalSupport.paths[$pathName])
+        }
+        if ($identity.webRoles.legalSupport.paths.Contains('accountDeletionRequest')) {
+            Add-OnboardingProjectionLine $lines 'web.legalSupportPath.accountDeletionRequest' ([string]$identity.webRoles.legalSupport.paths.accountDeletionRequest)
         }
     }
     Add-OnboardingProjectionLine $lines 'web.checkoutHostPolicy' ([string]$identity.webRoles.checkout.hostPolicy)

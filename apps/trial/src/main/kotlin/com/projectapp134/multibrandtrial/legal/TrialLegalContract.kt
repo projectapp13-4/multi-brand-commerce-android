@@ -89,15 +89,10 @@ data class TrialLegalContract(val entries: List<TrialLegalEntry>) {
     }
 }
 
-data class TrialDeletionContract(
-    val state: TrialLegalState,
-    val privacy: TrialLegalEntry,
-    val request: TrialLegalEntry
-) {
+data class TrialDeletionContract(val state: TrialLegalState, val privacy: TrialLegalEntry) {
     init {
         require(privacy.role == TrialLegalRole.PRIVACY)
-        require(request.role == TrialLegalRole.SUPPORT)
-        require(privacy.state == state && request.state == state)
+        require(privacy.state == state)
     }
 
     companion object {
@@ -115,8 +110,7 @@ data class TrialDeletionContract(
             val entriesByRole = legal.entries.associateBy(TrialLegalEntry::role)
             return TrialDeletionContract(
                 state = state,
-                privacy = entriesByRole.getValue(TrialLegalRole.PRIVACY),
-                request = entriesByRole.getValue(TrialLegalRole.SUPPORT)
+                privacy = entriesByRole.getValue(TrialLegalRole.PRIVACY)
             )
         }
     }

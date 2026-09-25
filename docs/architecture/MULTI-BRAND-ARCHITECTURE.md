@@ -62,6 +62,7 @@ The exact future real-brand module path spelling is secondary to the boundary. E
 | Protected SharedPreferences/Keystore identities | Brand application configuration; shared encrypted store implementations |
 | Search/Wishlist/Customer Account presence and ordered primary destinations | Application-owned `ApplicationComposition`; neutral validated value contracts in `:foundation` |
 | Enabled Customer Account configuration and Order/tracking/deletion bindings | Application configuration and composition; bindings supplied exactly when Account is enabled |
+| Account deletion request destination | Brand application identity owns the trusted HTTPS origin and distinct typed relative path; `:mobile-core` owns neutral request/return and separate local cleanup behavior; merchant owns intake and erasure |
 | Provider selection and build-time Firebase readiness | Brand application composition/build boundary; provider mechanics remain in the provider module |
 | Common Compose features and application orchestration | Shared `:mobile-core` |
 | Typed navigation contracts and common graph/recovery mechanics | Shared `:mobile-core` |

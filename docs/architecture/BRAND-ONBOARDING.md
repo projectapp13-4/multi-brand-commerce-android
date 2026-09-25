@@ -65,12 +65,15 @@ Before a future brand can be considered configured, its repository-local onboard
 | Capabilities | Application-owned Search/Wishlist states and explicit Customer Account capability; no remote selection or missing-credential inference |
 | Primary navigation | Exactly Home/Categories plus each enabled optional primary once; explicit order, immutable validated specification; Home remains the start/state anchor |
 | Legal and support | Approved destinations, ownership and current status without unsupported public claims |
+| Account deletion request | If Account is enabled for release, a distinct brand-level HTTPS origin/relative path, signed-out public request resource, merchant intake and completion process, and evidence for both; generic Support does not substitute |
 | Media/domain policy | Exact approved owned origins and restrictive validation behavior |
 | Provider binding | Explicit application-owned provider/local-default selection through the smallest existing neutral seam; no generic provider framework for hypothetical variation |
 | Compiled variation | Concrete brand-specific integration/UI/dependency requirements and the narrow shared seam, if any |
 | Release boundary | Signing, publication, support and rollback ownership only when the production/release gate is intentionally entered |
 
 Private Storefront/Admin credentials, OAuth/customer tokens, Firebase service credentials, signing material, service-account keys and other secrets must use approved ignored/secure mechanisms and never enter the onboarding record, source, logs or mobile binary. Public Storefront client tokens remain controlled public client configuration: they may be packaged where required but must not be copied into ordinary logs, prompts, screenshots or documentation.
+
+The optional `identity.webRoles.legalSupport.paths.accountDeletionRequest` is application-owned because it identifies the merchant process, not a development/staging client registration. The registry accepts only a distinct canonical `/pages/<slug>` path. Gürbakır projects its provisioned path into both nonproduction profiles; Trial has no such path and remains explicitly unready for deletion-process acceptance. Tracked validation, signed-out public-resource readback (`scripts/Test-AccountDeletionResource.ps1`), and synthetic merchant-process rehearsal are separate gates. The public check is never a substitute for receipt and provider-completion evidence. See the [scoped deletion continuation](../phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md).
 
 ## Packaged identity and composition
 

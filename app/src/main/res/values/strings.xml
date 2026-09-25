@@ -77,6 +77,8 @@
     <string name="legal_support_home_action">Yard&#305;m ve politikalar&#305; a&#231;</string>
     <string name="legal_support_page_support">Destek ve ileti&#351;im</string>
     <string name="legal_support_page_support_summary">&#220;r&#252;n, sipari&#351; ve bak&#305;m sorular&#305; i&#231;in G&#252;r Bak&#305;r ileti&#351;im kanallar&#305;.</string>
+    <string name="legal_support_page_account_deletion_request">Hesap silme talebi</string>
+    <string name="legal_support_page_account_deletion_request_summary">G&#252;r Bak&#305;r uygulamas&#305; m&#252;&#351;teri hesab&#305; ve ili&#351;kili veriler i&#231;in talep sayfas&#305;.</string>
     <string name="legal_support_page_privacy">Gizlilik politikas&#305;</string>
     <string name="legal_support_page_privacy_summary">Ki&#351;isel verilerin hangi kapsamda ele al&#305;nd&#305;&#287;&#305;n&#305; a&#231;&#305;klayan merchant politikas&#305;.</string>
     <string name="legal_support_page_terms">Hizmet ko&#351;ullar&#305;</string>
@@ -541,10 +543,11 @@
     <string name="account_deletion_clearing">Se&#231;ili yerel veriler temizleniyor ve bu cihazdaki oturum kapat&#305;l&#305;yor.</string>
     <string name="account_deletion_unavailable">Hesap oturumu &#351;u anda g&#252;venle do&#287;rulanamad&#305;. Hi&#231;bir veri temizlenmedi; ba&#287;lant&#305;n&#305;z&#305; kontrol edip yeniden deneyin.</string>
     <string name="account_deletion_request_heading">Uzak hesap i&#231;in talep</string>
-    <string name="account_deletion_request_explanation">Gizlilik politikas&#305;, ki&#351;isel verilerin silinmesini G&#252;r Bak&#305;r ileti&#351;im kanal&#305;ndan talep edebilece&#287;inizi a&#231;&#305;klar. &#304;leti&#351;im formunda bu hesapta kulland&#305;&#287;&#305;n&#305;z e-posta adresini yaz&#305;n ve hesab&#305;n&#305;z ile ki&#351;isel verileriniz i&#231;in silme talebinde bulundu&#287;unuzu belirtin.</string>
+    <string name="account_deletion_request_explanation">G&#252;r Bak&#305;r hesap silme talebi sayfas&#305; taray&#305;c&#305;da a&#231;&#305;l&#305;r. Sayfadaki formu g&#246;ndermeniz gerekir; sayfay&#305; a&#231;mak tek ba&#351;&#305;na talep iletmez. Kimlik do&#287;rulamas&#305; gerekebilir ve baz&#305; bilgiler ge&#231;erli saklama y&#252;k&#252;ml&#252;l&#252;kleri kapsam&#305;nda tutulabilir.</string>
     <string name="account_deletion_identity_warning">G&#252;r Bak&#305;r kimli&#287;inizi do&#287;rulamak i&#231;in ek bilgi isteyebilir. Parolan&#305;z&#305; veya tek kullan&#305;ml&#305;k do&#287;rulama kodunuzu hi&#231;bir forma ya da mesaja yazmay&#305;n.</string>
     <string name="account_deletion_open_privacy">Gizlilik politikas&#305;n&#305; a&#231;</string>
-    <string name="account_deletion_open_request">G&#252;r Bak&#305;r ileti&#351;im formunu a&#231;</string>
+    <string name="account_deletion_open_request">Hesap silme talebi sayfas&#305;n&#305; a&#231;</string>
+    <string name="account_deletion_request_unavailable">Bu uygulama i&#231;in hesap silme talebi sayfas&#305; hen&#252;z do&#287;rulanmad&#305;.</string>
     <string name="account_deletion_request_not_verified">Taray&#305;c&#305;da forma d&#246;nmek veya uygulamaya geri gelmek, talebin g&#246;nderildi&#287;ini ya da hesab&#305;n silindi&#287;ini kan&#305;tlamaz. Uygulama form i&#231;eri&#287;ini okumaz ve otomatik g&#246;ndermez.</string>
     <string name="account_deletion_local_heading">Bu cihazda ayr&#305; temizleme</string>
     <string name="account_deletion_local_explanation">Bu i&#351;lem silme talebi g&#246;ndermez ve uzak hesab&#305; silmez. Bu cihazdaki m&#252;&#351;teri oturumunu kapat&#305;r; a&#351;a&#287;&#305;daki yerel verilerden hangilerinin temizlenece&#287;ini siz se&#231;ersiniz.</string>

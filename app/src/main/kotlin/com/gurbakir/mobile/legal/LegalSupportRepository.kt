@@ -24,6 +24,17 @@ class PackagedLegalSupportRepository @Inject constructor() : LegalSupportReposit
                     path = BuildConfig.LEGAL_SUPPORT_PATH_SUPPORT,
                     source = LegalPageSource.MERCHANT_PAGE
                 ),
+                LegalPageMetadata(
+                    id = LegalPageId.ACCOUNT_DELETION_REQUEST,
+                    titleResourceId = R.string.legal_support_page_account_deletion_request,
+                    summaryResourceId = R.string.legal_support_page_account_deletion_request_summary,
+                    canonicalUrl =
+                        BuildConfig.LEGAL_SUPPORT_ORIGIN + BuildConfig.LEGAL_SUPPORT_PATH_ACCOUNT_DELETION_REQUEST,
+                    baselineVersion = "gurbakir-deletion-request-1",
+                    adoptedAt = LocalDate.of(2026, 9, 25),
+                    sourceEffectiveDate = null,
+                    source = LegalPageSource.MERCHANT_PAGE
+                ),
                 page(
                     id = LegalPageId.PRIVACY,
                     titleResourceId = R.string.legal_support_page_privacy,

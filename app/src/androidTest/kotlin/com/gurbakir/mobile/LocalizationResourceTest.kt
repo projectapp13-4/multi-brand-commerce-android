@@ -68,10 +68,12 @@ class LocalizationResourceTest {
                 R.string.account_deletion_boundary to
                     "Uygulama Shopify müşteri hesabını doğrudan silemez. Gür Bakır’a bir silme talebi iletebilir ve bu cihazdaki seçili verileri ayrıca temizleyebilirsiniz.",
                 R.string.account_deletion_request_explanation to
-                    "Gizlilik politikası, kişisel verilerin silinmesini Gür Bakır iletişim kanalından talep edebileceğinizi açıklar. İletişim formunda bu hesapta kullandığınız e-posta adresini yazın ve hesabınız ile kişisel verileriniz için silme talebinde bulunduğunuzu belirtin.",
+                    "Gür Bakır hesap silme talebi sayfası tarayıcıda açılır. Sayfadaki formu göndermeniz gerekir; sayfayı açmak tek başına talep iletmez. Kimlik doğrulaması gerekebilir ve bazı bilgiler geçerli saklama yükümlülükleri kapsamında tutulabilir.",
                 R.string.account_deletion_identity_warning to
                     "Gür Bakır kimliğinizi doğrulamak için ek bilgi isteyebilir. Parolanızı veya tek kullanımlık doğrulama kodunuzu hiçbir forma ya da mesaja yazmayın.",
-                R.string.account_deletion_open_request to "Gür Bakır iletişim formunu aç",
+                R.string.account_deletion_open_request to "Hesap silme talebi sayfasını aç",
+                R.string.account_deletion_request_unavailable to
+                    "Bu uygulama için hesap silme talebi sayfası henüz doğrulanmadı.",
                 R.string.account_deletion_confirm_message to
                     "Seçili yerel veriler geri alınamaz. Bu işlem uzak Shopify hesabını silmez ve Gür Bakır’a silme talebi göndermez.",
                 R.string.account_deletion_feedback_opening to "%1\$s Gür Bakır sitesinde açılıyor.",
@@ -99,10 +101,12 @@ class LocalizationResourceTest {
                 R.string.account_deletion_boundary to
                     "The app cannot delete the Shopify customer account directly. You can send a deletion request to Gür Bakır and separately clear selected data from this device.",
                 R.string.account_deletion_request_explanation to
-                    "The privacy policy explains that you can request deletion of personal data through the Gür Bakır contact channel. In the contact form, use the email address for this account and state that you request deletion of your account and personal data.",
+                    "The Gür Bakır account deletion request page opens in your browser. You must submit its form; opening the page alone sends no request. Identity verification may be needed, and some information may be retained where applicable.",
                 R.string.account_deletion_identity_warning to
                     "Gür Bakır may request more information to verify your identity. Never enter your password or one-time verification code in any form or message.",
-                R.string.account_deletion_open_request to "Open the Gür Bakır contact form",
+                R.string.account_deletion_open_request to "Open the account deletion request page",
+                R.string.account_deletion_request_unavailable to
+                    "The account deletion request page has not yet been verified for this app.",
                 R.string.account_deletion_confirm_message to
                     "Selected local data cannot be recovered. This does not delete the remote Shopify account or send a deletion request to Gür Bakır.",
                 R.string.account_deletion_feedback_opening to "%1\$s is opening on the Gür Bakır site.",

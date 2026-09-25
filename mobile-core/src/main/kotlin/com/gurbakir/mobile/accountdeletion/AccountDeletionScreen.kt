@@ -176,7 +176,7 @@ private fun RemoteRequestCard(state: AccountDeletionUiState, onOpenPage: (Deleti
                 ) {
                     Text(stringResource(R.string.account_deletion_open_request))
                 }
-            }
+            } ?: Text(stringResource(R.string.account_deletion_request_unavailable))
             Text(stringResource(R.string.account_deletion_request_not_verified))
         }
     }

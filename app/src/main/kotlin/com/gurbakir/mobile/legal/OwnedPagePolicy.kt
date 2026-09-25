@@ -31,6 +31,9 @@ class OwnedPagePolicy(pages: List<LegalPageMetadata>) {
             uri.rawQuery == null &&
             uri.rawFragment == null &&
             uri.rawPath?.startsWith("/") == true &&
+            uri.rawPath.matches(Regex("^/[a-z0-9/-]+$")) &&
+            !uri.rawPath.contains("//") &&
+            uri.rawPath != "/" &&
             uri.normalize() == uri &&
             uri.toASCIIString() == rawUrl
     }.getOrDefault(false)

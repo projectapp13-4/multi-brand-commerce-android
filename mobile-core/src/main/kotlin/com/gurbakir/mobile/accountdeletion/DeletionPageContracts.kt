@@ -2,7 +2,7 @@ package com.gurbakir.mobile.accountdeletion
 
 import androidx.annotation.StringRes
 
-enum class DeletionPageId { PRIVACY, SUPPORT }
+enum class DeletionPageId { PRIVACY, ACCOUNT_DELETION_REQUEST }
 
 data class DeletionPageDescriptor(val id: DeletionPageId, @param:StringRes val titleResourceId: Int)
 

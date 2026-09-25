@@ -96,7 +96,6 @@ class TrialConfigurationTest {
         )
         assertEquals(TrialLegalState.DEVELOPMENT_VERIFIED, TrialConfiguration.deletion.state)
         assertEquals(TrialLegalRole.PRIVACY, TrialConfiguration.deletion.privacy.role)
-        assertEquals(TrialLegalRole.SUPPORT, TrialConfiguration.deletion.request.role)
         assertEquals(
             "https://multi-brand-trial-store.myshopify.com/pages/trial-gizlilik",
             TrialConfiguration.app.brand.legalLinks.privacyPolicyUrl

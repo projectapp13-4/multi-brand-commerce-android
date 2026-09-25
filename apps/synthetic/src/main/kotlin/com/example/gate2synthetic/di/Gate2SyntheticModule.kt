@@ -59,10 +59,7 @@ object Gate2SyntheticModule {
 
     @Provides
     fun provideDeletionPageSource(): DeletionPageSource = DeletionPageSource {
-        listOf(
-            DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.synthetic_privacy),
-            DeletionPageDescriptor(DeletionPageId.SUPPORT, R.string.synthetic_support)
-        )
+        listOf(DeletionPageDescriptor(DeletionPageId.PRIVACY, R.string.synthetic_privacy))
     }
 
     @Provides

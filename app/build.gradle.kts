@@ -62,6 +62,7 @@ val projectionKeys =
         "web.orderAppLinkPathPrefix",
         "web.legalSupportOrigin",
         "web.legalSupportPath.support",
+        "web.legalSupportPath.accountDeletionRequest",
         "web.legalSupportPath.privacy",
         "web.legalSupportPath.terms",
         "web.legalSupportPath.shipping",
@@ -269,6 +270,10 @@ fun ApplicationProductFlavor.configureOnboarding(profile: OnboardingProfileInput
     field("ORDER_APP_LINK_PATH_PREFIX", profile.projectionValue("web.orderAppLinkPathPrefix"))
     field("LEGAL_SUPPORT_ORIGIN", profile.projectionValue("web.legalSupportOrigin"))
     field("LEGAL_SUPPORT_PATH_SUPPORT", profile.projectionValue("web.legalSupportPath.support"))
+    field(
+        "LEGAL_SUPPORT_PATH_ACCOUNT_DELETION_REQUEST",
+        profile.projectionValue("web.legalSupportPath.accountDeletionRequest")
+    )
     field("LEGAL_SUPPORT_PATH_PRIVACY", profile.projectionValue("web.legalSupportPath.privacy"))
     field("LEGAL_SUPPORT_PATH_TERMS", profile.projectionValue("web.legalSupportPath.terms"))
     field("LEGAL_SUPPORT_PATH_SHIPPING", profile.projectionValue("web.legalSupportPath.shipping"))
