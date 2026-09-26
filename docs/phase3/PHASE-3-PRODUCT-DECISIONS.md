@@ -1,5 +1,7 @@
 # Phase 3 Product Decisions
 
+> **Current privacy-model decision (2026-09-26):** For the observed Türkiye-only launch model, use Shopify-hosted privacy controls and intentionally omit Android Storefront `visitorConsent` while Android collects no purpose-specific choice. Omission means no app-provided preference, not grant or refusal. Current merchant-state/source evidence, reopening triggers and release-disclosure review are in the [privacy and release operating contract](../operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). This current decision closes the prior pre-P3-16 consent-choice block without rewriting the historical feature rows or authorizing source changes. Final production artifact/provider and privacy-policy review remains P3-16 work.
+
 > **Current authorization note (2026-08-11):** the active owner policy supersedes group 18's historical entry-gate assumption below. Verified merchant/Shopify policies and support content are approved as the current baseline, including a conservative traceable provisional baseline where necessary. P3-08 therefore may and did close independently; final public-release work remains outside this functional run and the original row is retained as historical decision evidence.
 
 Date: 2026-08-06
