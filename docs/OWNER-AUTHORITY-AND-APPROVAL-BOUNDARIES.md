@@ -32,6 +32,8 @@ The independently implementable P3-13 mobile account-deletion request/local-clea
 
 **P3-16 is not started.** Its production/release entry inputs remain outside the completed functional run: production package/application identity, signing and Play ownership, production Shopify/Firebase configuration, verified App Links/callbacks, Data Safety/privacy declarations, accountable deletion/release/support/rollback ownership, and the remaining merchant privacy operations governance. The dated entry audit and its later evidence reconciliation are in `docs/phase3/P3-16-HANDOFF.md`.
 
+**Current operational ownership correction (2026-09-26):** The [privacy and release operating contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md) distinguishes merchant-owned Shopify commerce, policy, first-line support and privacy/deletion operations from app-provider Android engineering and technical incidents. Play publishing, upload-key custody, Firebase administration, domain association coordination and Play declarations depend on the brand's deployment model. For Gürbakır, the current Play account and signing/release operation are project-managed; merchant Shopify/privacy/support/domain authority remains merchant-owned. This role-level correction does not infer a named assignee, supersede point-of-action controls below, or claim P3-16 has started.
+
 Later Product Quality/UI-refinement work is presentation and product-quality work on top of that functional baseline. It does not itself authorize production publication or change the P3-16 boundary.
 
 ## Active priority and execution model
