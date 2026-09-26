@@ -4,6 +4,8 @@ Status date: 2026-09-26
 
 Current pre-P3-16 governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. Actual assignments and permanent production identity/signing/provider decisions remain; P3-16 is **NOT STARTED**.
 
+Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
+
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
 useful without becoming present-state instructions.

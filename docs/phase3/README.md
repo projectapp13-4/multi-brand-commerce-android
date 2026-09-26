@@ -8,6 +8,8 @@ Active approval policy: [Owner Authority and Approval Boundaries](../OWNER-AUTHO
 
 **Current privacy and release-governance decision (2026-09-26):** The [operating contract](../operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md) closes the Türkiye-only Android visitor-consent model as hosted Shopify controls with intentional Storefront omission, and defines privacy, support, release, incident and recovery roles. Actual accountable assignments and production identity/signing/provider decisions remain P3-16 entry inputs. Final production artifact, Data Safety, Play and provider readbacks remain later gates; P3-16 is **NOT STARTED**.
 
+**Current ownership correction (2026-09-26):** That [operating contract](../operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md) now separates merchant-owned Shopify policy/support/privacy operations, app-provider engineering/technical incidents, and deployment-model-dependent Play/signing/Firebase/domain coordination. Gürbakır's Play/signing/release operation is project-managed; merchant responsibilities are not silently reassigned to project staff. The earlier sentence above is the pre-correction checkpoint, not a requirement that merchant roles become project-internal posts.
+
 ## Governing product and roadmap authority
 
 - [Phase 3 Product Decisions](PHASE-3-PRODUCT-DECISIONS.md)

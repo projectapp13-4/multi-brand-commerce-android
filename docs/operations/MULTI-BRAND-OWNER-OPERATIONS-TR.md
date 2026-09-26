@@ -6,6 +6,8 @@ Yetki sınırı: Bu rehber merge, Play yükleme/yayını, production signing, ge
 
 26 Eylül 2026 güncel gizlilik/sürüm işletim kararı için [Privacy and Release Operating Contract](PRIVACY-RELEASE-OPERATING-CONTRACT.md) geçerlidir. Türkiye-only modelinde Android ayrı tercih toplamıyor ve Storefront `visitorConsent` bilerek boş bırakılıyor; gerçek görev atamaları, production kimlik/imza/sağlayıcı kararı ve P3-16 yürütmesi hâlâ ayrı aşamalardır. Aşağıdaki eski kabul/rollback kayıtları kendi tarihsel kapsamını korur.
 
+Güncel sorumluluk ayrımı: Shopify mağaza işlemleri, politika, ilk müşteri desteği ve gizlilik/silme süreci satıcıya aittir; Android mühendisliği ve teknik olay çözümü uygulama sağlayıcısına aittir. Play yayıncısı, yükleme anahtarı, Firebase yönetimi ve alan adı/App Links koordinasyonu marka dağıtım modeline göre belirlenir. Gürbakır için Play/imza/sürüm operasyonu proje tarafından yönetilir; satıcı sorumlulukları projeye aktarılmaz. Ayrıntı ve işlem sınırları aynı [işletim sözleşmesindedir](PRIVACY-RELEASE-OPERATING-CONTRACT.md).
+
 Güncel Gate 9 kabulü 2026-09-24'te tanımlı nonproduction pilot kapsamında
 kapandı; aşağıdaki 23 Eylül A5 PARTIAL/AÇIK satırları o günün tarihsel
 checkpoint'idir. [Gate 9 handoff](../multi-brand/GATE-9-PILOT-ACCEPTANCE-AND-HANDOFF.md)
