@@ -86,6 +86,7 @@ internal fun gurbakirComposition(configuration: CustomerAccountConfiguration): A
 internal fun resolveEnvironmentId(rawValue: String): EnvironmentId = when (rawValue) {
     "DEVELOPMENT" -> EnvironmentId.DEVELOPMENT
     "STAGING" -> EnvironmentId.STAGING
+    "PRODUCTION" -> EnvironmentId.PRODUCTION
     else -> error("Unsupported application environment.")
 }
 

@@ -15,7 +15,8 @@ private val KEY_ALIAS_PATTERN = Regex("^[a-z][a-z0-9.-]{1,127}$")
 
 enum class EnvironmentId {
     DEVELOPMENT,
-    STAGING
+    STAGING,
+    PRODUCTION
 }
 
 class ControlledPublicToken private constructor(private val rawValue: String) {

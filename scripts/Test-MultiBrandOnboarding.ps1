@@ -149,6 +149,19 @@ function Invoke-RegistrySuite {
         -Name 'profile means registry profile rather than runtime enum'
     Assert-True -Condition ($resolved.Application.identity.brandKey -eq 'gurbakir') `
         -Name 'Gurbakir runtime brand key remains exact'
+    $production = Get-OnboardingApplicationProfile `
+        -Registry $registry `
+        -Application 'gurbakir' `
+        -Profile 'production'
+    Assert-True `
+        -Condition (
+            [string]$production.Profile.runtimeEnvironment -ceq 'PRODUCTION' -and
+            [string]$production.Profile.variants[1].applicationId -ceq 'com.gurbakir.mobile' -and
+            [string]$production.Profile.customerAccount.callbackSchemeSuffix -ceq 'gurbakir.production' -and
+            [string]$production.Profile.firebase.mode -ceq 'disabled' -and
+            [string]$production.Application.releaseBoundary -ceq 'nonproduction-only'
+        ) `
+        -Name 'Gurbakir production candidate has isolated package callback and disabled Firebase'
     Assert-True `
         -Condition (
             [string]$resolved.Application.identity.webRoles.legalSupport.paths.accountDeletionRequest -ceq

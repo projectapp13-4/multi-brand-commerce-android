@@ -317,7 +317,7 @@ function Assert-OnboardingProfile {
     )
     Assert-OnboardingObjectFields -Object $Profile -Allowed $fields -Required $fields -Field $field
     Assert-OnboardingKey -Value ([string]$Profile.key) -Field "$field.key"
-    Assert-OnboardingEnum -Value ([string]$Profile.runtimeEnvironment) -Allowed @('DEVELOPMENT', 'STAGING') -Field "$field.runtimeEnvironment"
+    Assert-OnboardingEnum -Value ([string]$Profile.runtimeEnvironment) -Allowed @('DEVELOPMENT', 'PRODUCTION', 'STAGING') -Field "$field.runtimeEnvironment"
     Assert-OnboardingText -Value ([string]$Profile.displayName) -Field "$field.displayName"
     foreach ($pathName in @('localConfiguration', 'providerBindingFile')) {
         if ($null -ne $Profile[$pathName]) {
@@ -432,7 +432,7 @@ function Assert-OnboardingProfile {
     }
 
     Assert-OnboardingObjectFields -Object $Profile.customerAccount `
-        -Allowed @('mode', 'discoveryOrigin', 'clientIdLocalKey') -Required @('mode') -Field "$field.customerAccount"
+        -Allowed @('mode', 'discoveryOrigin', 'clientIdLocalKey', 'callbackSchemeSuffix') -Required @('mode') -Field "$field.customerAccount"
     Assert-OnboardingEnum -Value ([string]$Profile.customerAccount.mode) `
         -Allowed @('enabled-manual-registration', 'disabled') -Field "$field.customerAccount.mode"
     if ([string]$Profile.customerAccount.mode -ceq 'enabled-manual-registration') {
@@ -444,6 +444,10 @@ function Assert-OnboardingProfile {
         Assert-OnboardingHttpsOrigin -Value ([string]$Profile.customerAccount.discoveryOrigin) -Field "$field.customerAccount.discoveryOrigin"
         if ([string]$Profile.customerAccount.clientIdLocalKey -cne 'shopify.customerAccountClientId') {
             throw (New-OnboardingContractError -Code 'INVALID_CUSTOMER_CLIENT_SOURCE' -Field "$field.customerAccount.clientIdLocalKey")
+        }
+        if ($Profile.customerAccount.Contains('callbackSchemeSuffix') -and
+            [string]$Profile.customerAccount.callbackSchemeSuffix -cnotmatch '^[a-z][a-z0-9.-]{0,63}$') {
+            throw (New-OnboardingContractError -Code 'INVALID_CALLBACK_SCHEME_SUFFIX' -Field "$field.customerAccount.callbackSchemeSuffix")
         }
     } elseif ($Profile.customerAccount.Count -ne 1) {
         throw (New-OnboardingContractError -Code 'DISABLED_PROVIDER_FIELDS' -Field "$field.customerAccount")
@@ -697,6 +701,16 @@ function Import-OnboardingRegistry {
             }
         } elseif ([string]$application.releaseBoundary -cne 'nonproduction-only') {
             throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
+        } else {
+            $productionProfiles = @($profiles | Where-Object { [string]$_.runtimeEnvironment -ceq 'PRODUCTION' })
+            if ($productionProfiles.Count -gt 0 -and
+                ([string]$application.key -cne 'gurbakir' -or $productionProfiles.Count -ne 1 -or
+                [string]$productionProfiles[0].key -cne 'production' -or
+                [string]$productionProfiles[0].variants[1].applicationId -cne 'com.gurbakir.mobile' -or
+                [string]$productionProfiles[0].customerAccount.callbackSchemeSuffix -cne 'gurbakir.production' -or
+                [string]$productionProfiles[0].firebase.mode -cne 'disabled')) {
+                throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
+            }
         }
     }
     $sortedApplicationKeys = @($applicationKeys | Sort-Object -CaseSensitive)
@@ -1035,7 +1049,12 @@ function Get-OnboardingProjectionLines {
     Add-OnboardingProjectionLine $lines 'app.customerAccountMode' ([string]$profile.customerAccount.mode)
     if ([string]$profile.customerAccount.mode -cne 'disabled') {
         Add-OnboardingProjectionLine $lines 'app.customerAccountUserAgent' ([string]$identity.customerAccount.userAgent)
-        Add-OnboardingProjectionLine $lines 'app.customerAccountCallbackSchemeSuffix' ([string]$identity.customerAccount.callbackSchemeSuffix)
+        $callbackSuffix = if ($profile.customerAccount.Contains('callbackSchemeSuffix')) {
+            [string]$profile.customerAccount.callbackSchemeSuffix
+        } else {
+            [string]$identity.customerAccount.callbackSchemeSuffix
+        }
+        Add-OnboardingProjectionLine $lines 'app.customerAccountCallbackSchemeSuffix' $callbackSuffix
         Add-OnboardingProjectionLine $lines 'app.customerAccountCallbackHost' ([string]$identity.customerAccount.callbackHost)
         Add-OnboardingProjectionLine $lines 'app.customerAccountCallbackPath' ([string]$identity.customerAccount.callbackPath)
         Add-OnboardingProjectionLine $lines 'app.customerAccountScopes' ((@($identity.customerAccount.scopes) | ForEach-Object { [string]$_ }) -join ',')

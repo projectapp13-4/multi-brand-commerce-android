@@ -1390,8 +1390,13 @@ try {
     Add-Check -Name 'neutral reference model replaces the private forensic corpus' -Passed ($referenceModelPresent -and $forbiddenReferenceArtifacts.Count -eq 0) -Evidence $referenceEvidence
 
     $appBuild = Read-Text 'app/build.gradle.kts'
-    $productionStillExternal = $null -ne $appBuild -and $appBuild -notmatch 'create\("production"\)'
-    Add-Check -Name 'production variant remains intentionally unprovisioned' -Passed $productionStillExternal -Evidence 'development/staging are portable; production inputs remain owner-controlled and external'
+    $productionInputsScoped = $null -ne $appBuild -and
+        $appBuild.Contains('create("production")') -and
+        $appBuild.Contains('loadProfile("production")') -and
+        $appBuild.Contains('config/local/gurbakir/') -and
+        $appBuild.Contains('GURBAKIR_UPLOAD_KEYSTORE_PATH') -and
+        $appBuild.Contains('GURBAKIR_UPLOAD_KEY_PASSWORD')
+    Add-Check -Name 'production candidate consumes a scoped projection and external upload signing inputs' -Passed $productionInputsScoped -Evidence 'tracked configuration is non-secret; production client values and upload key stay outside Git'
 
     $unsupportedProjectDependencyModules = [System.Collections.Generic.List[string]]::new()
     foreach ($module in $modules) {

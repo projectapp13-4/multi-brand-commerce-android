@@ -2,7 +2,7 @@
 
 Status date: 2026-09-26
 
-Current pre-P3-16 governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. Actual assignments and permanent production identity/signing/provider decisions remain; P3-16 is **NOT STARTED**.
+Current release governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. The bounded Gürbakır [closed-test candidate preparation](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) is underway; public production release readiness is not established.
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 
@@ -82,9 +82,10 @@ history, protected bootstrap, and historical-archive cutover evidence.
   witnessed. Shopify's case-specific processing is pending, not a project wait
   gate. Production operator, restricted-record, processor/retention and notice
   governance remain P3-16 release inputs.
-- **P3-16 production/release readiness is not started.** Repository migration,
-  builds, tests, public CI and Multi-Brand Gate closure do not constitute
-  production-release proof.
+- **P3-16 public production/release readiness remains open.** The separately
+  authorized Gürbakır closed-test candidate preparation has begun. Repository
+  migration, builds, tests, public CI and Multi-Brand Gate closure do not
+  constitute public production-release proof.
 - A scoped pre-P3-16 [account deletion route/process continuation](phase3/PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md)
   adds a dedicated merchant page and typed application route. Public form
   rendering, two test-only submissions and merchant receipt are witnessed. The
@@ -129,7 +130,8 @@ scope. They do not override current source or later accepted decisions.
 | [`phase3/PHASE-3-ACCEPTANCE-MATRIX.md`](phase3/PHASE-3-ACCEPTANCE-MATRIX.md) | Feature-by-feature acceptance status |
 | [`phase3/P3-13-HANDOFF.md`](phase3/P3-13-HANDOFF.md) | Account-deletion mobile/external boundary |
 | [`phase3/P3-15-HANDOFF.md`](phase3/P3-15-HANDOFF.md) | Integrated functional acceptance |
-| [`phase3/P3-16-HANDOFF.md`](phase3/P3-16-HANDOFF.md) | Unstarted production/release entry boundary |
+| [`phase3/P3-16-HANDOFF.md`](phase3/P3-16-HANDOFF.md) | Historical pre-campaign production/release entry audit |
+| [`phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md`](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) | Current bounded Gürbakır closed-test preparation and remaining release gates |
 | [`product-quality/UI-REFINEMENT-WORKSTREAM-HISTORY-AND-HANDOFF.md`](product-quality/UI-REFINEMENT-WORKSTREAM-HISTORY-AND-HANDOFF.md) | Current UI-refinement continuation point |
 | [`preparation/ARCHITECTURE-DIRECTION.md`](preparation/ARCHITECTURE-DIRECTION.md) | Durable native application direction |
 

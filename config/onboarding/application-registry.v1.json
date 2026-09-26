@@ -27,8 +27,8 @@
       "role": "real-brand-application",
       "allowedDirectProjects": [":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase"],
       "ciTasks": {
-        "unit": [":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest"],
-        "assemble": [":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest"],
+        "unit": [":app:testDevelopmentDebugUnitTest", ":app:testProductionDebugUnitTest", ":app:testStagingDebugUnitTest"],
+        "assemble": [":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleProductionDebug", ":app:assembleProductionRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleProductionDebugAndroidTest", ":app:assembleStagingDebugAndroidTest"],
         "api30": [":app:ciApi30DevelopmentDebugAndroidTest"],
         "api23": []
       }
@@ -255,6 +255,63 @@
             "cartKeyAlias": "gurbakir.cart.development.v1",
             "customerPreferences": "gurbakir_secure_customer_session_development",
             "customerKeyAlias": "gurbakir.customer.session.development.v1"
+          }
+        },
+        {
+          "key": "production",
+          "runtimeEnvironment": "PRODUCTION",
+          "displayName": "Gürbakır",
+          "localConfiguration": "config/local/gurbakir/production.properties",
+          "providerBindingFile": "config/local/gurbakir/production.providers.json",
+          "variants": [
+            {
+              "name": "productionDebug",
+              "buildType": "debug",
+              "applicationId": "com.gurbakir.mobile.debug",
+              "firebaseConfig": null
+            },
+            {
+              "name": "productionRelease",
+              "buildType": "release",
+              "applicationId": "com.gurbakir.mobile",
+              "firebaseConfig": null
+            }
+          ],
+          "storefront": {
+            "mode": "enabled",
+            "domain": "gurbakir.com",
+            "apiVersion": "2026-07",
+            "publicTokenLocalKey": "shopify.storefrontPublicToken",
+            "mediaOrigins": ["gurbakir.com"],
+            "sharedResourceGroup": "gurbakir-existing-shop",
+            "catalog": {
+              "menuHandle": "main-menu",
+              "managementMode": "validate-only"
+            },
+            "home": {
+              "rootType": "mobile_home",
+              "rootHandle": "primary",
+              "contentSchemaVersion": 1,
+              "definitionContract": "gate7-v1",
+              "definitionManagementMode": "create-if-missing",
+              "entryManagementMode": "validate-only",
+              "sourceMode": "shopify-metaobject"
+            }
+          },
+          "customerAccount": {
+            "mode": "enabled-manual-registration",
+            "discoveryOrigin": "https://gurbakir.com",
+            "clientIdLocalKey": "shopify.customerAccountClientId",
+            "callbackSchemeSuffix": "gurbakir.production"
+          },
+          "firebase": {
+            "mode": "disabled"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "gurbakir_secure_cart_production",
+            "cartKeyAlias": "gurbakir.cart.production.v1",
+            "customerPreferences": "gurbakir_secure_customer_session_production",
+            "customerKeyAlias": "gurbakir.customer.session.production.v1"
           }
         },
         {
@@ -555,8 +612,8 @@
     }
   ],
   "ciLanes": {
-    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testStagingDebugUnitTest", ":trial:testDevelopmentDebugUnitTest"],
-    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest", ":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest"],
+    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testProductionDebugUnitTest", ":app:testStagingDebugUnitTest", ":trial:testDevelopmentDebugUnitTest"],
+    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleProductionDebug", ":app:assembleProductionRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleProductionDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest", ":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest"],
     "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest", ":trial:ciApi30DevelopmentDebugAndroidTest"],
     "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest", ":trial:ciApi23DevelopmentDebugAndroidTest"]
   }
