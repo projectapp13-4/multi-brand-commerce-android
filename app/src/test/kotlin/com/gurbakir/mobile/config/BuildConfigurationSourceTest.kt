@@ -17,6 +17,11 @@ class BuildConfigurationSourceTest {
     }
 
     @Test
+    fun `production environment maps from the exact registry enum`() {
+        assertEquals(EnvironmentId.PRODUCTION, resolveEnvironmentId("PRODUCTION"))
+    }
+
+    @Test
     fun `unknown environment fails closed`() {
         assertThrows<IllegalStateException> { resolveEnvironmentId("production") }
         assertThrows<IllegalStateException> { resolveEnvironmentId("development") }

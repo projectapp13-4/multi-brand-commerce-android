@@ -408,6 +408,7 @@ private fun IntegrationDetailScreen(integration: IntegrationId, onBack: () -> Un
 private fun EnvironmentId.stringResourceId(): Int = when (this) {
     EnvironmentId.DEVELOPMENT -> R.string.environment_development
     EnvironmentId.STAGING -> R.string.environment_staging
+    EnvironmentId.PRODUCTION -> R.string.environment_production
 }
 
 private fun IntegrationId.titleResourceId(): Int = when (this) {

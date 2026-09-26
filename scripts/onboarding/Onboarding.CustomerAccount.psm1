@@ -41,7 +41,12 @@ function Get-OnboardingCustomerDiscovery {
         'authorization_code' -notin @($openId.Data.grant_types_supported) -or
         'RS256' -notin @($openId.Data.id_token_signing_alg_values_supported)) { throw 'CUSTOMER_DISCOVERY_CAPABILITY_MISMATCH' }
     $identity = $Selected.Application.identity.customerAccount
-    $callback = "shop.$($Binding.shopify.shopId).$($identity.callbackSchemeSuffix)://$($identity.callbackHost)$($identity.callbackPath)"
+    $callbackSuffix = if ($Selected.Profile.customerAccount.Contains('callbackSchemeSuffix')) {
+        [string]$Selected.Profile.customerAccount.callbackSchemeSuffix
+    } else {
+        [string]$identity.callbackSchemeSuffix
+    }
+    $callback = "shop.$($Binding.shopify.shopId).${callbackSuffix}://$($identity.callbackHost)$($identity.callbackPath)"
     $canonical = Get-OnboardingCanonicalJson ([ordered]@{
         issuer = $openId.Data.issuer
         authorization = $authorizationEndpoint

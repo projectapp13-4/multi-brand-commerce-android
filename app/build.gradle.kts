@@ -141,6 +141,16 @@ fun loadProfile(key: String): OnboardingProfileInput {
         check(local.keys == localKeys && local.values.all(String::isNotBlank)) {
             "Present scoped client configuration must contain every required non-empty client value."
         }
+        val callback = URI(local.getValue("shopify.customerAccountRedirectUri"))
+        val expectedSuffix = projection.getValue("app.customerAccountCallbackSchemeSuffix")
+        check(
+            callback.scheme?.matches(Regex("shop\\.[0-9]+\\.${Regex.escape(expectedSuffix)}")) == true &&
+                callback.host == projection.getValue("app.customerAccountCallbackHost") &&
+                callback.path == projection.getValue("app.customerAccountCallbackPath") &&
+                callback.rawQuery == null && callback.rawFragment == null
+        ) {
+            "Scoped Customer Account callback does not match the projected application profile."
+        }
     }
     return OnboardingProfileInput(key, projection, local, localFile)
 }
@@ -148,6 +158,7 @@ fun loadProfile(key: String): OnboardingProfileInput {
 val onboardingProfiles =
     linkedMapOf(
         "development" to loadProfile("development"),
+        "production" to loadProfile("production"),
         "staging" to loadProfile("staging")
     )
 
@@ -172,10 +183,11 @@ if (requireConfiguredProfile && selectedApplication == "gurbakir") {
     check(selected.localFile.isFile && selected.local.keys == localKeys) {
         "The explicitly selected onboarding profile is UNCONFIGURED."
     }
-    val otherProfile = onboardingProfiles.keys.single { it != selectedProfileKey }
+    val otherProfiles = onboardingProfiles.keys.filter { it != selectedProfileKey }
     check(
         gradle.startParameter.taskNames.none {
-            it.startsWith(":app:", ignoreCase = true) && it.contains(otherProfile, ignoreCase = true)
+            it.startsWith(":app:", ignoreCase = true) &&
+                otherProfiles.any { other -> it.contains(other, ignoreCase = true) }
         }
     ) {
         "Configured app tasks must belong to the explicitly selected onboarding profile."
@@ -350,6 +362,29 @@ if (firebaseClientConfigured) {
     }
     apply(plugin = "com.google.gms.google-services")
 }
+// The production candidate deliberately has no Firebase registration. Keep
+// Google Services resource generation disabled for that variant even when
+// non-production configuration files are present in the same checkout.
+tasks.matching { it.name.startsWith("processProduction") && it.name.endsWith("GoogleServices") }
+    .configureEach { enabled = false }
+
+val uploadKeystorePath = providers.environmentVariable("GURBAKIR_UPLOAD_KEYSTORE_PATH").orNull
+val uploadPassword = providers.environmentVariable("GURBAKIR_UPLOAD_KEY_PASSWORD").orNull
+val uploadSigningConfigured = !uploadKeystorePath.isNullOrBlank() && !uploadPassword.isNullOrBlank()
+check(uploadKeystorePath.isNullOrBlank() == uploadPassword.isNullOrBlank()) {
+    "Gürbakır production upload signing inputs must be supplied together."
+}
+val requireSignedProductionRelease =
+    providers.gradleProperty("requireSignedProductionRelease").orNull?.toBooleanStrictOrNull() ?: false
+if (requireSignedProductionRelease) {
+    check(
+        selectedApplication == "gurbakir" && selectedProfile == "production" &&
+            requireConfiguredProfile && uploadSigningConfigured &&
+            gradle.startParameter.taskNames.any { it.contains("ProductionRelease", ignoreCase = true) }
+    ) {
+        "A signed production release requires the exact selected profile and private upload-key inputs."
+    }
+}
 
 val validateOnboardingProjections by tasks.registering(Exec::class) {
     group = "verification"
@@ -381,7 +416,18 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("boolean", "FIREBASE_CONFIGURED", firebaseClientConfigured.toString())
+        buildConfigField("boolean", "FIREBASE_CONFIGURED", "false")
+    }
+
+    signingConfigs {
+        if (uploadSigningConfigured) {
+            create("gurbakirUpload") {
+                storeFile = file(checkNotNull(uploadKeystorePath))
+                storePassword = checkNotNull(uploadPassword)
+                keyAlias = "gurbakir-upload-2026"
+                keyPassword = uploadPassword
+            }
+        }
     }
 
     flavorDimensions += "environment"
@@ -389,15 +435,26 @@ android {
         create("development") {
             dimension = "environment"
             configureOnboarding(onboardingProfiles.getValue("development"))
+            buildConfigField("boolean", "FIREBASE_CONFIGURED", firebaseClientConfigured.toString())
+        }
+        create("production") {
+            dimension = "environment"
+            configureOnboarding(onboardingProfiles.getValue("production"))
+            buildConfigField("boolean", "FIREBASE_CONFIGURED", "false")
+            if (uploadSigningConfigured) {
+                signingConfig = signingConfigs.getByName("gurbakirUpload")
+            }
         }
         create("staging") {
             dimension = "environment"
             configureOnboarding(onboardingProfiles.getValue("staging"))
+            buildConfigField("boolean", "FIREBASE_CONFIGURED", firebaseClientConfigured.toString())
         }
     }
 
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("debug")
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
             isPseudoLocalesEnabled = true

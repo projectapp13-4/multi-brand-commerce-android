@@ -336,7 +336,12 @@ function Get-OnboardingValidatedClientConfigurationLines {
         $apiVersion=[string]$Context.Registry.providerContracts.shopifyCustomerAccountApiVersion
         if(-not$graphql.AbsolutePath.EndsWith("/$apiVersion/graphql",[StringComparison]::Ordinal)){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountGraphqlEndpoint'}
         $identity=$Context.Selected.Application.identity.customerAccount
-        $expectedCallback="shop.$($Context.Binding.shopify.shopId).$($identity.callbackSchemeSuffix)://$($identity.callbackHost)$($identity.callbackPath)"
+        $callbackSuffix = if ($Context.Selected.Profile.customerAccount.Contains('callbackSchemeSuffix')) {
+            [string]$Context.Selected.Profile.customerAccount.callbackSchemeSuffix
+        } else {
+            [string]$identity.callbackSchemeSuffix
+        }
+        $expectedCallback="shop.$($Context.Binding.shopify.shopId).${callbackSuffix}://$($identity.callbackHost)$($identity.callbackPath)"
         if([string]$Values['shopify.customerAccountRedirectUri']-cne$expectedCallback){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountRedirectUri'}
     }
     return @($requiredKeys|ForEach-Object{"$_=$([string]$Values[$_])"})
@@ -449,7 +454,12 @@ function Get-OnboardingManualCheckpointState {
         )
     ).ToLowerInvariant()
     $identity = $Context.Selected.Application.identity.customerAccount
-    $expectedCallback = "shop.$($Context.Binding.shopify.shopId).$($identity.callbackSchemeSuffix)://$($identity.callbackHost)$($identity.callbackPath)"
+    $callbackSuffix = if ($Context.Selected.Profile.customerAccount.Contains('callbackSchemeSuffix')) {
+        [string]$Context.Selected.Profile.customerAccount.callbackSchemeSuffix
+    } else {
+        [string]$identity.callbackSchemeSuffix
+    }
+    $expectedCallback = "shop.$($Context.Binding.shopify.shopId).${callbackSuffix}://$($identity.callbackHost)$($identity.callbackPath)"
     if ($checkpoint.schemaVersion -isnot [long] -or [long]$checkpoint.schemaVersion -ne 1 -or
         [string]$checkpoint.application -cne [string]$Context.Selected.Application.key -or
         [string]$checkpoint.profile -cne [string]$Context.Selected.Profile.key -or
@@ -652,7 +662,8 @@ function New-OnboardingPlan {
     if(-not[string]::IsNullOrWhiteSpace($PriorReceipt)){$PriorReceipt=Resolve-OnboardingEvidencePath $RepositoryRoot $PriorReceipt 'PriorReceipt'}
     $context=Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
     $homeContract=Get-OnboardingHomeOperatorContract $context
-    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only') { throw 'UNSAFE_RELEASE_BOUNDARY' }
+    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only' -or
+        [string]$context.Selected.Profile.runtimeEnvironment -ceq 'PRODUCTION') { throw 'UNSAFE_RELEASE_BOUNDARY' }
     if ([string]$context.Selected.Profile.storefront.mode -cne 'enabled') { throw 'SHOPIFY_STOREFRONT_DISABLED' }
     if ($IncludeAcceptanceProbe -and [string]$homeContract.ContractId -cne 'gate7-v1') { throw 'PROBE_NOT_SUPPORTED_FOR_HOME_CONTRACT' }
     $values=Get-OnboardingClientConfigurationValues -Context $context -ClientValues $ClientValues
@@ -682,6 +693,7 @@ function Invoke-OnboardingApply {
     $homeContract=Get-OnboardingHomeOperatorContract $context
     if ([string]$plan.operationContractVersion -cne [string]$homeContract.OperationContractVersion) { throw 'PLAN_CONTRACT_DRIFT' }
     if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only' -or
+        [string]$context.Selected.Profile.runtimeEnvironment -ceq 'PRODUCTION' -or
         [string]$plan.releaseBoundary -cne [string]$context.Selected.Application.releaseBoundary -or
         [string]$plan.runtimeEnvironment -cne [string]$context.Selected.Profile.runtimeEnvironment) {
         throw 'UNSAFE_RELEASE_BOUNDARY'
@@ -866,7 +878,8 @@ function Invoke-OnboardingProbeRecovery {
     $recovery = Import-OnboardingReceipt -Path $RecoveryReceipt
     $context = Get-OnboardingOperatorContext $RepositoryRoot $Application $Profile
     $homeContract = Get-OnboardingHomeOperatorContract $context
-    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only') {
+    if ([string]$context.Selected.Application.releaseBoundary -cne 'nonproduction-only' -or
+        [string]$context.Selected.Profile.runtimeEnvironment -ceq 'PRODUCTION') {
         throw 'UNSAFE_RELEASE_BOUNDARY'
     }
     if ([string]$homeContract.ContractId -cne 'gate7-v1' -or
