@@ -6,6 +6,8 @@
 
 > **Current group 17 reconciliation (2026-09-26):** The `EXTERNALLY_BLOCKED` row below is the P3-00 product-scope classification and remains unchanged for provenance. Later [account-deletion process evidence](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md) verifies the dedicated Android/public request route, merchant intake and an accepted Shopify personal-data-erasure handoff on a no-order synthetic customer. Final redaction of that case is unobserved, but Shopify's scheduled processing date is not a project wait gate. The current release condition is accountable merchant operations: restricted cases, processor/retention review, response/notice rules and support ownership. P-18 remains partial for those governance inputs; the Android capability and Shopify handoff are no longer unverified.
 
+> **Current governance disposition (2026-09-26):** The [operating contract](../operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md) defines those production functions and the Türkiye-only hosted privacy model. P-18 remains **PARTIAL** until accountable functions are assigned and the final merchant policy/processor and notice procedure is accepted; no Shopify scheduled date blocks independent engineering. Historical row 17 remains unchanged.
+
 Date: 2026-08-06
 
 Status: **FINAL PRODUCT-SCOPE MATRIX**

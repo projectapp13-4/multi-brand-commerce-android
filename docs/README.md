@@ -2,6 +2,8 @@
 
 Status date: 2026-09-26
 
+Current pre-P3-16 governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. Actual assignments and permanent production identity/signing/provider decisions remain; P3-16 is **NOT STARTED**.
+
 This is the repository documentation entry point. It distinguishes current
 authority and constraints from historical evidence so that older records remain
 useful without becoming present-state instructions.

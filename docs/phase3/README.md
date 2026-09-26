@@ -6,6 +6,8 @@ Active approval policy: [Owner Authority and Approval Boundaries](../OWNER-AUTHO
 
 **Current deletion-status reconciliation (2026-09-26):** The dated P3-13/P3-15 paragraphs below preserve their implementation checkpoints. Later [merchant-process evidence](PRE-P3-16-ACCOUNT-DELETION-ROUTE-AND-PROCESS.md) verifies the dedicated public/Android request route, merchant intake and an accepted Shopify erasure handoff on a no-order synthetic case. Shopify's case-specific final redaction is unobserved; its scheduled processing date is not an engineering or P3-16 wait gate. Group 17 retains its historical matrix classification and P-18 remains partial for production operator, restricted case, processor/retention, notice and support governance. P3-16 is still **NOT STARTED** for its separate production/release inputs.
 
+**Current privacy and release-governance decision (2026-09-26):** The [operating contract](../operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md) closes the Türkiye-only Android visitor-consent model as hosted Shopify controls with intentional Storefront omission, and defines privacy, support, release, incident and recovery roles. Actual accountable assignments and production identity/signing/provider decisions remain P3-16 entry inputs. Final production artifact, Data Safety, Play and provider readbacks remain later gates; P3-16 is **NOT STARTED**.
+
 ## Governing product and roadmap authority
 
 - [Phase 3 Product Decisions](PHASE-3-PRODUCT-DECISIONS.md)
