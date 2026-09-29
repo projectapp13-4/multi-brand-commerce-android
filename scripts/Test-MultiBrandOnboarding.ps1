@@ -2809,6 +2809,8 @@ function Invoke-OperatorApplySuite {
 function Invoke-HistoricalGate8HomeApplyFixture {
     # The Gate 8 Apply regression exercises the retained v1 rollback contract.
     # Restore the exact current registry and generated projections after the fixture.
+    Import-Module $registryModule -Force
+    Import-Module $commonModule -Force
     $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
     $projectionPaths = @(
         'config\onboarding\generated\gurbakir\development.properties',
