@@ -24,10 +24,6 @@ class HomeVideoSourcePolicyTest {
         assertFalse(HomeVideoSourcePolicy.accepts(source(720, 1080, format = "webm")))
     }
 
-    private fun source(
-        width: Int,
-        height: Int,
-        mimeType: String = "video/mp4",
-        format: String = "mp4"
-    ) = StorefrontVideoSource(URI("https://cdn.shopify.com/video.mp4"), mimeType, format, width, height)
+    private fun source(width: Int, height: Int, mimeType: String = "video/mp4", format: String = "mp4") =
+        StorefrontVideoSource(URI("https://cdn.shopify.com/video.mp4"), mimeType, format, width, height)
 }
