@@ -55,18 +55,26 @@ public production readiness or Play-distributed acceptance.
 - Shopify currently serves `[]` at `/.well-known/assetlinks.json`.
   Association with the exact Play App Signing certificate and device
   verification remain pending.
-- The live website mobile hero maps to an owned Shopify Video file ending in
-  `40448681705711`. A separate Gür Bakır v2 Home definition, child records,
-  and root will be created and validated before selecting the root last.
-  The current v1 root remains the provider rollback point.
+- The live website mobile hero maps to the owned Shopify Video file
+  `gid://shopify/Video/40448681705711`; its available MP4 renditions include
+  320×480, 480×720, and 720×1080. The separate Gür Bakır v2 image, video,
+  and root definitions were created and read back against the checked-in
+  schema. Three ACTIVE v2 child records were created and read back: manual-play
+  video, a Gür Bakır-owned five-collection grid, and a featured product.
+  `mobile_home_v2/primary` has not been created or selected in Shopify yet;
+  the root is the final provider write after client validation. The ACTIVE v1
+  root remains unchanged as the rollback point.
 - The local onboarding operator Plan cannot use its missing process-scoped
-  Shopify Admin token. Connected Shopify Admin readback verified the same
-  shop has the shared grid/featured definitions and video file, with image,
-  video, and v2 root definitions still absent. Connector-backed definitions
-  and entries remain bounded external follow-up.
+  Shopify Admin token. Connected Shopify Admin access supplied the definition
+  and child readback; configured public Storefront readback of the eventual
+  root remains pending. The connector's mobile-platform-application read was
+  denied the `read_mobile_platform_applications` scope, so Play App Signing
+  certificate association must use the owner's authorized Play/Shopify path.
 - Local public-readiness self-tests passed 20/20 and validation passed 23/23.
   Onboarding Registry (81/81), Configuration (19/19), Enrollment (13/13),
   OperatorReadOnly (74/74), and historical OperatorApply (68/68) passed.
-  Focused Gradle tests, broad Multi-Brand regression, exact-head CI,
-  configured Storefront readback, and PR review/merge evidence must be added
-  before this record is marked complete.
+  Exact-head CI on `94c5b5b` passed the API 23 and API 30 instrumentation
+  lanes, Spotless, detekt, and onboarding checks. Android Lint found duplicate
+  scheme/host/path attributes in the collection intent filter; the filter has
+  been corrected and must pass a new exact-head run. Configured Storefront
+  readback and PR review/merge evidence remain open.
