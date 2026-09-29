@@ -217,8 +217,8 @@ function Invoke-RegistrySuite {
         -Name 'projection begins with schema version'
     Assert-True -Condition ($lines -contains 'app.brandDisplayName=Gürbakır') `
         -Name 'projection preserves UTF-8 display identity'
-    Assert-True -Condition ($lines -ccontains 'shopify.homeDefinitionContract=gate7-v1') `
-        -Name 'Gurbakir projection preserves the exact Gate 7 Home contract id'
+    Assert-True -Condition ($lines -ccontains 'shopify.homeDefinitionContract=pilot-media-v2') `
+        -Name 'Gurbakir projection selects the reviewed Home v2 contract id'
     Assert-True `
         -Condition ($lines -ccontains 'web.legalSupportPath.accountDeletionRequest=/pages/uygulama-hesap-silme-talebi') `
         -Name 'Gurbakir projection carries the deletion route'
@@ -516,7 +516,7 @@ function Invoke-RegistrySuite {
         $wrongHomePath = Join-Path $temporaryRoot 'wrong-home.json'
         [System.IO.File]::WriteAllText(
             $wrongHomePath,
-            $raw.Replace('"rootType": "mobile_home"', '"rootType": "arbitrary_home"'),
+            $raw.Replace('"rootType": "mobile_home_v2"', '"rootType": "arbitrary_home"'),
             [System.Text.UTF8Encoding]::new($false)
         )
         Assert-Throws `
@@ -526,9 +526,9 @@ function Invoke-RegistrySuite {
 
         foreach ($invalidHomeMutation in @(
             @{
-                Name = 'v1 type with v2 contract is rejected'
-                Old = '"definitionContract": "gate7-v1"'
-                New = '"definitionContract": "pilot-media-v2"'
+                Name = 'v2 type with v1 contract is rejected'
+                Old = '"definitionContract": "pilot-media-v2"'
+                New = '"definitionContract": "gate7-v1"'
             },
             @{
                 Name = 'v2 type with v1 schema version is rejected'
@@ -920,6 +920,7 @@ function Invoke-ConfigurationSuite {
     Assert-True `
         -Condition (
             $appBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
+            $appBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")') -and
             $trialBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")') -and
             $storefrontBuild.Contains('Triple("mobile_home", "1", "gate7-v1")') -and
             $storefrontBuild.Contains('Triple("mobile_home_v2", "2", "pilot-media-v2")')
@@ -1292,13 +1293,14 @@ public sealed class Gate8BlockingReadStream : Stream
     } $trialSelection
     Assert-True `
         -Condition (
-            [string]$gurbakirHomeOperatorContract.ContractId -ceq 'gate7-v1' -and
-            [string]$gurbakirHomeOperatorContract.OperationContractVersion -ceq 'gate8-v1' -and
+            [string]$gurbakirHomeOperatorContract.ContractId -ceq 'pilot-media-v2' -and
+            [string]$gurbakirHomeOperatorContract.OperationContractVersion -ceq 'gate9-v2' -and
+            [string]$gurbakirHomeOperatorContract.SchemaRelativePath -ceq 'config/onboarding/shopify-home-schema.v2.json' -and
             [string]$trialHomeOperatorContract.ContractId -ceq 'pilot-media-v2' -and
             [string]$trialHomeOperatorContract.OperationContractVersion -ceq 'gate9-v2' -and
             [string]$trialHomeOperatorContract.SchemaRelativePath -ceq 'config/onboarding/shopify-home-schema.v2.json'
         ) `
-        -Name 'operator dispatches Gürbakır v1 and Trial v2 from the closed profile contract tuple'
+        -Name 'operator dispatches Gürbakır and Trial v2 from their closed profile contract tuples'
     $disabledFirebaseState = & (Get-Module Onboarding.Operator) {
         param($Context)
         Get-OnboardingFirebaseInspectionState `
@@ -2001,9 +2003,9 @@ public sealed class Gate8BlockingReadStream : Stream
     Assert-True `
         -Condition (
             [string]$multiHostState.Classification -ceq 'NOT_VERIFIED' -and
-            (@($assetLinksHosts | Sort-Object -Unique) -join ',') -ceq 'gurbakir.com,orders.gurbakir.com,products.gurbakir.com'
+            (@($assetLinksHosts | Sort-Object -Unique) -join ',') -ceq 'gurbakir.com'
         ) `
-        -Name 'App Links inspection queries every distinct declared application-link host'
+        -Name 'App Links inspection queries only the host with an OS-declared collection route'
 
     $disabledAssetLinksState = Get-OnboardingAssetLinksState $syntheticSelection { throw 'disabled App Links must not issue a request' }
     Assert-True `
@@ -2804,6 +2806,61 @@ function Invoke-OperatorApplySuite {
     }
 }
 
+function Invoke-HistoricalGate8HomeApplyFixture {
+    # The Gate 8 Apply regression exercises the retained v1 rollback contract.
+    # Restore the exact current registry and generated projections after the fixture.
+    $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    $projectionPaths = @(
+        'config\onboarding\generated\gurbakir\development.properties',
+        'config\onboarding\generated\gurbakir\production.properties',
+        'config\onboarding\generated\gurbakir\staging.properties',
+        'config\onboarding\generated\trial\development.properties'
+    ) | ForEach-Object { Join-Path $repoRoot $_ }
+    $paths = @($registryPath) + $projectionPaths
+    $snapshots = @{}
+    foreach ($path in $paths) { $snapshots[$path] = Get-TestFileSnapshot -Path $path }
+    try {
+        $fixture = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json -AsHashtable -Depth 64
+        $gurbakir = @($fixture.applications | Where-Object { [string]$_.key -ceq 'gurbakir' })[0]
+        foreach ($profile in @($gurbakir.profiles)) {
+            $profile.storefront.home.rootType = 'mobile_home'
+            $profile.storefront.home.contentSchemaVersion = 1
+            $profile.storefront.home.definitionContract = 'gate7-v1'
+        }
+        $fixtureJson = ($fixture | ConvertTo-Json -Depth 64) + "`n"
+        [IO.File]::WriteAllText($registryPath, $fixtureJson, [Text.UTF8Encoding]::new($false))
+        $fixtureRegistry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
+        $registrySha = Get-OnboardingSha256 -Path $registryPath
+        foreach ($application in @($fixtureRegistry.applications)) {
+            if ($null -eq $application.configurationProjection) { continue }
+            foreach ($profile in @($application.profiles)) {
+                $relative = '{0}/{1}.properties' -f $application.configurationProjection, $profile.key
+                $projectionPath = Join-Path $repoRoot $relative
+                $lines = Get-OnboardingProjectionLines `
+                    -Registry $fixtureRegistry `
+                    -ApplicationRecord $application `
+                    -ProfileRecord $profile `
+                    -RegistrySha256 $registrySha
+                [IO.File]::WriteAllText(
+                    $projectionPath,
+                    (($lines -join "`n") + "`n"),
+                    [Text.UTF8Encoding]::new($false)
+                )
+            }
+        }
+        Invoke-OperatorApplySuite
+    } finally {
+        foreach ($path in $paths) { Restore-TestFileSnapshot -Path $path -Snapshot $snapshots[$path] }
+    }
+    Assert-True -Condition (@($paths | Where-Object {
+        $snapshot = $snapshots[$_]
+        $snapshot.Exists -and
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($_)) -ceq
+                [Convert]::ToBase64String($snapshot.Bytes)
+    }).Count -eq $paths.Count) `
+        -Name 'historical v1 Apply fixture restores current Home v2 source bytes'
+}
+
 function Invoke-OperatorApplyPreservationRegression {
     $bindingPath = Join-Path $repoRoot 'config\local\gurbakir\development.providers.json'
     $stagingBindingPath = Join-Path $repoRoot 'config\local\gurbakir\staging.providers.json'
@@ -2815,7 +2872,7 @@ function Invoke-OperatorApplyPreservationRegression {
         [System.IO.Directory]::CreateDirectory((Split-Path -Parent $bindingPath)) | Out-Null
         [System.IO.File]::WriteAllBytes($bindingPath, $developmentSentinel)
         [System.IO.File]::WriteAllBytes($stagingBindingPath, $stagingSentinel)
-        Invoke-OperatorApplySuite
+        Invoke-HistoricalGate8HomeApplyFixture
         Assert-True `
             -Condition (
                 [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($bindingPath)) -ceq [Convert]::ToBase64String($developmentSentinel) -and

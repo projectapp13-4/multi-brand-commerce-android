@@ -42,6 +42,11 @@ public production readiness or Play-distributed acceptance.
   for verified App Links. HTTP and HTTPS collection links reach the same typed
   route. Product and order URLs remain typed internal routes but are not
   declared OS web defaults while their sampled site paths return 404.
+- The public-readiness and App Links operator checks now enforce the declared
+  collection host; product and order route projections remain available for
+  internal navigation. The historical Gate 8 Apply regression runs against a
+  temporary v1 selection and restores the current v2 registry/projections
+  byte for byte.
 - No cart warning or ownership change is justified by the blocked Xiaomi
   instrumentation result. Existing cart ownership is preserved.
 
@@ -54,6 +59,14 @@ public production readiness or Play-distributed acceptance.
   `40448681705711`. A separate Gür Bakır v2 Home definition, child records,
   and root will be created and validated before selecting the root last.
   The current v1 root remains the provider rollback point.
-- Focused tests, broad Multi-Brand regression, exact-head CI, configured
-  Storefront readback, and PR review/merge evidence must be added before this
-  record is marked complete.
+- The local onboarding operator Plan cannot use its missing process-scoped
+  Shopify Admin token. Connected Shopify Admin readback verified the same
+  shop has the shared grid/featured definitions and video file, with image,
+  video, and v2 root definitions still absent. Connector-backed definitions
+  and entries remain bounded external follow-up.
+- Local public-readiness self-tests passed 20/20 and validation passed 23/23.
+  Onboarding Registry (81/81), Configuration (19/19), Enrollment (13/13),
+  OperatorReadOnly (74/74), and historical OperatorApply (68/68) passed.
+  Focused Gradle tests, broad Multi-Brand regression, exact-head CI,
+  configured Storefront readback, and PR review/merge evidence must be added
+  before this record is marked complete.
