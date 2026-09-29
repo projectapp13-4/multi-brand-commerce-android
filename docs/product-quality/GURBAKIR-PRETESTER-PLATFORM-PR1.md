@@ -61,13 +61,19 @@ public production readiness or Play-distributed acceptance.
   and root definitions were created and read back against the checked-in
   schema. Three ACTIVE v2 child records were created and read back: manual-play
   video, a Gür Bakır-owned five-collection grid, and a featured product.
-  `mobile_home_v2/primary` has not been created or selected in Shopify yet;
-  the root is the final provider write after client validation. The ACTIVE v1
-  root remains unchanged as the rollback point.
+  The `mobile_home_v2/primary` root was created ACTIVE as the final provider
+  write. Admin readback verifies schema version 2, declared count 3, and the
+  ordered video, grid, and featured-product references. The ACTIVE v1 root
+  remains unchanged with two sections as the rollback point.
 - The local onboarding operator Plan cannot use its missing process-scoped
-  Shopify Admin token. Connected Shopify Admin access supplied the definition
-  and child readback; configured public Storefront readback of the eventual
-  root remains pending. The connector's mobile-platform-application read was
+  Shopify Admin token. Connected Shopify Admin access supplied definition,
+  child, and root readback. A first configured development Storefront request
+  returned `UNAUTHORIZED`; the same-shop staging public token read the exact
+  v2 root and three bounded MP4 sources. The stale development token was
+  replaced only in ignored local configuration from that verified public
+  staging token, leaving all other local fields unchanged. Development and
+  staging public Storefront readbacks now both pass; no token value entered
+  Git or this record. The connector's mobile-platform-application read was
   denied the `read_mobile_platform_applications` scope, so Play App Signing
   certificate association must use the owner's authorized Play/Shopify path.
 - Local public-readiness self-tests passed 20/20 and validation passed 23/23.
@@ -76,5 +82,5 @@ public production readiness or Play-distributed acceptance.
   Exact-head CI on `94c5b5b` passed the API 23 and API 30 instrumentation
   lanes, Spotless, detekt, and onboarding checks. Android Lint found duplicate
   scheme/host/path attributes in the collection intent filter; the filter has
-  been corrected and must pass a new exact-head run. Configured Storefront
-  readback and PR review/merge evidence remain open.
+  been corrected in `efd1320`. Its API 23 and API 30 lanes have passed;
+  final exact-head `validate`, PR review, and merge evidence remain open.
