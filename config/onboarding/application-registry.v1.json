@@ -140,7 +140,7 @@
         "compositionSource": "app/src/main/kotlin/com/gurbakir/mobile/config/BuildConfigurationSource.kt",
         "brandKey": "gurbakir",
         "defaultLocale": "tr",
-        "supportedLocales": ["tr", "en"],
+        "supportedLocales": ["tr"],
         "market": {
           "id": "TR",
           "countryCode": "TR",
@@ -187,7 +187,7 @@
           },
           "assetLinks": {
             "mode": "validate-only",
-            "manifestAutoVerify": false
+            "manifestAutoVerify": true
           }
         },
         "nativeCompositionAssertions": {
@@ -230,10 +230,10 @@
               "managementMode": "validate-only"
             },
             "home": {
-              "rootType": "mobile_home",
+              "rootType": "mobile_home_v2",
               "rootHandle": "primary",
-              "contentSchemaVersion": 1,
-              "definitionContract": "gate7-v1",
+              "contentSchemaVersion": 2,
+              "definitionContract": "pilot-media-v2",
               "definitionManagementMode": "create-if-missing",
               "entryManagementMode": "validate-only",
               "sourceMode": "shopify-metaobject"
@@ -289,10 +289,10 @@
               "managementMode": "validate-only"
             },
             "home": {
-              "rootType": "mobile_home",
+              "rootType": "mobile_home_v2",
               "rootHandle": "primary",
-              "contentSchemaVersion": 1,
-              "definitionContract": "gate7-v1",
+              "contentSchemaVersion": 2,
+              "definitionContract": "pilot-media-v2",
               "definitionManagementMode": "create-if-missing",
               "entryManagementMode": "validate-only",
               "sourceMode": "shopify-metaobject"
@@ -346,10 +346,10 @@
               "managementMode": "validate-only"
             },
             "home": {
-              "rootType": "mobile_home",
+              "rootType": "mobile_home_v2",
               "rootHandle": "primary",
-              "contentSchemaVersion": 1,
-              "definitionContract": "gate7-v1",
+              "contentSchemaVersion": 2,
+              "definitionContract": "pilot-media-v2",
               "definitionManagementMode": "create-if-missing",
               "entryManagementMode": "validate-only",
               "sourceMode": "shopify-metaobject"

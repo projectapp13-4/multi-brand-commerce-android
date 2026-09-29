@@ -124,7 +124,8 @@ class OwnedHomeV2ReadProofTest {
         media.sources.forEach { source ->
             assertTrue(StorefrontMediaPolicy(merchantDomain).accepts(source.url))
             assertTrue(source.width in 1..1280)
-            assertTrue(source.height in 1..720)
+            assertTrue(source.height in 1..1280)
+            assertTrue(source.width.toLong() * source.height <= 1280L * 720L)
         }
         val poster = requireNotNull(section.poster)
         assertEquals("file_reference", poster.type)

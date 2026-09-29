@@ -609,7 +609,10 @@ fun ProductionNavHost(
         composable<CollectionRoute>(
             deepLinks =
                 listOf(
-                    navDeepLink<CollectionRoute>(basePath = deepLinks.collectionBasePath)
+                    navDeepLink<CollectionRoute>(basePath = deepLinks.collectionBasePath),
+                    navDeepLink<CollectionRoute>(
+                        basePath = deepLinks.collectionBasePath.replaceFirst("https://", "http://")
+                    )
                 )
         ) { backStackEntry ->
             content.collection(backStackEntry.toRoute())

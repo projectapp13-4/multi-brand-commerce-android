@@ -13,7 +13,7 @@ function Get-OnboardingAssetLinksState {
 
     $hosts = @(
         @(
-            foreach ($role in @('collectionAppLink', 'productAppLink', 'orderAppLink')) {
+            foreach ($role in @('collectionAppLink')) {
                 $link = $Selected.Application.identity.webRoles[$role]
                 if ($null -ne $link) { ([uri][string]$link.origin).IdnHost.ToLowerInvariant() }
             }

@@ -105,6 +105,19 @@ class HomeContentV2ValidatorTest {
     }
 
     @Test
+    fun `portrait video is accepted as playable by the v2 document validator`() {
+        val validation = validator.validate(
+            selector,
+            root(listOf(videoSection("311", resolvedVideo("311", 720, 1080)))),
+            2
+        )
+
+        val accepted = assertInstanceOf(HomeDocumentValidation.Accepted::class.java, validation)
+        assertEquals(HomeDocumentQuality.COMPLETE, accepted.snapshot.quality)
+        assertInstanceOf(RemoteHomeSection.Video::class.java, accepted.snapshot.sections.single())
+    }
+
+    @Test
     fun `unresolved optional target produces no navigation target`() {
         val section = imageSection("304", resolvedImage("504")).copy(
             productTarget =
@@ -251,26 +264,27 @@ class HomeContentV2ValidatorTest {
     )
 
     @Suppress("unused")
-    private fun resolvedVideo(suffix: String): HomeResourceNodeObservation = HomeResourceNodeObservation(
-        runtimeType = "Video",
-        resource =
-            StorefrontHomeResource.Video(
-                key = HomeResourceKey(HomeResourceKind.VIDEO, "gid://shopify/Video/6$suffix"),
-                contentType = "VIDEO",
-                sources =
-                    listOf(
-                        StorefrontVideoSource(
-                            URI("https://cdn.shopify.com/videos/c/o/v/video-$suffix.mp4"),
-                            "video/mp4",
-                            "mp4",
-                            1280,
-                            720
-                        )
-                    ),
-                observedSourceCount = 1,
-                preview = HomeMediaObservation.Absent
-            )
-    )
+    private fun resolvedVideo(suffix: String, width: Int = 1280, height: Int = 720): HomeResourceNodeObservation =
+        HomeResourceNodeObservation(
+            runtimeType = "Video",
+            resource =
+                StorefrontHomeResource.Video(
+                    key = HomeResourceKey(HomeResourceKind.VIDEO, "gid://shopify/Video/6$suffix"),
+                    contentType = "VIDEO",
+                    sources =
+                        listOf(
+                            StorefrontVideoSource(
+                                URI("https://cdn.shopify.com/videos/c/o/v/video-$suffix.mp4"),
+                                "video/mp4",
+                                "mp4",
+                                width,
+                                height
+                            )
+                        ),
+                    observedSourceCount = 1,
+                    preview = HomeMediaObservation.Absent
+                )
+        )
 
     private fun field(key: String, type: String, value: String): HomeFieldObservation =
         HomeFieldObservation(type = type, value = value, key = key)

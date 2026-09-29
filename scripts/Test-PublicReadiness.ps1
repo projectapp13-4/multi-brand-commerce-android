@@ -285,11 +285,16 @@ function Invoke-PublicReadinessValidation {
     )
     $oauthWiringOk = $appBuild.Contains('manifestPlaceholders["appAuthRedirectScheme"] = profile.redirectScheme()') -and
         $appBuild.Contains('?: "shop.unconfigured.gurbakir"')
-    $missingManifestRoles = @(
-        '${collectionAppLinkHost}', '${collectionAppLinkPathPrefix}',
-        '${productAppLinkHost}', '${productAppLinkPathPrefix}',
-        '${orderAppLinkHost}', '${orderAppLinkPathPrefix}'
-    ) | ForEach-Object { $manifest.Contains($_) } | Where-Object { -not $_ }
+    $collectionManifestOk =
+        $manifest.Contains('android:autoVerify="true"') -and
+        $manifest.Contains('android:scheme="http"') -and
+        $manifest.Contains('android:scheme="https"') -and
+        $manifest.Contains('${collectionAppLinkHost}') -and
+        $manifest.Contains('${collectionAppLinkPathPrefix}') -and
+        -not $manifest.Contains('${productAppLinkHost}') -and
+        -not $manifest.Contains('${productAppLinkPathPrefix}') -and
+        -not $manifest.Contains('${orderAppLinkHost}') -and
+        -not $manifest.Contains('${orderAppLinkPathPrefix}')
     $projectionLinksOk = $true
     foreach ($projection in @($developmentProjection, $stagingProjection)) {
         if (-not $projection.Contains('web.collectionAppLinkOrigin=https://gurbakir.com') -or
@@ -299,10 +304,8 @@ function Invoke-PublicReadinessValidation {
             $projectionLinksOk = $false
         }
     }
-    $linksOk = $projectionLinksOk -and
-        @($missingManifestRoles).Count -eq 0 -and
-        $oauthWiringOk
-    $results.Add((New-CheckResult "gurbakir-oauth-app-links" $linksOk "OAuth placeholder wiring, fail-closed scheme, and three Gurbakir App Link paths must remain exact"))
+    $linksOk = $projectionLinksOk -and $collectionManifestOk -and $oauthWiringOk
+    $results.Add((New-CheckResult "gurbakir-oauth-app-links" $linksOk "OAuth wiring and internal route projections remain exact; only verified HTTP/HTTPS collection paths are OS App Links"))
 
     $firebaseOk = $appBuild.Contains('FIREBASE_CONFIGURED') -and $sourceText.Contains('BuildConfig.FIREBASE_CONFIGURED')
     $results.Add((New-CheckResult "gurbakir-firebase-selection" $firebaseOk "Gurbakir app-owned Firebase readiness and selection must remain present"))
@@ -428,9 +431,11 @@ manifestPlaceholders["appAuthRedirectScheme"] = profile.redirectScheme()
         "app/src/main/AndroidManifest.xml" = @'
 <manifest><application><activity>
 <data android:scheme="${appAuthRedirectScheme}" />
+<intent-filter android:autoVerify="true">
+<data android:scheme="http" />
+<data android:scheme="https" />
 <data android:host="${collectionAppLinkHost}" android:pathPrefix="${collectionAppLinkPathPrefix}" />
-<data android:host="${productAppLinkHost}" android:pathPrefix="${productAppLinkPathPrefix}" />
-<data android:host="${orderAppLinkHost}" android:pathPrefix="${orderAppLinkPathPrefix}" />
+</intent-filter>
 </activity></application></manifest>
 '@
         "app/src/main/kotlin/Identity.kt" = @'
@@ -498,6 +503,7 @@ function Invoke-SelfTests {
         @{ Name = "application identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('com.gurbakir.mobile.dev', 'com.example.changed') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-application-identities" },
         @{ Name = "OAuth placeholder mutation fails"; Mutate = { param($root) (Get-Content (Join-Path $root 'app/build.gradle.kts') -Raw).Replace('manifestPlaceholders["appAuthRedirectScheme"]', 'manifestPlaceholders["renamedScheme"]') | Set-Content -NoNewline (Join-Path $root 'app/build.gradle.kts') }; ExpectedFailure = "gurbakir-oauth-app-links" },
         @{ Name = "App Link projection mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('/apps/mobile/products/', '/products/') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-oauth-app-links" },
+        @{ Name = "unverified product App Link mutation fails"; Mutate = { param($root) $p=Join-Path $root 'app/src/main/AndroidManifest.xml'; (Get-Content $p -Raw).Replace('</intent-filter>', '<data android:host="${productAppLinkHost}" android:pathPrefix="${productAppLinkPathPrefix}" /></intent-filter>') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-oauth-app-links" },
         @{ Name = "reference authority boundary mutation fails"; Mutate = { param($root) Set-Content -LiteralPath (Join-Path $root 'docs/reference-model/COMMERCE-BEHAVIOR.md') -Value 'Historical notes.' }; ExpectedFailure = "reference-model-authority-boundary" },
         @{ Name = "persistence identity mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/staging.properties'; (Get-Content $p -Raw).Replace('gurbakir.cart.staging.v1', 'renamed.cart.staging.v1') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-persistence-identities" },
         @{ Name = "Customer Account user agent mutation fails"; Mutate = { param($root) $p=Join-Path $root 'config/onboarding/generated/gurbakir/development.properties'; (Get-Content $p -Raw).Replace('Gurbakir-Android', 'Changed-Android') | Set-Content -NoNewline $p }; ExpectedFailure = "gurbakir-client-user-agent" }

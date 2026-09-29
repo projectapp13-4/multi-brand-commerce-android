@@ -228,12 +228,16 @@ fun ApplicationProductFlavor.configureOnboarding(profile: OnboardingProfileInput
     }
     applicationId = releaseApplicationId
     fun field(name: String, value: String) = buildConfigField("String", name, value.asBuildConfigString())
+    val selectedHomeContract = Triple(
+        profile.projectionValue("shopify.homeRootType"),
+        profile.projectionValue("shopify.homeContentSchemaVersion"),
+        profile.projectionValue("shopify.homeDefinitionContract")
+    )
     check(
-        Triple(
-            profile.projectionValue("shopify.homeRootType"),
-            profile.projectionValue("shopify.homeContentSchemaVersion"),
-            profile.projectionValue("shopify.homeDefinitionContract")
-        ) == Triple("mobile_home", "1", "gate7-v1")
+        selectedHomeContract in setOf(
+            Triple("mobile_home", "1", "gate7-v1"),
+            Triple("mobile_home_v2", "2", "pilot-media-v2")
+        )
     ) {
         "HOME_CONTRACT_MISMATCH"
     }

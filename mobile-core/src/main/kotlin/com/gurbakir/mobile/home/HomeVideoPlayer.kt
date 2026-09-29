@@ -10,11 +10,11 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButtonDefaults
@@ -32,11 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -171,22 +173,29 @@ private data class HomePlayerCallbacks(
 @Composable
 private fun VideoPoster(section: HomeRenderedSection.Video, coordinator: HomePlaybackCoordinator) {
     val poster = section.poster
-    if (poster == null) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val source = section.sources.firstOrNull()
+        val viewportHeight = if (source == null) {
+            HOME_VIDEO_MIN_HEIGHT
+        } else {
+            homeVideoViewportHeight(maxWidth, source.width, source.height)
+        }
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth().heightIn(min = HOME_VIDEO_MIN_HEIGHT).testTag(HomeTestTags.VIDEO_POSTER)
+            modifier = Modifier.fillMaxWidth().height(viewportHeight).testTag(HomeTestTags.VIDEO_POSTER)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(section.altText, modifier = Modifier.padding(16.dp))
+            if (poster == null) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(section.altText, modifier = Modifier.padding(16.dp))
+                }
+            } else {
+                HomeV2Image(
+                    content = HomeV2ImageContent(poster, section.altText, section.revisionKey),
+                    coordinator = coordinator,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
-    } else {
-        HomeV2Image(
-            content = HomeV2ImageContent(poster, section.altText, section.revisionKey),
-            coordinator = coordinator,
-            modifier = Modifier.fillMaxWidth().heightIn(min = HOME_VIDEO_MIN_HEIGHT)
-                .testTag(HomeTestTags.VIDEO_POSTER)
-        )
     }
 }
 
@@ -252,31 +261,34 @@ private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: Ho
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxWidth()
-            .aspectRatio(request.rendition.width.toFloat() / request.rendition.height)
-            .onGloballyPositioned { coordinates ->
-                val visible = coordinates.boundsInWindow()
-                if (visible.width <= 0f || visible.height <= 0f) callbacks.onVisibilityLost()
-            }
-            .testTag(HomeTestTags.VIDEO_PLAYER),
-        contentAlignment = Alignment.Center
-    ) {
-        Media3Player(
-            player = player,
-            modifier = Modifier.fillMaxSize(),
-            showControls = true,
-            topControls = { controlledPlayer, visible ->
-                PlayerDefaults.TopControls(controlledPlayer, visible, Modifier.fillMaxWidth()) {
-                    MuteButton(
-                        it,
-                        modifier = Modifier.align(Alignment.TopEnd),
-                        colors = IconButtonDefaults.filledIconButtonColors()
-                    )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .height(homeVideoViewportHeight(maxWidth, request.rendition.width, request.rendition.height))
+                .onGloballyPositioned { coordinates ->
+                    val visible = coordinates.boundsInWindow()
+                    if (visible.width <= 0f || visible.height <= 0f) callbacks.onVisibilityLost()
                 }
-            }
-        )
-        if (buffering) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter))
+                .testTag(HomeTestTags.VIDEO_PLAYER),
+            contentAlignment = Alignment.Center
+        ) {
+            Media3Player(
+                player = player,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                showControls = true,
+                topControls = { controlledPlayer, visible ->
+                    PlayerDefaults.TopControls(controlledPlayer, visible, Modifier.fillMaxWidth()) {
+                        MuteButton(
+                            it,
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            colors = IconButtonDefaults.filledIconButtonColors()
+                        )
+                    }
+                }
+            )
+            if (buffering) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter))
+        }
     }
 }
 
@@ -406,6 +418,13 @@ private const val HOME_BUFFER_FOR_PLAYBACK_MILLIS = 500
 private const val HOME_BUFFER_AFTER_REBUFFER_MILLIS = 1_000
 private const val HOME_PLAYBACK_DEADLINE_POLL_MILLIS = 100L
 private val HOME_VIDEO_MIN_HEIGHT = 220.dp
+private val HOME_VIDEO_MAX_HEIGHT = 480.dp
+
+internal fun homeVideoViewportHeight(width: Dp, videoWidth: Int, videoHeight: Int): Dp {
+    if (videoWidth <= 0 || videoHeight <= 0) return HOME_VIDEO_MIN_HEIGHT
+    return (width * (videoHeight.toFloat() / videoWidth))
+        .coerceIn(HOME_VIDEO_MIN_HEIGHT, HOME_VIDEO_MAX_HEIGHT)
+}
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
