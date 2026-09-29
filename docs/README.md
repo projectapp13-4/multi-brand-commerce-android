@@ -4,6 +4,9 @@ Status date: 2026-09-26
 
 Current release governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. The bounded Gürbakır [closed-test candidate preparation](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) is underway; public production release readiness is not established.
 
+The current pre-tester platform implementation is recorded in
+[Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
+
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 
 This is the repository documentation entry point. It distinguishes current

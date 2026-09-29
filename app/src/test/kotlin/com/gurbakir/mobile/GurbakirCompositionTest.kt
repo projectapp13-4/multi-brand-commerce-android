@@ -19,6 +19,7 @@ import com.gurbakir.mobile.home.HomeFeaturedProductConfiguration
 import com.gurbakir.mobile.home.HomePackagedFallback
 import com.gurbakir.mobile.home.HomeProductRangeConfiguration
 import com.gurbakir.mobile.home.HomeRemoteSource
+import com.gurbakir.mobile.localization.resolveAppLocales
 import com.gurbakir.mobile.navigation.GurbakirDeepLinkConfiguration
 import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.order.GurbakirTrackingUrlPolicy
@@ -48,8 +49,12 @@ class GurbakirCompositionTest {
 
         assertEquals("gurbakir", GurbakirBrand.configuration.key)
         assertEquals("Gürbakır", GurbakirBrand.configuration.displayName)
-        assertEquals(listOf("tr", "en"), app.localization.supportedLocaleTags)
+        assertEquals(listOf("tr"), app.localization.supportedLocaleTags)
         assertEquals("tr", app.localization.defaultLocaleTag)
+        assertEquals(
+            listOf(Locale.forLanguageTag("tr")),
+            resolveAppLocales(app.localization, listOf(Locale.ENGLISH), allowPseudoLocales = false)
+        )
         assertEquals(MarketConfiguration("TR", "TR", "TRY"), app.market)
         assertSame(GurbakirHomeConfiguration.value, ApplicationModule.provideHomeConfiguration())
         assertSame(GurbakirCatalogConfiguration.value, ApplicationModule.provideCatalogConfiguration())
@@ -62,8 +67,8 @@ class GurbakirCompositionTest {
             HomeConfiguration(
                 BuildConfig.HOME_CONTENT_ROOT_HANDLE.takeIf(String::isNotBlank)?.let { handle ->
                     HomeRemoteSource.ShopifyMetaobject(
-                        com.gurbakir.storefront.HomeDocumentSelector("mobile_home", handle),
-                        HomeContentContractId.GATE7_V1
+                        com.gurbakir.storefront.HomeDocumentSelector("mobile_home_v2", handle),
+                        HomeContentContractId.PILOT_MEDIA_V2
                     )
                 } ?: HomeRemoteSource.Disabled,
                 HomePackagedFallback(

@@ -370,12 +370,7 @@ constructor(
                 is RemoteHomeSection.Video -> {
                     expectedCards += 1
                     val resource = resolved[section.media] as? StorefrontHomeResource.Video
-                    val sources = resource?.sources.orEmpty().filter { source ->
-                        source.mimeType.equals("video/mp4", ignoreCase = true) &&
-                            source.format.equals("mp4", ignoreCase = true) &&
-                            source.width in 1..1280 &&
-                            source.height in 1..720
-                    }
+                    val sources = resource?.sources.orEmpty().filter(HomeVideoSourcePolicy::accepts)
                     if (sources.isEmpty()) {
                         null
                     } else {

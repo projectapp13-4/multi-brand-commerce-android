@@ -33,12 +33,22 @@ class GurbakirDeepLinkIntegrationTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun concreteRouteFamiliesResolveToMainActivityWithinTheInstalledAppPackage() {
+    fun onlyLiveCollectionWebPathsResolveToMainActivity() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        for (url in listOf(COLLECTION_LINK, PRODUCT_LINK, ORDER_LINK)) {
-            val resolved = context.packageManager.resolveActivity(appLink(url), PackageManager.MATCH_DEFAULT_ONLY)
-            assertEquals(context.packageName, resolved?.activityInfo?.packageName)
-            assertEquals(MainActivity::class.java.name, resolved?.activityInfo?.name)
+        for (url in listOf(COLLECTION_LINK, HTTP_COLLECTION_LINK)) {
+            val collection = context.packageManager.resolveActivity(
+                appLink(url),
+                PackageManager.MATCH_DEFAULT_ONLY
+            )
+            assertEquals(context.packageName, collection?.activityInfo?.packageName)
+            assertEquals(MainActivity::class.java.name, collection?.activityInfo?.name)
+        }
+        for (url in listOf(PRODUCT_LINK, ORDER_LINK)) {
+            val candidates = context.packageManager.queryIntentActivities(
+                appLink(url),
+                PackageManager.MATCH_DEFAULT_ONLY
+            )
+            assertTrue(candidates.none { it.activityInfo.name == MainActivity::class.java.name })
         }
         val callback = Uri.parse(BuildConfig.CUSTOMER_ACCOUNT_REDIRECT_URI)
             .scheme
@@ -85,6 +95,8 @@ class GurbakirDeepLinkIntegrationTest {
         composeRule.runOnIdle {
             assertEquals(CollectionRoute("tencereler"), navController.currentBackStackEntry?.toRoute<CollectionRoute>())
         }
+        composeRule.runOnIdle { assertTrue(navController.handleDeepLink(appLink(HTTP_COLLECTION_LINK))) }
+        composeRule.onNodeWithText("Collection: tencereler").assertIsDisplayed()
 
         composeRule.runOnIdle { assertTrue(navController.handleDeepLink(appLink(PRODUCT_LINK))) }
         composeRule.onNodeWithText("Product: 123; variant: 456").assertIsDisplayed()
@@ -106,6 +118,7 @@ class GurbakirDeepLinkIntegrationTest {
 
     private companion object {
         const val COLLECTION_LINK = "https://gurbakir.com/collections/tencereler"
+        const val HTTP_COLLECTION_LINK = "http://gurbakir.com/collections/tencereler"
         const val PRODUCT_LINK = "https://gurbakir.com/apps/mobile/products/123?variantId=456"
         const val ORDER_LINK = "https://gurbakir.com/apps/mobile/orders/1001"
     }

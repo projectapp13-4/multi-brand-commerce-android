@@ -91,8 +91,8 @@ class HomeContentV2RepositoryTest {
                 URI("https://cdn.shopify.com/videos/video.mp4"),
                 "video/mp4",
                 "mp4",
-                1280,
-                720
+                720,
+                1080
             )
         ),
         1,

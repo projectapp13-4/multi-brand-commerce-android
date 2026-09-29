@@ -41,8 +41,6 @@ private const val V2_MAX_TITLE_CODE_POINTS = 80
 private const val V2_MAX_PRESENTATION_CODE_POINTS = 6
 private const val V2_MAX_ALT_CODE_POINTS = 500
 private const val V2_MAX_CAPTION_CODE_POINTS = 1_000
-private const val V2_MAX_VIDEO_WIDTH = 1280
-private const val V2_MAX_VIDEO_HEIGHT = 720
 private const val SHA_256_HEX_LENGTH = 64
 
 internal class HomeV2ContentValidator(private val json: Json) {
@@ -292,12 +290,7 @@ internal class HomeV2ContentValidator(private val json: Json) {
         ) {
             return null
         }
-        val playableSources = resource.sources.filter { source ->
-            source.mimeType.equals("video/mp4", ignoreCase = true) &&
-                source.format.equals("mp4", ignoreCase = true) &&
-                source.width in 1..V2_MAX_VIDEO_WIDTH &&
-                source.height in 1..V2_MAX_VIDEO_HEIGHT
-        }
+        val playableSources = resource.sources.filter(HomeVideoSourcePolicy::accepts)
         if (resource.observedSourceCount > 0 && playableSources.isEmpty()) return null
         return MediaMapping(resource.key, playableSources.isNotEmpty())
     }

@@ -67,12 +67,7 @@ private fun HomeRenderedSection.Video.identity(): HomeVideoIdentity = HomeVideoI
 
 private fun HomeRenderedSection.Video.renditions(): List<HomeVideoRendition> = sources
     .asSequence()
-    .filter { source ->
-        source.mimeType.equals("video/mp4", ignoreCase = true) &&
-            source.format.equals("mp4", ignoreCase = true) &&
-            source.width in 1..HOME_VIDEO_MAX_WIDTH &&
-            source.height in 1..HOME_VIDEO_MAX_HEIGHT
-    }
+    .filter(HomeVideoSourcePolicy::accepts)
     .map { source ->
         HomeVideoRendition(
             url = source.uri.toASCIIString(),
@@ -90,6 +85,4 @@ private fun HomeRenderedSection.Video.renditions(): List<HomeVideoRendition> = s
     )
     .toList()
 
-private const val HOME_VIDEO_MAX_WIDTH = 1280
-private const val HOME_VIDEO_MAX_HEIGHT = 720
 private const val MIN_PLAYER_BUFFER_MILLIS = 1_000
