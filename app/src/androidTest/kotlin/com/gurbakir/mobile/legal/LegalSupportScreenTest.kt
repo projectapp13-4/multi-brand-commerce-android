@@ -36,7 +36,11 @@ class LegalSupportScreenTest {
             actions = LegalSupportActions(onBack = {}, onOpen = { openedPage = it })
         )
 
-        composeRule.onNodeWithTag(LegalSupportTestTags.BASELINE).assertIsDisplayed()
+        composeRule.onNodeWithTag(LegalSupportTestTags.page(LegalPageId.SUPPORT)).assertIsDisplayed()
+        composeRule.onNodeWithTag(LegalSupportTestTags.metadata(LegalPageId.SUPPORT)).assertDoesNotExist()
+        composeRule.onNodeWithTag(LegalSupportTestTags.metadataToggle(LegalPageId.SUPPORT))
+            .performDeterministicClick()
+        composeRule.onNodeWithTag(LegalSupportTestTags.metadata(LegalPageId.SUPPORT)).assertIsDisplayed()
         composeRule.onNodeWithTag(LegalSupportTestTags.CONTENT).performScrollToIndex(2)
         composeRule
             .onNodeWithTag(LegalSupportTestTags.open(LegalPageId.PRIVACY))

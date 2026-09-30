@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.performDeterministicClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -87,6 +88,9 @@ class AccountDeletionScreenTest {
             readyState,
             actions = actions(onOpenPage = { openedPage = it.id })
         )
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("account-deletion", composeRule)
 
         composeRule.onNodeWithTag(AccountDeletionTestTags.REMOTE_REQUEST).assertIsDisplayed()
         composeRule

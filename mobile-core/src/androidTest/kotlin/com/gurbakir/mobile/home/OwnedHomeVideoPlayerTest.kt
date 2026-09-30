@@ -35,6 +35,34 @@ class OwnedHomeVideoPlayerTest {
     @get:Rule val composeRule = createComposeRule()
 
     @Test
+    fun portraitPosterKeepsManualPlayActionVisibleOnTheMedia() {
+        val section = ownedSection("https://multi-brand-trial-store.myshopify.com/owned-video.mp4")
+            .copy(
+                sources = listOf(
+                    StorefrontVideoSource(
+                        URI("https://multi-brand-trial-store.myshopify.com/owned-video.mp4"),
+                        "video/mp4",
+                        "mp4",
+                        720,
+                        1080
+                    )
+                )
+            )
+        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("multi-brand-trial-store.myshopify.com"))
+        composeRule.setContent { CoreTestTheme { HomeVideoPlayer(section, coordinator) } }
+
+        val poster = composeRule.onNodeWithTag(HomeTestTags.VIDEO_POSTER)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val play = composeRule.onNodeWithTag(HomeTestTags.videoPlay(section.stableId))
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "Manual play must remain within the portrait poster",
+            play.left >= poster.left &&
+                play.right <= poster.right && play.top >= poster.top && play.bottom <= poster.bottom
+        )
+    }
+
+    @Test
     fun duckableTransientAndPermanentAudioFocusLossPauseWithoutAutomaticResume() {
         val (section, coordinator) = startOwnedVideo()
         composeRule.waitUntil(15_000) { coordinator.session(section).currentAttempt?.firstFrameRendered == true }

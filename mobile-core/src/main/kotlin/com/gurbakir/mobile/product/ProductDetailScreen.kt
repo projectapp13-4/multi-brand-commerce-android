@@ -305,6 +305,14 @@ private fun LazyListScope.productContent(
 ) {
     val product = requireNotNull(state.product)
     item {
+        ProductMediaGallery(
+            state = state,
+            actions = actions,
+            openerFocusRequester = mediaOpenerFocusRequester,
+            onOpenMediaViewer = onOpenMediaViewer
+        )
+    }
+    item {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -345,14 +353,6 @@ private fun LazyListScope.productContent(
                 modifier = Modifier.testTag(ProductDetailTestTags.INVALID_VARIANT)
             )
         }
-    }
-    item {
-        ProductMediaGallery(
-            state = state,
-            actions = actions,
-            openerFocusRequester = mediaOpenerFocusRequester,
-            onOpenMediaViewer = onOpenMediaViewer
-        )
     }
     state.displayOptions.forEach { option ->
         item(key = "product-option-${option.id}") { ProductOptionGroup(option, state, actions) }

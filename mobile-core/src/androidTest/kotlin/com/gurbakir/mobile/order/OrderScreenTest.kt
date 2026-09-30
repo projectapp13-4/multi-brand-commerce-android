@@ -25,6 +25,7 @@ import com.gurbakir.account.CustomerOrderSummary
 import com.gurbakir.account.CustomerShipmentStatus
 import com.gurbakir.account.CustomerTrackingInformation
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.performDeterministicClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -62,6 +63,9 @@ class OrderScreenTest {
             listActions(onOpen = { opened = it })
         )
 
+        composeRule.waitForIdle()
+        captureReviewScreenshot("orders-list", composeRule)
+
         composeRule.onNodeWithTag(OrderListTestTags.card("1001")).assertIsDisplayed()
         composeRule.onNodeWithTag(OrderListTestTags.open("1001")).performDeterministicClick()
         assertEquals("1001", opened)
@@ -87,6 +91,9 @@ class OrderScreenTest {
                 }
             }
         }
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("order-detail-large-text", composeRule)
 
         composeRule.onNodeWithTag(OrderDetailTestTags.fulfillment(1)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(OrderDetailTestTags.tracking(0)).performScrollTo().performDeterministicClick()

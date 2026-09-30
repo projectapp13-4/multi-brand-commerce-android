@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.performDeterministicClick
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -146,6 +147,9 @@ class AccountScreenTest {
                     onAccountDeletion = { accountDeletion += 1 }
                 )
         )
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("account-authenticated", composeRule)
 
         composeRule.onNodeWithTag(AccountTestTags.STATUS).assertDoesNotExist()
         composeRule

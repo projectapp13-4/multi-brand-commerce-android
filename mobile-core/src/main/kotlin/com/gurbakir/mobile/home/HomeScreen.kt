@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -43,6 +44,7 @@ import com.gurbakir.mobile.ui.CommerceStatePanel
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
+import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
@@ -75,7 +77,12 @@ fun HomeScreen(
         title = brandDisplayName,
         level = DestinationLevel.PRIMARY,
         modifier = Modifier.testTag(HomeTestTags.ROOT),
-        titleAlignment = DestinationTitleAlignment.CENTER,
+        titleAlignment =
+            if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE) {
+                DestinationTitleAlignment.START
+            } else {
+                DestinationTitleAlignment.CENTER
+            },
         titleTestTag = HomeTestTags.WORDMARK,
         actions = { HomeTopBarActions(actions, cartQuantity, state.requestActive) }
     ) { scaffoldPadding ->
@@ -246,7 +253,7 @@ private fun ProductRange(items: List<HomeCollectionItem>, onOpenCollection: (Str
     if (items.isEmpty()) return
     val spacing = LocalBrandSpacing.current
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = homeProductRangeColumnCount(maxWidth)
+        val columns = homeProductRangeColumnCount(maxWidth, LocalDensity.current.fontScale)
         val gap = spacing.normalDp.dp
         val itemWidth = (maxWidth - gap * (columns - 1)) / columns
         Column(verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)) {
@@ -264,7 +271,8 @@ private fun ProductRange(items: List<HomeCollectionItem>, onOpenCollection: (Str
     }
 }
 
-internal fun homeProductRangeColumnCount(availableWidth: Dp): Int = when {
+internal fun homeProductRangeColumnCount(availableWidth: Dp, fontScale: Float = 1f): Int = when {
+    fontScale >= LARGE_TEXT_FONT_SCALE && availableWidth < 600.dp -> 1
     availableWidth >= 960.dp -> 4
     availableWidth >= 600.dp -> 3
     else -> 2

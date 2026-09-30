@@ -4,6 +4,7 @@
 package com.gurbakir.mobile.order
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -36,6 +39,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gurbakir.account.CustomerFulfillmentStatus
 import com.gurbakir.account.CustomerOrderDetail
@@ -51,6 +55,7 @@ import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.localization.effectiveForegroundLocale
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
+import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
@@ -208,13 +213,20 @@ private fun OrderEmpty(onSupport: () -> Unit) {
 private fun OrderSummaryCard(content: OrderSummaryContent, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val order = content.order
     val locale = currentLocale()
-    Card(modifier = modifier.fillMaxWidth().testTag(OrderListTestTags.card(content.routeId))) {
+    Card(
+        modifier = modifier.fillMaxWidth().testTag(OrderListTestTags.card(content.routeId)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Column(
-            modifier = Modifier.padding(LocalBrandSpacing.current.normalDp.dp),
-            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)
+            modifier = Modifier.padding(LocalBrandSpacing.current.generousDp.dp),
+            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp)
         ) {
             Text(order.name, style = MaterialTheme.typography.titleLarge)
-            Text(formattedDateOrUnavailable(order.processedAt, locale))
+            Text(
+                formattedDateOrUnavailable(order.processedAt, locale),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
             StatusText(
                 label = stringResource(R.string.order_fulfillment_label),
                 value = stringResource(order.fulfillmentStatus.labelResource())
@@ -396,9 +408,18 @@ private fun OrderTotals(order: CustomerOrderDetail) {
 
 @Composable
 private fun TotalRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label)
-        Text(value)
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE || maxWidth < 320.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)) {
+                Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.titleMedium)
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(label, modifier = Modifier.weight(1f))
+                Text(value, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            }
+        }
     }
 }
 
@@ -586,10 +607,13 @@ private fun RecoveryCard(
 
 @Composable
 private fun SectionCard(title: String, testTag: String, content: @Composable () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().testTag(testTag)) {
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag(testTag),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Column(
-            modifier = Modifier.padding(LocalBrandSpacing.current.normalDp.dp),
-            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)
+            modifier = Modifier.padding(LocalBrandSpacing.current.generousDp.dp),
+            verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp)
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             content()

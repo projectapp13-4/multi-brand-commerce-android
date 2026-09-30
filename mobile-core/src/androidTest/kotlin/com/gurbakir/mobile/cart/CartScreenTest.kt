@@ -17,6 +17,7 @@ import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.checkout.CheckoutFailure
 import com.gurbakir.mobile.checkout.CheckoutFailureCategory
 import com.gurbakir.mobile.checkout.CheckoutState
@@ -150,6 +151,9 @@ class CartScreenTest {
             )
         }
 
+        composeRule.waitForIdle()
+        captureReviewScreenshot("cart-active", composeRule)
+
         composeRule
             .onNodeWithTag(CartTestTags.CHECKOUT)
             .performScrollTo()
@@ -274,10 +278,10 @@ class CartScreenTest {
     )
 
     private fun activeState(line: CartLine, ownership: CartOwnership = CartOwnership.ANONYMOUS): CartState {
-        val subtotal = StorefrontMoney(BigDecimal("20.00"), "TRY")
+        val subtotal = line.totalPrice
         return CartState(
             status = CartStatus.ACTIVE,
-            cart = CartSummary(2, listOf(line), subtotal, subtotal, hasWarnings = false),
+            cart = CartSummary(line.quantity, listOf(line), subtotal, subtotal, hasWarnings = false),
             ownership = ownership
         )
     }
@@ -298,7 +302,7 @@ class CartScreenTest {
             currentlyNotInStock = false,
             image = null,
             unitPrice = unit,
-            totalPrice = StorefrontMoney(BigDecimal("20.00"), "TRY")
+            totalPrice = StorefrontMoney(unit.amount.multiply(BigDecimal.valueOf(quantity.toLong())), "TRY")
         )
     }
 }

@@ -5,7 +5,6 @@ package com.gurbakir.mobile.catalog
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -42,6 +42,7 @@ import com.gurbakir.mobile.ui.CommerceSkeleton
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
+import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
 
@@ -65,15 +66,17 @@ private fun CategoriesGrid(
     onOpenCollection: (String) -> Unit
 ) {
     val spacing = LocalBrandSpacing.current
-    Box(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize().consumeDestinationInsets(contentPadding),
         contentAlignment = Alignment.TopCenter
     ) {
+        val columnCount = categoryColumnCount(maxWidth, LocalDensity.current.fontScale)
         LazyVerticalGrid(
-            columns = GridCells.Fixed(CATEGORY_COLUMN_COUNT),
+            columns = GridCells.Fixed(columnCount),
             modifier =
                 Modifier.widthIn(max = CATEGORY_GRID_MAX_WIDTH)
                     .fillMaxWidth()
+                    .testTag(CatalogTestTags.CATEGORIES_GRID)
                     .fillMaxHeight(),
             contentPadding =
                 contentPadding.withDestinationSpacing(
@@ -83,13 +86,14 @@ private fun CategoriesGrid(
             horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
         ) {
-            categoryStateItems(state, onRetry, onOpenCollection)
+            categoryStateItems(state, columnCount, onRetry, onOpenCollection)
         }
     }
 }
 
 private fun LazyGridScope.categoryStateItems(
     state: CategoriesUiState,
+    columnCount: Int,
     onRetry: () -> Unit,
     onOpenCollection: (String) -> Unit
 ) {
@@ -107,7 +111,9 @@ private fun LazyGridScope.categoryStateItems(
         }
 
         is CategoriesUiState.Content -> {
-            val centeredFinalItem = state.items.lastOrNull().takeIf { state.items.size % 2 == 1 }
+            val centeredFinalItem = state.items.lastOrNull().takeIf {
+                columnCount == 2 && state.items.size % 2 == 1
+            }
             val pairedItems = if (centeredFinalItem == null) state.items else state.items.dropLast(1)
             items(pairedItems, key = { it.stableId }) { item ->
                 CategoryTile(
@@ -123,7 +129,7 @@ private fun LazyGridScope.categoryStateItems(
                         contentAlignment = Alignment.TopCenter
                     ) {
                         val tileWidth =
-                            (maxWidth - LocalBrandSpacing.current.normalDp.dp) / CATEGORY_COLUMN_COUNT
+                            (maxWidth - LocalBrandSpacing.current.normalDp.dp) / columnCount
                         CategoryTile(
                             item = centeredItem,
                             onClick = { onOpenCollection(centeredItem.collection.handle) },
@@ -180,11 +186,13 @@ private fun CategoryTileSkeleton() {
     }
 }
 
-private const val CATEGORY_COLUMN_COUNT = 2
+internal fun categoryColumnCount(availableWidth: androidx.compose.ui.unit.Dp, fontScale: Float): Int =
+    if (fontScale >= LARGE_TEXT_FONT_SCALE || availableWidth < 360.dp) 1 else 2
+
 private const val CATEGORY_MEDIA_ASPECT_RATIO = 1f
 private const val CATEGORY_SKELETON_COUNT = 4
 private const val CATEGORY_LABEL_SKELETON_WIDTH_FRACTION = 0.72f
-private val CATEGORY_GRID_MAX_WIDTH = 360.dp
+private val CATEGORY_GRID_MAX_WIDTH = 720.dp
 private val CATEGORY_LABEL_MIN_HEIGHT = 48.dp
 
 private fun LazyGridScope.categoryRefreshItems(state: CategoriesUiState.Content, onRetry: () -> Unit) {

@@ -16,9 +16,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -27,6 +32,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -105,28 +111,12 @@ private fun LegalSupportHeader() {
     val spacing = LocalBrandSpacing.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)) {
         Text(
-            text = stringResource(R.string.legal_support_heading),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.semantics { heading() }
+            text = stringResource(R.string.legal_support_intro),
+            style = MaterialTheme.typography.bodyLarge
         )
-        Text(stringResource(R.string.legal_support_intro))
         Text(
             text = stringResource(R.string.legal_support_external_context),
             style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = stringResource(R.string.legal_support_offline),
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text =
-                stringResource(
-                    R.string.legal_support_baseline,
-                    LEGAL_BASELINE_VERSION,
-                    LEGAL_BASELINE_ADOPTION_DATE.localized()
-                ),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.testTag(LegalSupportTestTags.BASELINE)
         )
     }
 }
@@ -139,6 +129,9 @@ private fun LegalPageCard(
     onOpen: () -> Unit
 ) {
     val spacing = LocalBrandSpacing.current
+    var metadataExpanded by rememberSaveable(page.id.name) { mutableStateOf(false) }
+    val openDescription =
+        stringResource(R.string.legal_support_open_accessibility, stringResource(page.titleResourceId))
     Card(modifier = Modifier.fillMaxWidth().testTag(LegalSupportTestTags.page(page.id))) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(spacing.generousDp.dp),
@@ -150,24 +143,23 @@ private fun LegalPageCard(
                 modifier = Modifier.semantics { heading() }
             )
             Text(stringResource(page.summaryResourceId))
-            Text(
-                text =
-                    when (page.source) {
-                        LegalPageSource.SHOPIFY_POLICY ->
-                            stringResource(R.string.legal_support_source_shopify)
-
-                        LegalPageSource.MERCHANT_PAGE ->
-                            stringResource(R.string.legal_support_source_merchant)
-                    },
-                style = MaterialTheme.typography.labelMedium
-            )
-            Text(
-                text =
-                    page.sourceEffectiveDate?.let {
-                        stringResource(R.string.legal_support_source_updated, it.localized())
-                    } ?: stringResource(R.string.legal_support_source_adopted, page.adoptedAt.localized()),
-                style = MaterialTheme.typography.labelMedium
-            )
+            TextButton(
+                onClick = { metadataExpanded = !metadataExpanded },
+                modifier = Modifier.testTag(LegalSupportTestTags.metadataToggle(page.id))
+            ) {
+                Text(
+                    stringResource(
+                        if (metadataExpanded) {
+                            R.string.legal_support_details_hide
+                        } else {
+                            R.string.legal_support_details_show
+                        }
+                    )
+                )
+            }
+            if (metadataExpanded) {
+                LegalPageMetadataDetails(page)
+            }
             feedback?.let { LegalPageFeedbackMessage(it, page) }
             Button(
                 onClick = onOpen,
@@ -175,11 +167,43 @@ private fun LegalPageCard(
                     Modifier.fillMaxWidth()
                         .focusRequester(focusRequester)
                         .focusable()
+                        .semantics { contentDescription = openDescription }
                         .testTag(LegalSupportTestTags.open(page.id))
             ) {
-                Text(stringResource(R.string.legal_support_open, stringResource(page.titleResourceId)))
+                Text(stringResource(R.string.legal_support_open))
             }
         }
+    }
+}
+
+@Composable
+private fun LegalPageMetadataDetails(page: LegalPageMetadata) {
+    val spacing = LocalBrandSpacing.current
+    Column(
+        modifier = Modifier.testTag(LegalSupportTestTags.metadata(page.id)),
+        verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
+    ) {
+        Text(
+            text =
+                when (page.source) {
+                    LegalPageSource.SHOPIFY_POLICY ->
+                        stringResource(R.string.legal_support_source_shopify)
+
+                    LegalPageSource.MERCHANT_PAGE ->
+                        stringResource(R.string.legal_support_source_merchant)
+                },
+            style = MaterialTheme.typography.labelMedium
+        )
+        page.sourceEffectiveDate?.let { date ->
+            Text(
+                text = stringResource(R.string.legal_support_source_updated, date.localized()),
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+        Text(
+            text = stringResource(R.string.legal_support_baseline, page.baselineVersion, page.adoptedAt.localized()),
+            style = MaterialTheme.typography.labelMedium
+        )
     }
 }
 
@@ -222,10 +246,13 @@ internal fun formatLegalDate(date: LocalDate, locale: Locale): String =
 object LegalSupportTestTags {
     const val ROOT = "legal-support-root"
     const val CONTENT = "legal-support-content"
-    const val BASELINE = "legal-support-baseline"
     const val FEEDBACK = "legal-support-feedback"
 
     fun page(id: LegalPageId): String = "legal-support-page-${id.name.lowercase()}"
+
+    fun metadataToggle(id: LegalPageId): String = "legal-support-metadata-toggle-${id.name.lowercase()}"
+
+    fun metadata(id: LegalPageId): String = "legal-support-metadata-${id.name.lowercase()}"
 
     fun open(id: LegalPageId): String = "legal-support-open-${id.name.lowercase()}"
 }

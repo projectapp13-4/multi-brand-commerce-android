@@ -6,6 +6,8 @@ Current release governance authority: [Privacy and Release Operating Contract](o
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
+The second pull request's current implementation and visual evidence are in
+[Gür Bakır pre-tester UI refinement](product-quality/GURBAKIR-PRETESTER-UI-PR2.md).
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 

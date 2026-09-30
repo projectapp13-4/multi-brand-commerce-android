@@ -2,6 +2,7 @@ package com.gurbakir.mobile.catalog
 
 object CatalogTestTags {
     const val CATEGORIES_ROOT = "categories-root"
+    const val CATEGORIES_GRID = "categories-grid"
     const val CATEGORIES_EMPTY = "categories-empty"
     const val CATEGORIES_ERROR = "categories-error"
     const val CATEGORIES_PARTIAL_ERROR = "categories-partial-error"
