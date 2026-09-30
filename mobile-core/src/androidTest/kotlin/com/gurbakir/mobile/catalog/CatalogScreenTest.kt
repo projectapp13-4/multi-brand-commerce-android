@@ -132,11 +132,15 @@ class CatalogScreenTest {
     @Test
     fun longMenuTitleRemainsReachableAtTwoHundredPercentText() {
         val longTitle = "A deliberately long merchant category title for accessible layout"
+        val secondTitle = "A second lengthy category title"
         setCatalogContent(fontScale = 2f) {
             CategoriesScreen(
                 state =
                     CategoriesUiState.Content(
-                        listOf(category("long-title", longTitle, "Different collection title")),
+                        listOf(
+                            category("long-title", longTitle, "Different collection title"),
+                            category("second", secondTitle, "Second collection")
+                        ),
                         partialFailure = null
                     ),
                 onRetry = {},
@@ -144,10 +148,20 @@ class CatalogScreenTest {
             )
         }
 
-        composeRule.onNodeWithTag(CatalogTestTags.category("long-title")).assertIsDisplayed()
+        val first = composeRule.onNodeWithTag(CatalogTestTags.category("long-title")).assertIsDisplayed()
+        val grid = composeRule.onNodeWithTag(CatalogTestTags.CATEGORIES_GRID).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "Large text must give each category a full-width row",
+            first.fetchSemanticsNode().boundsInRoot.width > grid.width * 0.7f
+        )
         composeRule
             .onNodeWithTag(CatalogTestTags.categoryLabel("long-title"), useUnmergedTree = true)
             .assertTextEquals(longTitle)
+        composeRule.onNodeWithTag(CatalogTestTags.CATEGORIES_GRID).performScrollToIndex(1)
+        composeRule.onNodeWithTag(CatalogTestTags.category("second")).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(CatalogTestTags.categoryLabel("second"), useUnmergedTree = true)
+            .assertTextEquals(secondTitle)
     }
 
     @Test

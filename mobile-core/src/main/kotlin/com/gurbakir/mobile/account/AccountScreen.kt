@@ -50,6 +50,7 @@ import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
+import com.gurbakir.mobile.ui.DestinationTitleAlignment
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
@@ -87,7 +88,8 @@ fun AccountScreen(state: AccountUiState, actions: AccountActions) {
     DestinationScaffold(
         title = stringResource(R.string.account_title),
         level = DestinationLevel.PRIMARY,
-        modifier = Modifier.testTag(AccountTestTags.ROOT)
+        modifier = Modifier.testTag(AccountTestTags.ROOT),
+        titleAlignment = DestinationTitleAlignment.CENTER
     ) { padding ->
         LazyColumn(
             modifier =

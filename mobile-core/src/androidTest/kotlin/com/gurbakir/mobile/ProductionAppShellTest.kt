@@ -5,9 +5,12 @@ package com.gurbakir.mobile
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
@@ -15,12 +18,16 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.waitUntilExactlyOneExists
+import androidx.compose.ui.unit.Density
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.navigation.CollectionRoute
+import com.gurbakir.mobile.ui.navigationIconTestTag
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,6 +56,24 @@ class ProductionAppShellTest {
 
         composeRule.runOnIdle { navController.popBackStack() }
         assertSelectedDestination(ProductionTestTags.PRIMARY_ACCOUNT, TEST_ACCOUNT)
+    }
+
+    @Test
+    fun largeTextKeepsHiddenNavigationLabelsAccessibleAndRoutesAvailable() {
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                ProductionShellTestContent(onController = {})
+            }
+        }
+
+        val categoriesLabel =
+            InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.categories_title)
+        composeRule.onNodeWithTag(
+            navigationIconTestTag(ProductionTestTags.PRIMARY_CATEGORIES, selected = false),
+            useUnmergedTree = true
+        ).assertContentDescriptionEquals(categoriesLabel)
+        selectDestination(ProductionTestTags.PRIMARY_CATEGORIES, TEST_CATEGORIES)
     }
 
     private fun selectDestination(itemTag: String, contentTag: String) {

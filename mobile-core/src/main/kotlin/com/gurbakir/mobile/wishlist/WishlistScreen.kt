@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.catalog.CatalogProductCard
+import com.gurbakir.mobile.catalog.catalogProductCardMinimumWidth
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.CommerceStatePanel
 import com.gurbakir.mobile.ui.DestinationLevel
@@ -98,7 +100,7 @@ private fun WishlistBody(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = SAVED_CARD_MINIMUM_WIDTH),
+        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .centeredDestinationContent(720.dp)
@@ -326,7 +328,6 @@ private fun WishlistItemIssue?.messageResourceId(): Int = when (this) {
     WishlistItemIssue.SERVICE, null -> R.string.wishlist_product_service
 }
 
-private val SAVED_CARD_MINIMUM_WIDTH = 160.dp
 private val EMPTY_STATE_MINIMUM_HEIGHT = 280.dp
 private val EMPTY_ICON_CONTAINER_SIZE = 64.dp
 private val EMPTY_ICON_SIZE = 32.dp

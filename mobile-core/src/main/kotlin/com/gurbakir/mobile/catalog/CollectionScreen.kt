@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -76,7 +77,7 @@ private fun CollectionGrid(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
+        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(contentPadding)

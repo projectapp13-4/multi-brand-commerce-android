@@ -22,6 +22,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.account.CustomerAddressField
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.performDeterministicClick
 import org.junit.Assert.assertEquals
@@ -52,6 +53,9 @@ class AddressScreenTest {
         val default = address("1", isDefault = true)
         val unsupported = address("2", territory = "XX", isSupported = false)
         setListContent(listState(listOf(default, unsupported)))
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("addresses-list", composeRule)
 
         composeRule.onAllNodesWithTag(AddressListTestTags.edit(default.id)).assertCountEquals(1)
         composeRule.onAllNodesWithTag(AddressListTestTags.delete(default.id)).assertCountEquals(0)
@@ -91,6 +95,9 @@ class AddressScreenTest {
             formState(),
             formActions(onFieldChanged = { field, value -> if (field == CustomerAddressField.CITY) city = value })
         )
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("address-form", composeRule)
 
         composeRule
             .onNodeWithTag(AddressFormTestTags.COUNTRY)

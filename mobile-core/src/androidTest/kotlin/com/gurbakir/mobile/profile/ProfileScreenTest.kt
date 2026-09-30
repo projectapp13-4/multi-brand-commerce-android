@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.account.CustomerProfileField
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.performDeterministicClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -48,6 +49,9 @@ class ProfileScreenTest {
                     onSave = { save += 1 }
                 )
         )
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("profile-ready", composeRule)
 
         composeRule.onAllNodesWithTag(ProfileTestTags.FIRST_NAME).assertCountEquals(1)
         composeRule.onAllNodesWithTag(ProfileTestTags.LAST_NAME).assertCountEquals(1)

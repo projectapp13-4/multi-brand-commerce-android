@@ -52,10 +52,10 @@ class LocalizationResourceTest {
             "tr-TR",
             mapOf(
                 R.string.address_market_explanation to
-                    "Bu sürüm yalnızca Türkiye adresi oluşturur ve düzenler. Adresler Shopify'da müşteri hesabınıza kaydedilir; cihazda kalıcı kopya tutulmaz.",
+                    "Türkiye adreslerinizi burada yönetin. Adresler hesabınıza kaydedilir; bu cihazda kalıcı olarak tutulmaz.",
                 R.string.address_empty_message to "Shopify hesabınıza ilk Türkiye adresinizi ekleyebilirsiniz.",
                 R.string.address_unsupported_country to
-                    "Bu adres desteklenen Türkiye pazarının dışında. Bu sürüm adresi gösterir ancak düzenlemez veya varsayılan yapmaz.",
+                    "Bu adres Türkiye dışında. Düzenlenemez veya varsayılan yapılamaz.",
                 R.string.address_create_heading to "Türkiye adresi ekleyin",
                 R.string.address_edit_heading to "Türkiye adresini düzenleyin",
                 R.string.address_country_value to "Ülke: Türkiye (TR)",
@@ -85,10 +85,10 @@ class LocalizationResourceTest {
             "en-US",
             mapOf(
                 R.string.address_market_explanation to
-                    "This version creates and edits Turkey addresses only. Addresses are saved to your Shopify customer account; no persistent copy is kept on this device.",
+                    "Manage your Turkey addresses here. They are saved to your account and are not stored on this device.",
                 R.string.address_empty_message to "You can add your first Turkey address to your Shopify account.",
                 R.string.address_unsupported_country to
-                    "This address is outside the supported Turkey market. This version displays it but does not edit it or make it default.",
+                    "This address is outside Turkey. It cannot be edited or made the default.",
                 R.string.address_create_heading to "Add a Turkey address",
                 R.string.address_edit_heading to "Edit the Turkey address",
                 R.string.address_country_value to "Country: Turkey (TR)",

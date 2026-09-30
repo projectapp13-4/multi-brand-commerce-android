@@ -16,6 +16,7 @@ import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.navigatePrimary
 import com.gurbakir.mobile.navigateProduct
 import com.gurbakir.mobile.performDeterministicClick
@@ -144,6 +145,9 @@ class WishlistScreenTest {
                     )
             )
         }
+
+        composeRule.waitForIdle()
+        captureReviewScreenshot("wishlist-populated", composeRule)
 
         composeRule
             .onNodeWithTag(WishlistTestTags.toggle(product.id))

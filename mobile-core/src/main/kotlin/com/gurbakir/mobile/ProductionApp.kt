@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -131,6 +132,7 @@ import com.gurbakir.mobile.search.SearchViewModel
 import com.gurbakir.mobile.ui.AppNavigationItem
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
+import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.update.UpdatePolicyDestination
 import com.gurbakir.mobile.wishlist.WishlistDestination
@@ -224,6 +226,7 @@ fun ProductionAppShell(
     }
     val defaultLayoutType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
+    val alwaysShowPrimaryLabels = LocalDensity.current.fontScale < LARGE_TEXT_FONT_SCALE
     NavigationSuiteScaffold(
         modifier =
             modifier.then(
@@ -235,7 +238,12 @@ fun ProductionAppShell(
             ),
         navigationSuiteItems = {
             if (primaryDestination != null) {
-                ProductionPrimaryNavigation(navController, currentDestination, applicationComposition)
+                ProductionPrimaryNavigation(
+                    navController,
+                    currentDestination,
+                    applicationComposition,
+                    alwaysShowPrimaryLabels
+                )
             }
         },
         layoutType =
@@ -255,7 +263,8 @@ fun ProductionAppShell(
 private fun NavigationSuiteScope.ProductionPrimaryNavigation(
     navController: NavHostController,
     currentDestination: NavDestination?,
-    applicationComposition: ApplicationComposition
+    applicationComposition: ApplicationComposition,
+    alwaysShowLabels: Boolean
 ) {
     applicationComposition.primaryNavigation.destinations.forEach { primary ->
         val destination = primary.presentation()
@@ -264,6 +273,7 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
             onClick = { navController.navigatePrimary(primary, applicationComposition) },
             labelResourceId = destination.labelResourceId,
             accessibilityLabelResourceId = destination.accessibilityLabelResourceId,
+            alwaysShowLabel = alwaysShowLabels,
             selectedIconResourceId = destination.selectedIconResourceId,
             unselectedIconResourceId = destination.unselectedIconResourceId,
             testTag = destination.testTag

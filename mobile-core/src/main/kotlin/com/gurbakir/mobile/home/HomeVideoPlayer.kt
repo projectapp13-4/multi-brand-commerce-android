@@ -79,9 +79,11 @@ internal fun HomeVideoPlayer(
     ) {
         val activeRendition = rendition
         if (activeRendition == null) {
-            VideoPoster(section, coordinator)
-            Button(
-                onClick = {
+            VideoPoster(
+                section = section,
+                coordinator = coordinator,
+                retry = terminalReason != null,
+                onPlay = {
                     val existing = session.currentAttempt
                     val attempt = if (existing?.state == HomePlaybackAttemptState.TERMINAL) {
                         session.retry()
@@ -94,15 +96,8 @@ internal fun HomeVideoPlayer(
                         terminalReason = attempt.terminate(HomePlaybackTerminalReason.NO_RENDITION)
                     }
                     playerGeneration += 1
-                },
-                modifier = Modifier.testTag(HomeTestTags.videoPlay(section.stableId))
-            ) {
-                Text(
-                    stringResource(
-                        if (terminalReason == null) R.string.home_video_play else R.string.retry
-                    )
-                )
-            }
+                }
+            )
         } else {
             val attempt = requireNotNull(session.currentAttempt)
             ActiveHomeVideoPlayer(
@@ -171,7 +166,12 @@ private data class HomePlayerCallbacks(
 )
 
 @Composable
-private fun VideoPoster(section: HomeRenderedSection.Video, coordinator: HomePlaybackCoordinator) {
+private fun VideoPoster(
+    section: HomeRenderedSection.Video,
+    coordinator: HomePlaybackCoordinator,
+    retry: Boolean,
+    onPlay: () -> Unit
+) {
     val poster = section.poster
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val source = section.sources.firstOrNull()
@@ -180,20 +180,30 @@ private fun VideoPoster(section: HomeRenderedSection.Video, coordinator: HomePla
         } else {
             homeVideoViewportHeight(maxWidth, source.width, source.height)
         }
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.fillMaxWidth().height(viewportHeight).testTag(HomeTestTags.VIDEO_POSTER)
-        ) {
-            if (poster == null) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(section.altText, modifier = Modifier.padding(16.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(viewportHeight), contentAlignment = Alignment.Center) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxSize().testTag(HomeTestTags.VIDEO_POSTER),
+                shape = MaterialTheme.shapes.large
+            ) {
+                if (poster == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                        Text(section.altText, modifier = Modifier.padding(16.dp))
+                    }
+                } else {
+                    HomeV2Image(
+                        content = HomeV2ImageContent(poster, section.altText, section.revisionKey),
+                        coordinator = coordinator,
+                        modifier = Modifier.fillMaxSize(),
+                        shape = MaterialTheme.shapes.large
+                    )
                 }
-            } else {
-                HomeV2Image(
-                    content = HomeV2ImageContent(poster, section.altText, section.revisionKey),
-                    coordinator = coordinator,
-                    modifier = Modifier.fillMaxSize()
-                )
+            }
+            Button(
+                onClick = onPlay,
+                modifier = Modifier.testTag(HomeTestTags.videoPlay(section.stableId))
+            ) {
+                Text(stringResource(if (retry) R.string.retry else R.string.home_video_play))
             }
         }
     }

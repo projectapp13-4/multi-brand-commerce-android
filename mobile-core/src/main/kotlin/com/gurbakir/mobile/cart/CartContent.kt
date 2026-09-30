@@ -4,7 +4,6 @@ package com.gurbakir.mobile.cart
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -126,14 +125,12 @@ private fun CartTotals(cart: CartSummary) {
         verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
     ) {
         HorizontalDivider()
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.cart_subtotal))
-            Text(cart.subtotal.localizedText())
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.cart_estimated_total), style = MaterialTheme.typography.titleMedium)
-            Text(cart.total.localizedText(), style = MaterialTheme.typography.titleMedium)
-        }
+        CartTotalRow(stringResource(R.string.cart_subtotal), cart.subtotal.localizedText())
+        CartTotalRow(
+            stringResource(R.string.cart_estimated_total),
+            cart.total.localizedText(),
+            emphasized = true
+        )
         Text(stringResource(R.string.cart_totals_estimate_notice))
     }
 }

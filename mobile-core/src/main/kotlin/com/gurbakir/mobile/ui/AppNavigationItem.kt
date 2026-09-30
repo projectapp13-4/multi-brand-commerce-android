@@ -25,6 +25,7 @@ internal fun NavigationSuiteScope.AppNavigationItem(
     onClick: () -> Unit,
     @StringRes labelResourceId: Int,
     @StringRes accessibilityLabelResourceId: Int = labelResourceId,
+    alwaysShowLabel: Boolean = true,
     @DrawableRes selectedIconResourceId: Int,
     @DrawableRes unselectedIconResourceId: Int,
     testTag: String
@@ -38,7 +39,8 @@ internal fun NavigationSuiteScope.AppNavigationItem(
                     painterResource(
                         if (selected) selectedIconResourceId else unselectedIconResourceId
                     ),
-                contentDescription = null,
+                contentDescription =
+                    if (alwaysShowLabel || selected) null else stringResource(accessibilityLabelResourceId),
                 modifier =
                     Modifier.size(NAVIGATION_ICON_SIZE)
                         .testTag(navigationIconTestTag(testTag, selected))
@@ -54,7 +56,7 @@ internal fun NavigationSuiteScope.AppNavigationItem(
                 modifier = Modifier.clearAndSetSemantics { contentDescription = accessibilityLabel }
             )
         },
-        alwaysShowLabel = true,
+        alwaysShowLabel = alwaysShowLabel,
         modifier =
             Modifier.sizeIn(
                 minWidth = MINIMUM_TOUCH_TARGET_SIZE,

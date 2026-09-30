@@ -2,9 +2,15 @@
 
 package com.gurbakir.mobile.home
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -16,6 +22,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.navigateProduct
@@ -30,6 +38,7 @@ import com.gurbakir.storefront.StorefrontVideoSource
 import java.math.BigDecimal
 import java.net.URI
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +46,24 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class HomeScreenTest {
     @get:Rule val composeRule = createComposeRule()
+
+    @Test
+    fun wordmarkDoesNotOverlapRefreshAtLargeTextOnCompactWidth() {
+        composeRule.setContent {
+            CoreTestTheme {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                    Box(Modifier.requiredWidth(274.dp).fillMaxHeight()) {
+                        HomeScreen(HomeUiState(requestActive = true), "Gürbakır", HomeActions(refreshContent = {}))
+                    }
+                }
+            }
+        }
+
+        val wordmark = composeRule.onNodeWithTag(HomeTestTags.WORDMARK).fetchSemanticsNode().boundsInRoot
+        val refresh = composeRule.onNodeWithTag(HomeTestTags.REFRESH).fetchSemanticsNode().boundsInRoot
+        assertTrue("Home wordmark overlaps Refresh at large text", wordmark.right <= refresh.left)
+    }
 
     @Test
     fun imageAndVideoProductTargetsUseTheProductionProductNavigationBinding() {

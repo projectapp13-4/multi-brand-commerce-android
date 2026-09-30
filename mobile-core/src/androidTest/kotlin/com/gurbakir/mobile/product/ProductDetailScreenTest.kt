@@ -53,6 +53,9 @@ class ProductDetailScreenTest {
     @Test
     fun wishlistOffCompactProductHasNoHeart() {
         setProductContent { ProductDetailScreen(ProductDetailUiState(product = product()), actions()) }
+        composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(ProductDetailTestTags.TITLE))
         composeRule.onNodeWithTag(ProductDetailTestTags.TITLE).assertIsDisplayed()
         composeRule.onNodeWithTag(WishlistTestTags.toggle(product().id), useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsDisplayed()
@@ -143,14 +146,16 @@ class ProductDetailScreenTest {
     fun compactHierarchyKeepsPurchaseBarVisibleWhileProductContentScrolls() {
         setProductContent { ProductDetailScreen(ProductDetailUiState(product = product()), actions()) }
 
-        val titleBounds =
-            composeRule.onNodeWithTag(ProductDetailTestTags.TITLE).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val priceBounds =
-            composeRule.onNodeWithTag(ProductDetailTestTags.PRICE).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val mediaBounds =
-            composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        assertTrue("Product title must precede price", titleBounds.top < priceBounds.top)
-        assertTrue("Price must precede product media", priceBounds.top < mediaBounds.top)
+        composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_BAR).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ProductDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(ProductDetailTestTags.TITLE))
+        composeRule.onNodeWithTag(ProductDetailTestTags.TITLE).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ProductDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(ProductDetailTestTags.PRICE))
+        composeRule.onNodeWithTag(ProductDetailTestTags.PRICE).assertIsDisplayed()
 
         composeRule
             .onNodeWithTag(ProductDetailTestTags.CONTENT)

@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.catalog.CatalogError
 import com.gurbakir.mobile.catalog.CatalogProductCard
+import com.gurbakir.mobile.catalog.catalogProductCardMinimumWidth
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
@@ -87,7 +89,7 @@ private fun SearchGrid(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
+        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(padding)

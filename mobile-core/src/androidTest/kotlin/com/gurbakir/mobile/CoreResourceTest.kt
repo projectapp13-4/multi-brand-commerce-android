@@ -48,10 +48,10 @@ class CoreResourceTest {
             "tr-TR",
             mapOf(
                 R.string.address_market_explanation to
-                    "Bu sürüm desteklenen bölgedeki adresleri oluşturur ve düzenler. Adresler Shopify'da müşteri hesabınıza kaydedilir; cihazda kalıcı kopya tutulmaz.",
+                    "Desteklenen bölgedeki adreslerinizi burada yönetin. Adresler hesabınıza kaydedilir; bu cihazda kalıcı olarak tutulmaz.",
                 R.string.address_empty_message to "Shopify hesabınıza ilk adresinizi ekleyebilirsiniz.",
                 R.string.address_unsupported_country to
-                    "Bu adres desteklenen bölgenin dışında. Bu sürüm adresi gösterir ancak düzenlemez veya varsayılan yapmaz.",
+                    "Bu adres desteklenen bölgenin dışında. Düzenlenemez veya varsayılan yapılamaz.",
                 R.string.address_create_heading to "Adres ekleyin",
                 R.string.address_edit_heading to "Adresi düzenleyin",
                 R.string.address_country_value to "Ülke: Desteklenen bölge",
@@ -80,10 +80,10 @@ class CoreResourceTest {
             "en-US",
             mapOf(
                 R.string.address_market_explanation to
-                    "This version creates and edits addresses in the supported region. Addresses are saved to your Shopify customer account; no persistent copy is kept on this device.",
+                    "Manage addresses in the supported region here. They are saved to your account and are not stored on this device.",
                 R.string.address_empty_message to "You can add your first address to your Shopify account.",
                 R.string.address_unsupported_country to
-                    "This address is outside the supported region. This version displays it but does not edit it or make it default.",
+                    "This address is outside the supported region. It cannot be edited or made the default.",
                 R.string.address_create_heading to "Add an address",
                 R.string.address_edit_heading to "Edit the address",
                 R.string.address_country_value to "Country: Supported region",
