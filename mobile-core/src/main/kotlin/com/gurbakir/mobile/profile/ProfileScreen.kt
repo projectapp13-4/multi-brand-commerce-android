@@ -98,19 +98,19 @@ private fun ProfileScreenContent(
                 .testTag(ProfileTestTags.CONTENT),
         contentPadding =
             padding.withDestinationSpacing(
-                horizontal = spacing.sectionDp.dp,
-                vertical = spacing.sectionDp.dp
+                horizontal = spacing.generousDp.dp,
+                vertical = spacing.generousDp.dp
             ),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         item {
             Text(
                 text = stringResource(R.string.profile_heading),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
             )
         }
-        item { Text(stringResource(R.string.profile_scope_explanation)) }
+        item { Text(stringResource(R.string.profile_scope_explanation), style = MaterialTheme.typography.bodyMedium) }
         if (state.busy) {
             item {
                 LinearProgressIndicator(
@@ -178,10 +178,15 @@ private fun ProfileForm(
             focusRequester = lastNameFocus,
             keyboardAction = focusManager::clearFocus
         )
-        Text(stringResource(R.string.profile_unsaved_explanation))
+        Text(
+            stringResource(R.string.profile_unsaved_explanation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Button(
             onClick = actions.onSave,
             enabled = state.canSave,
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth().testTag(ProfileTestTags.SAVE)
         ) {
             Text(stringResource(R.string.profile_save))
@@ -209,6 +214,7 @@ private fun ProfileTextField(
 ) {
     val errorText = spec.error?.let { stringResource(it.messageResourceId()) }
     OutlinedTextField(
+        shape = MaterialTheme.shapes.medium,
         value = spec.value,
         onValueChange = onValueChange,
         label = { Text(stringResource(spec.labelResource)) },

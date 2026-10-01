@@ -11,8 +11,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -20,6 +24,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -49,6 +55,59 @@ import org.junit.runner.RunWith
 class ProductDetailScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun incompletePurchaseShowsOneInstructionWithoutRepeatingThePriceRange() {
+        setProductContent { ProductDetailScreen(ProductDetailUiState(product = product()), actions()) }
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_PRICE).assertDoesNotExist()
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_AVAILABILITY).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsNotEnabled()
+        composeRule.onNodeWithTag(ProductDetailTestTags.AVAILABILITY).assertDoesNotExist()
+    }
+
+    @Test
+    fun optionsWrapAndUnavailableValuesKeepConciseDisabledAccessibleLabels() {
+        val value = "An additional size"
+        val original = product()
+        val size = original.options.first().copy(
+            values = original.options.first().values + StorefrontProductOptionValue("extra-size", value)
+        )
+        setProductContent {
+            ProductDetailScreen(
+                ProductDetailUiState(product = original.copy(options = listOf(size) + original.options.drop(1))),
+                actions()
+            )
+        }
+        val list = composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+        list.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Size", value)))
+        val first = composeRule.onNodeWithTag(ProductDetailTestTags.option("Size", "Small"))
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val last = composeRule.onNodeWithTag(ProductDetailTestTags.option("Size", value))
+            .assertIsDisplayed().assertIsNotEnabled()
+            .assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
+            .fetchSemanticsNode().boundsInRoot
+        assertTrue("The additional option must wrap into a fully visible row", last.top >= first.bottom)
+        list.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Color", "Blue")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Color", "Blue")).assertIsNotEnabled()
+        composeRule.onNodeWithText("Blue").assertIsDisplayed()
+    }
+
+    @Test
+    fun swipingGalleryChangesTheIndexedMediaWithoutOpeningTheModal() {
+        val original = product()
+        val next = original.media.single().copy(
+            id = "gid://shopify/MediaImage/22",
+            image = media().copy(uri = URI("https://cdn.shopify.com/s/files/1/product-next.jpg"))
+        )
+        var state by mutableStateOf(ProductDetailUiState(product = original.copy(media = original.media + next)))
+        setProductContent {
+            ProductDetailScreen(state, actions(selectMedia = { state = state.copy(mediaIndex = it) }))
+        }
+        composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_OPEN).performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        assertEquals(1, state.mediaIndex)
+        composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_VIEWER).assertDoesNotExist()
+    }
 
     @Test
     fun wishlistOffCompactProductHasNoHeart() {
@@ -108,8 +167,10 @@ class ProductDetailScreenTest {
         detailList.performScrollToNode(hasTestTag(ProductDetailTestTags.PRICE))
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(ProductDetailTestTags.PRICE).assertIsDisplayed()
-        composeRule.onNodeWithTag(ProductDetailTestTags.AVAILABILITY).assertIsDisplayed()
-        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.AVAILABILITY).assertDoesNotExist()
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsDisplayed().assertIsEnabled()
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_PRICE).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_AVAILABILITY).assertDoesNotExist()
         assertEquals("gid://shopify/ProductVariant/11", state.selectedVariant?.id)
     }
 
@@ -166,17 +227,12 @@ class ProductDetailScreenTest {
     }
 
     @Test
-    fun purchaseBarStacksPriceAvailabilityAndActionAtTwoHundredPercentText() {
+    fun purchaseBarStacksInstructionAndActionAtTwoHundredPercentText() {
         setProductContent(fontScale = 2f) {
             ProductDetailScreen(ProductDetailUiState(product = product()), actions())
         }
 
-        val priceBounds =
-            composeRule
-                .onNodeWithTag(ProductDetailTestTags.PURCHASE_PRICE)
-                .assertIsDisplayed()
-                .fetchSemanticsNode()
-                .boundsInRoot
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_PRICE).assertDoesNotExist()
         val availabilityBounds =
             composeRule
                 .onNodeWithTag(ProductDetailTestTags.PURCHASE_AVAILABILITY)
@@ -189,10 +245,9 @@ class ProductDetailScreenTest {
                 .assertIsDisplayed()
                 .fetchSemanticsNode()
                 .boundsInRoot
-        assertTrue("Availability must follow price", priceBounds.top < availabilityBounds.top)
         assertTrue(
             "The action must stack below its disabled-state explanation: " +
-                "price=$priceBounds availability=$availabilityBounds action=$actionBounds",
+                "instruction=$availabilityBounds action=$actionBounds",
             availabilityBounds.bottom <= actionBounds.top
         )
     }
@@ -211,7 +266,6 @@ class ProductDetailScreenTest {
 
         composeRule
             .onNodeWithTag(WishlistTestTags.toggle(product.id))
-            .performScrollTo()
             .assertIsDisplayed()
             .performDeterministicClick()
         composeRule.waitForIdle()

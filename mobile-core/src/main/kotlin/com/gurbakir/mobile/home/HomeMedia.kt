@@ -44,7 +44,7 @@ internal fun HomeMedia(
     shape: Shape = RectangleShape
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surface,
         shape = shape,
         modifier = modifier
     ) {

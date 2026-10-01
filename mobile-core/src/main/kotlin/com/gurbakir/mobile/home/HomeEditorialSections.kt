@@ -54,7 +54,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.imageSection(
                     fallbackDescription = section.altText,
                     modifier = mediaModifier,
                     contentScale = ContentScale.Crop,
-                    shape = MaterialTheme.shapes.large
+                    shape = MaterialTheme.shapes.medium
                 )
             } else {
                 HomeV2Image(
@@ -62,7 +62,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.imageSection(
                     coordinator = playbackCoordinator,
                     modifier = mediaModifier,
                     contentScale = ContentScale.Crop,
-                    shape = MaterialTheme.shapes.large
+                    shape = MaterialTheme.shapes.medium
                 )
             }
             section.caption?.let { caption -> Text(caption, style = MaterialTheme.typography.bodyMedium) }

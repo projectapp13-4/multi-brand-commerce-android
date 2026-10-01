@@ -31,8 +31,8 @@ internal fun AccountMenuRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     @DrawableRes iconResource: Int? = null,
-    @DrawableRes trailingIconResource: Int = R.drawable.ic_arrow_back,
-    trailingIconRotationDegrees: Float = TRAILING_ICON_ROTATION_DEGREES,
+    @DrawableRes trailingIconResource: Int = R.drawable.ic_chevron_right,
+    trailingIconRotationDegrees: Float = 0f,
     enabled: Boolean = true,
     testTag: String? = null
 ) {
@@ -42,7 +42,7 @@ internal fun AccountMenuRow(
         enabled = enabled,
         modifier =
             modifier.fillMaxWidth()
-                .defaultMinSize(minHeight = 56.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .then(if (testTag == null) Modifier else Modifier.testTag(testTag)),
         color = Color.Transparent,
         shape = MaterialTheme.shapes.small
@@ -51,7 +51,7 @@ internal fun AccountMenuRow(
             modifier =
                 Modifier.fillMaxWidth()
                     .padding(
-                        horizontal = spacing.generousDp.dp,
+                        horizontal = spacing.normalDp.dp,
                         vertical = spacing.normalDp.dp
                     ),
             horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
@@ -61,7 +61,7 @@ internal fun AccountMenuRow(
                 Icon(
                     painter = painterResource(resource),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(UTILITY_ICON_SIZE)
                 )
             }
             Text(
@@ -72,10 +72,11 @@ internal fun AccountMenuRow(
             Icon(
                 painter = painterResource(trailingIconResource),
                 contentDescription = null,
-                modifier = Modifier.size(24.dp).rotate(trailingIconRotationDegrees)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(UTILITY_ICON_SIZE).rotate(trailingIconRotationDegrees)
             )
         }
     }
 }
 
-private const val TRAILING_ICON_ROTATION_DEGREES = 180f
+private val UTILITY_ICON_SIZE = 20.dp

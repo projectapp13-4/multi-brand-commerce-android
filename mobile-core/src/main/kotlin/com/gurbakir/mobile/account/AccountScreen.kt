@@ -99,10 +99,10 @@ fun AccountScreen(state: AccountUiState, actions: AccountActions) {
                     .testTag(AccountTestTags.CONTENT),
             contentPadding =
                 padding.withDestinationSpacing(
-                    horizontal = spacing.sectionDp.dp,
-                    vertical = spacing.sectionDp.dp
+                    horizontal = spacing.generousDp.dp,
+                    vertical = spacing.generousDp.dp
                 ),
-            verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
         ) {
             if (state.busy) {
                 item { AccountProgress(state.phase) }
@@ -114,7 +114,7 @@ fun AccountScreen(state: AccountUiState, actions: AccountActions) {
 
             when {
                 state.summary != null -> {
-                    item { AccountIdentityCard(state.summary) }
+                    item { AccountIdentitySummary(state.summary) }
                     item {
                         AccountCustomerTasks(
                             actions = actions,
@@ -183,37 +183,32 @@ private fun AccountProgress(phase: AccountPhase) {
 }
 
 @Composable
-private fun AccountIdentityCard(summary: AccountSummary) {
+private fun AccountIdentitySummary(summary: AccountSummary) {
     val spacing = LocalBrandSpacing.current
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth().testTag(AccountTestTags.SUMMARY),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+        horizontalArrangement = Arrangement.spacedBy(spacing.generousDp.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(spacing.generousDp.dp),
-            horizontalArrangement = Arrangement.spacedBy(spacing.generousDp.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            shape = CircleShape
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = CircleShape
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_nav_account),
-                    contentDescription = null,
-                    modifier = Modifier.padding(spacing.normalDp.dp).size(28.dp)
-                )
-            }
-            Text(
-                text = summary.displayName,
-                style = MaterialTheme.typography.titleMedium,
-                modifier =
-                    Modifier.weight(1f)
-                        .semantics { heading() }
-                        .testTag(AccountTestTags.DISPLAY_NAME)
+            Icon(
+                painter = painterResource(R.drawable.ic_nav_account),
+                contentDescription = null,
+                modifier = Modifier.padding(spacing.normalDp.dp).size(20.dp)
             )
         }
+        Text(
+            text = summary.displayName,
+            style = MaterialTheme.typography.titleMedium,
+            modifier =
+                Modifier.weight(1f)
+                    .semantics { heading() }
+                    .testTag(AccountTestTags.DISPLAY_NAME)
+        )
     }
 }
 
@@ -282,6 +277,7 @@ private fun AccountSignInCard(
     val spacing = LocalBrandSpacing.current
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     ) {
         Column(
@@ -290,7 +286,7 @@ private fun AccountSignInCard(
         ) {
             Text(
                 text = stringResource(R.string.account_sign_in_heading),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
             )
             Text(
@@ -301,6 +297,7 @@ private fun AccountSignInCard(
                 Button(
                     onClick = actions.onSignIn,
                     enabled = state.canSignIn,
+                    shape = MaterialTheme.shapes.small,
                     modifier =
                         Modifier.fillMaxWidth()
                             .focusRequester(signInFocusRequester)
@@ -330,37 +327,31 @@ private fun AccountSignInCard(
 
 @Composable
 private fun AccountCustomerTasks(actions: AccountActions, enabled: Boolean) {
-    val spacing = LocalBrandSpacing.current
-    Card(
-        modifier = Modifier.fillMaxWidth().testTag(AccountTestTags.CUSTOMER_TASKS),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(spacing.normalDp.dp)) {
-            AccountSectionHeading(R.string.account_customer_tasks_heading)
-            AccountMenuRow(
-                title = stringResource(R.string.account_manage_orders),
-                iconResource = R.drawable.ic_account_orders,
-                enabled = enabled,
-                testTag = AccountTestTags.ORDERS,
-                onClick = actions.onOrders
-            )
-            AccountDivider()
-            AccountMenuRow(
-                title = stringResource(R.string.profile_title),
-                iconResource = R.drawable.ic_nav_account,
-                enabled = enabled,
-                testTag = AccountTestTags.PROFILE,
-                onClick = actions.onProfile
-            )
-            AccountDivider()
-            AccountMenuRow(
-                title = stringResource(R.string.account_manage_addresses),
-                iconResource = R.drawable.ic_account_address,
-                enabled = enabled,
-                testTag = AccountTestTags.ADDRESSES,
-                onClick = actions.onAddresses
-            )
-        }
+    Column(modifier = Modifier.fillMaxWidth().testTag(AccountTestTags.CUSTOMER_TASKS)) {
+        AccountSectionHeading(R.string.account_customer_tasks_heading)
+        AccountMenuRow(
+            title = stringResource(R.string.account_manage_orders),
+            iconResource = R.drawable.ic_account_orders,
+            enabled = enabled,
+            testTag = AccountTestTags.ORDERS,
+            onClick = actions.onOrders
+        )
+        AccountDivider()
+        AccountMenuRow(
+            title = stringResource(R.string.profile_title),
+            iconResource = R.drawable.ic_nav_account,
+            enabled = enabled,
+            testTag = AccountTestTags.PROFILE,
+            onClick = actions.onProfile
+        )
+        AccountDivider()
+        AccountMenuRow(
+            title = stringResource(R.string.account_manage_addresses),
+            iconResource = R.drawable.ic_account_address,
+            enabled = enabled,
+            testTag = AccountTestTags.ADDRESSES,
+            onClick = actions.onAddresses
+        )
     }
 }
 
@@ -373,53 +364,45 @@ private fun AccountSupportAndPrivacy(
     localDataExpanded: Boolean,
     onLocalDataExpandedChanged: (Boolean) -> Unit
 ) {
-    val spacing = LocalBrandSpacing.current
     val expandedDescription = stringResource(R.string.state_expanded)
     val collapsedDescription = stringResource(R.string.state_collapsed)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(spacing.normalDp.dp)) {
-            if (authenticated) {
-                AccountSectionHeading(R.string.account_support_privacy_heading)
-            }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        AccountSectionHeading(R.string.account_support_privacy_heading)
+        AccountMenuRow(
+            title = stringResource(R.string.legal_support_title),
+            iconResource = R.drawable.ic_account_help,
+            testTag = AccountTestTags.LEGAL_SUPPORT,
+            onClick = actions.onLegalSupport
+        )
+        AccountDivider()
+        Column(modifier = Modifier.fillMaxWidth().testTag(AccountTestTags.LOCAL_DATA)) {
             AccountMenuRow(
-                title = stringResource(R.string.legal_support_title),
-                iconResource = R.drawable.ic_account_help,
-                testTag = AccountTestTags.LEGAL_SUPPORT,
-                onClick = actions.onLegalSupport
+                title = stringResource(R.string.account_local_data_heading),
+                iconResource = R.drawable.ic_account_device,
+                trailingIconResource = R.drawable.ic_expand_more,
+                trailingIconRotationDegrees = if (localDataExpanded) 180f else 0f,
+                modifier =
+                    Modifier.semantics {
+                        stateDescription =
+                            if (localDataExpanded) {
+                                expandedDescription
+                            } else {
+                                collapsedDescription
+                            }
+                    },
+                testTag = AccountTestTags.LOCAL_DATA_DISCLOSURE,
+                onClick = { onLocalDataExpandedChanged(!localDataExpanded) }
             )
+            if (localDataExpanded) {
+                LocalDataPanel(actions)
+            }
+        }
+        if (authenticated) {
             AccountDivider()
-            Column(modifier = Modifier.fillMaxWidth().testTag(AccountTestTags.LOCAL_DATA)) {
-                AccountMenuRow(
-                    title = stringResource(R.string.account_local_data_heading),
-                    iconResource = R.drawable.ic_account_device,
-                    trailingIconResource = R.drawable.ic_expand_more,
-                    trailingIconRotationDegrees = if (localDataExpanded) 180f else 0f,
-                    modifier =
-                        Modifier.semantics {
-                            stateDescription =
-                                if (localDataExpanded) {
-                                    expandedDescription
-                                } else {
-                                    collapsedDescription
-                                }
-                        },
-                    testTag = AccountTestTags.LOCAL_DATA_DISCLOSURE,
-                    onClick = { onLocalDataExpandedChanged(!localDataExpanded) }
-                )
-                if (localDataExpanded) {
-                    LocalDataPanel(actions)
-                }
-            }
-            if (authenticated) {
-                AccountDivider()
-                AccountDeletionButton(
-                    enabled = sessionActionsEnabled,
-                    onAccountDeletion = actions.onAccountDeletion
-                )
-            }
+            AccountDeletionButton(
+                enabled = sessionActionsEnabled,
+                onAccountDeletion = actions.onAccountDeletion
+            )
         }
     }
 }
@@ -497,17 +480,18 @@ private fun AccountSectionHeading(titleResource: Int) {
     val spacing = LocalBrandSpacing.current
     Text(
         text = stringResource(titleResource),
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier =
             Modifier.fillMaxWidth()
-                .padding(horizontal = spacing.normalDp.dp, vertical = spacing.normalDp.dp)
+                .padding(bottom = spacing.normalDp.dp)
                 .semantics { heading() }
     )
 }
 
 @Composable
 private fun AccountDivider() {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ACCOUNT_DIVIDER_ALPHA))
 }
 
 @Composable
@@ -574,6 +558,8 @@ private fun AccountFailure.messageResourceId(): Int = when (this) {
     AccountFailure.IDENTITY_DISCOVERY,
     AccountFailure.IDENTITY_GRAPHQL -> R.string.account_failure_service
 }
+
+private const val ACCOUNT_DIVIDER_ALPHA = 0.55f
 
 object AccountTestTags {
     const val ROOT = "account-root"

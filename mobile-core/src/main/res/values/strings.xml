@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="product_choose_option">%1$s seçin</string>
+    <string name="product_choose_options">Seçenekleri seçin</string>
+    <string name="product_not_found_body">Diğer ürünleri inceleyebilirsiniz.</string>
     <string name="home_title">Ana Sayfa</string>
     <string name="home_product_range_title">Ürün Gamımız</string>
     <string name="home_view_all_collections">T&#252;m&#252;n&#252; g&#246;r</string>

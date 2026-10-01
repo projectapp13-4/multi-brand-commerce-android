@@ -80,7 +80,6 @@ internal fun CatalogProductTile(
             Text(
                 text = product.title,
                 style = MaterialTheme.typography.bodyMedium,
-                minLines = PRODUCT_TITLE_LINES,
                 maxLines = PRODUCT_TITLE_LINES,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag(CatalogTestTags.productTitle(product.handle))

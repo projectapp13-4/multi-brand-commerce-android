@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +40,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -184,7 +188,7 @@ private fun VideoPoster(
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxSize().testTag(HomeTestTags.VIDEO_POSTER),
-                shape = MaterialTheme.shapes.large
+                shape = MaterialTheme.shapes.medium
             ) {
                 if (poster == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
@@ -195,19 +199,29 @@ private fun VideoPoster(
                         content = HomeV2ImageContent(poster, section.altText, section.revisionKey),
                         coordinator = coordinator,
                         modifier = Modifier.fillMaxSize(),
-                        shape = MaterialTheme.shapes.large
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
             }
-            Button(
+            FilledIconButton(
                 onClick = onPlay,
-                modifier = Modifier.testTag(HomeTestTags.videoPlay(section.stableId))
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = POSTER_CONTROL_ALPHA),
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier.size(POSTER_CONTROL_SIZE).testTag(HomeTestTags.videoPlay(section.stableId))
             ) {
-                Text(stringResource(if (retry) R.string.retry else R.string.home_video_play))
+                Icon(
+                    painterResource(if (retry) R.drawable.ic_refresh else R.drawable.ic_play),
+                    contentDescription = stringResource(if (retry) R.string.retry else R.string.home_video_play)
+                )
             }
         }
     }
 }
+
+private const val POSTER_CONTROL_ALPHA = 0.92f
+private val POSTER_CONTROL_SIZE = 48.dp
 
 @Composable
 private fun ActiveHomeVideoPlayer(request: ActiveHomeVideoRequest, callbacks: HomePlayerCallbacks) {

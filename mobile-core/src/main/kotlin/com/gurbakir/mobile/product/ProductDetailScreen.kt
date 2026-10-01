@@ -6,7 +6,6 @@ package com.gurbakir.mobile.product
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,9 +25,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -39,9 +39,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,9 +67,12 @@ import coil3.compose.AsyncImage
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.catalog.CatalogError
 import com.gurbakir.mobile.core.R
+import com.gurbakir.mobile.ui.CartIconAction
+import com.gurbakir.mobile.ui.CommerceStatePanel
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
+import com.gurbakir.mobile.ui.DestinationTopBar
 import com.gurbakir.mobile.ui.PriceBlock
 import com.gurbakir.mobile.ui.PriceBlockEmphasis
 import com.gurbakir.mobile.ui.consumeDestinationInsets
@@ -100,7 +106,14 @@ fun ProductDetailScreen(
             level = DestinationLevel.SECONDARY,
             modifier = Modifier.fillMaxSize().testTag(ProductDetailTestTags.ROOT),
             titleAlignment = DestinationTitleAlignment.CENTER,
+            topBar = DestinationTopBar.ACTIONS,
             onNavigateUp = actions.onBack,
+            actions = {
+                state.product?.let { product ->
+                    WishlistProductIconButton(product.id, wishlist.productAction(product.id, actions.onSetWishlist))
+                }
+                CartIconAction(actions.onOpenCart)
+            },
             bottomBar = {
                 if (!expandedLayout) {
                     state.product?.let { ProductPurchaseBar(state, actions) }
@@ -110,7 +123,6 @@ fun ProductDetailScreen(
             ProductDetailBody(
                 state = state,
                 actions = actions,
-                wishlist = wishlist,
                 padding = padding,
                 expandedLayout = expandedLayout,
                 mediaOpenerFocusRequester = mediaOpenerFocusRequester,
@@ -127,11 +139,10 @@ fun ProductDetailScreen(
 }
 
 @Composable
-@Suppress("LongParameterList") // Screen, inset, wishlist, and focus contracts are one destination boundary.
+@Suppress("LongParameterList") // Screen, inset and focus contracts are one destination boundary.
 private fun ProductDetailBody(
     state: ProductDetailUiState,
     actions: ProductDetailActions,
-    wishlist: WishlistMembershipUiState?,
     padding: PaddingValues,
     expandedLayout: Boolean,
     mediaOpenerFocusRequester: FocusRequester,
@@ -142,7 +153,6 @@ private fun ProductDetailBody(
         ExpandedProductDetailContent(
             state = state,
             actions = actions,
-            wishlist = wishlist,
             padding = padding,
             mediaOpenerFocusRequester = mediaOpenerFocusRequester,
             onOpenMediaViewer = onOpenMediaViewer
@@ -154,7 +164,7 @@ private fun ProductDetailBody(
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(padding)
                 .testTag(ProductDetailTestTags.CONTENT),
-        contentPadding = padding.withDestinationSpacing(),
+        contentPadding = padding.withDestinationSpacing(horizontal = spacing.generousDp.dp),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         when {
@@ -172,7 +182,6 @@ private fun ProductDetailBody(
                 productContent(
                     state,
                     actions,
-                    wishlist,
                     mediaOpenerFocusRequester,
                     onOpenMediaViewer
                 )
@@ -188,7 +197,6 @@ private fun ProductDetailUiState.canRenderExpandedProductContent(): Boolean =
 private fun ExpandedProductDetailContent(
     state: ProductDetailUiState,
     actions: ProductDetailActions,
-    wishlist: WishlistMembershipUiState?,
     padding: PaddingValues,
     mediaOpenerFocusRequester: FocusRequester,
     onOpenMediaViewer: () -> Unit
@@ -220,16 +228,11 @@ private fun ExpandedProductDetailContent(
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                         Text(
                             text = product.title,
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.titleLarge,
                             modifier =
                                 Modifier.weight(1f)
                                     .semantics { heading() }
                                     .testTag(ProductDetailTestTags.TITLE)
-                        )
-                        WishlistProductIconButton(
-                            productId = product.id,
-                            action =
-                                wishlist.productAction(product.id, actions.onSetWishlist)
                         )
                     }
                 }
@@ -267,7 +270,7 @@ private fun ExpandedProductDetailContent(
                         ) {
                             Text(
                                 stringResource(R.string.product_description_title),
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.semantics { heading() }
                             )
                             Text(
@@ -285,21 +288,19 @@ private fun ExpandedProductDetailContent(
 
 @Composable
 private fun ProductNotFound(onBrowse: () -> Unit) {
-    val spacing = LocalBrandSpacing.current
-    Column(
-        modifier = Modifier.fillMaxWidth().testTag(ProductDetailTestTags.NOT_FOUND),
-        verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
-    ) {
-        Text(stringResource(R.string.product_not_found))
-        Button(onClick = onBrowse) { Text(stringResource(R.string.product_browse)) }
-    }
+    CommerceStatePanel(
+        title = stringResource(R.string.product_not_found),
+        body = stringResource(R.string.product_not_found_body),
+        primaryActionLabel = stringResource(R.string.product_browse),
+        onPrimaryAction = onBrowse,
+        testTag = ProductDetailTestTags.NOT_FOUND
+    )
 }
 
 @Suppress("LongMethod") // LazyListScope order is the product information hierarchy contract.
 private fun LazyListScope.productContent(
     state: ProductDetailUiState,
     actions: ProductDetailActions,
-    wishlist: WishlistMembershipUiState?,
     mediaOpenerFocusRequester: FocusRequester,
     onOpenMediaViewer: () -> Unit
 ) {
@@ -319,16 +320,11 @@ private fun LazyListScope.productContent(
         ) {
             Text(
                 text = product.title,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleLarge,
                 modifier =
                     Modifier.weight(1f)
                         .semantics { heading() }
                         .testTag(ProductDetailTestTags.TITLE)
-            )
-            WishlistProductIconButton(
-                productId = product.id,
-                action =
-                    wishlist.productAction(product.id, actions.onSetWishlist)
             )
         }
     }
@@ -363,7 +359,7 @@ private fun LazyListScope.productContent(
             Column(verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)) {
                 Text(
                     stringResource(R.string.product_description_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.semantics { heading() }
                 )
                 Text(product.description, modifier = Modifier.testTag(ProductDetailTestTags.DESCRIPTION))
@@ -378,32 +374,7 @@ private fun ProductOptionGroup(
     state: ProductDetailUiState,
     actions: ProductDetailActions
 ) {
-    val spacing = LocalBrandSpacing.current
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)) {
-        Text(option.name, style = MaterialTheme.typography.titleMedium)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
-        ) {
-            state.valueStates(option).forEach { valueState ->
-                FilterChip(
-                    selected = valueState.selected,
-                    onClick = { actions.onSelectOption(option.name, valueState.name) },
-                    enabled = valueState.existsForCurrentSelection,
-                    label = {
-                        Text(
-                            if (valueState.hasAvailableMatch) {
-                                valueState.name
-                            } else {
-                                stringResource(R.string.product_option_unavailable, valueState.name)
-                            }
-                        )
-                    },
-                    modifier = Modifier.testTag(ProductDetailTestTags.option(option.name, valueState.name))
-                )
-            }
-        }
-    }
+    VariantSelector(option.name, state.valueStates(option)) { value -> actions.onSelectOption(option.name, value) }
 }
 
 @Composable
@@ -419,65 +390,81 @@ private fun ProductMediaGallery(
     val index = state.mediaIndex.coerceIn(0, media.lastIndex.coerceAtLeast(0))
     val spacing = LocalBrandSpacing.current
     val openLabel = stringResource(R.string.product_media_expand)
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+    Column(
         modifier =
             modifier.fillMaxWidth()
-                .aspectRatio(1f)
                 .testTag(ProductDetailTestTags.MEDIA)
     ) {
-        if (media.isEmpty()) {
-            Box(contentAlignment = Alignment.Center) { Text(stringResource(R.string.product_no_media)) }
-        } else {
-            Box(
-                Modifier.fillMaxSize()
-                    .focusRequester(openerFocusRequester)
-                    .focusable()
-                    .clickable(
-                        onClickLabel = openLabel,
-                        role = Role.Button,
-                        onClick = onOpenMediaViewer
-                    )
-                    .testTag(ProductDetailTestTags.MEDIA_OPEN)
-            ) {
-                ProductImage(media[index], requireNotNull(state.product).title)
-                Row(
-                    modifier =
-                        Modifier.align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(spacing.compactDp.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MediaArrowButton(
-                        onClick = { actions.onSelectMedia(index - 1) },
-                        enabled = index > 0,
-                        contentDescription = stringResource(R.string.product_media_previous),
-                        testTag = ProductDetailTestTags.MEDIA_PREVIOUS
-                    )
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = MEDIA_CONTROL_ALPHA)
-                    ) {
-                        Text(
-                            stringResource(R.string.product_media_position, index + 1, media.size),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(
-                                horizontal = spacing.normalDp.dp,
-                                vertical = spacing.compactDp.dp
-                            )
+        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().aspectRatio(1f)) {
+            if (media.isEmpty()) {
+                Box(contentAlignment = Alignment.Center) { Text(stringResource(R.string.product_no_media)) }
+            } else {
+                Box(
+                    Modifier.fillMaxSize()
+                        .focusRequester(openerFocusRequester)
+                        .focusable()
+                        .clickable(
+                            onClickLabel = openLabel,
+                            role = Role.Button,
+                            onClick = onOpenMediaViewer
                         )
+                        .testTag(ProductDetailTestTags.MEDIA_OPEN)
+                ) {
+                    key(media.map { it.uri }) {
+                        ProductMediaPager(media, index, requireNotNull(state.product).title, actions.onSelectMedia)
                     }
-                    MediaArrowButton(
-                        onClick = { actions.onSelectMedia(index + 1) },
-                        enabled = index < media.lastIndex,
-                        contentDescription = stringResource(R.string.product_media_next),
-                        rotate = true,
-                        testTag = ProductDetailTestTags.MEDIA_NEXT
-                    )
                 }
             }
         }
+        if (media.size > 1) {
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MediaArrowButton(
+                    onClick = { actions.onSelectMedia(index - 1) },
+                    enabled = index > 0,
+                    contentDescription = stringResource(R.string.product_media_previous),
+                    testTag = ProductDetailTestTags.MEDIA_PREVIOUS
+                )
+                Text(
+                    stringResource(R.string.product_media_position, index + 1, media.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        horizontal = spacing.normalDp.dp,
+                        vertical = spacing.compactDp.dp
+                    )
+                )
+                MediaArrowButton(
+                    onClick = { actions.onSelectMedia(index + 1) },
+                    enabled = index < media.lastIndex,
+                    contentDescription = stringResource(R.string.product_media_next),
+                    rotate = true,
+                    testTag = ProductDetailTestTags.MEDIA_NEXT
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProductMediaPager(media: List<StorefrontMedia>, index: Int, description: String, onSelect: (Int) -> Unit) {
+    val pager = rememberPagerState(initialPage = index, pageCount = { media.size })
+    val currentIndex by rememberUpdatedState(index)
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    LaunchedEffect(index) {
+        if (!pager.isScrollInProgress && pager.currentPage != index) pager.scrollToPage(index)
+    }
+    LaunchedEffect(pager) {
+        snapshotFlow { pager.settledPage }.collect { page ->
+            if (page != currentIndex) currentOnSelect(page)
+        }
+    }
+    HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+        ProductImage(media[page], description)
     }
 }
 
@@ -489,24 +476,19 @@ private fun MediaArrowButton(
     rotate: Boolean = false,
     testTag: String? = null
 ) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = MEDIA_CONTROL_ALPHA)
-    ) {
-        IconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier =
-                Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).then(
-                    if (testTag == null) Modifier else Modifier.testTag(testTag)
-                )
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_back),
-                contentDescription = contentDescription,
-                modifier = Modifier.rotate(if (rotate) HALF_TURN_DEGREES else 0f)
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier =
+            Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).then(
+                if (testTag == null) Modifier else Modifier.testTag(testTag)
             )
-        }
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_back),
+            contentDescription = contentDescription,
+            modifier = Modifier.size(MEDIA_ARROW_SIZE).rotate(if (rotate) HALF_TURN_DEGREES else 0f)
+        )
     }
 }
 
@@ -623,7 +605,7 @@ private fun ViewerNavigationButton(text: String, onClick: () -> Unit, enabled: B
     }
 }
 
-private const val MEDIA_CONTROL_ALPHA = 0.92f
+private val MEDIA_ARROW_SIZE = 20.dp
 private const val MEDIA_VIEWER_CONTROL_ALPHA = 0.72f
 internal fun isExpandedProductLayout(availableWidth: Dp): Boolean = availableWidth >= EXPANDED_PRODUCT_WIDTH
 

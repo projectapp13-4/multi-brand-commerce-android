@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="product_choose_option">Choose %1$s</string>
+    <string name="product_choose_options">Choose options</string>
+    <string name="product_not_found_body">You can browse the other products.</string>
     <string name="home_title">Home</string>
     <string name="home_product_range_title">Our Product Range</string>
     <string name="home_view_all_collections">View all</string>

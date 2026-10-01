@@ -124,8 +124,8 @@ line-ending policy remains unchanged. A fresh scoped Gradle home uses the
 pinned wrapper and existing dependency cache. The onboarding validator rejects
 the diagnostic short-path junction (`UNSAFE_PATH`); builds therefore use the
 registered worktree path, where projection validation passes. These diagnostics
-are not application test results. No UI code/version change or release artifact
-has yet been produced by this task.
+are not application test results. At this baseline checkpoint, no UI code,
+version change or release artifact had been produced by this task.
 
 Fresh baseline build completed successfully in 11m 23s: production debug app,
 production debug instrumentation APK and shared-core instrumentation APK.
@@ -163,6 +163,34 @@ and four provider results; this is layout evidence, not a query-input verdict.
 Capture acceptance requires a fresh matching screen hierarchy. Delayed activity
 frames and a System UI startup ANR were diagnosed before accepting the final
 baseline captures; screenshots use binary-safe `adb exec-out screencap`.
+
+### Browsing iteration 1
+
+Source `ce2f073e3b63b5f5529d0aa372966825e433d6d7`, still version 2/`0.2.0`.
+Configured production-debug APK SHA-256:
+`8055954744B4D44BE6E04240188FAB54BA01666A65BCA4D0DC8F8CFCCA0B99E7`.
+Formatting, the five focused variant JVM tests and app/core instrumentation
+assemblies passed. The four new browsing Android tests first failed against
+the unchanged baseline for their intended differences. All 23 Search, Catalog,
+Wishlist and Foundation component checks then passed on the settled API 36
+emulator (61.344 seconds). A prior attempt also passed but encountered a
+System UI startup ANR; its log is retained separately from the settled run.
+
+Six reviewed runtime screenshots and hashes are indexed in
+`out/ui-v3/iteration-1/screenshots.json` in the primary checkout. These are
+configured public Storefront and local-device data evidence. Search now shows
+four complete priced products rather than two in the baseline viewport, with
+normal availability silent and sold-out state explicit. Categories use scanning
+rows; Wishlist clearing sits beside its count and still requires confirmation.
+Search begins with its entry field, has separate submit/clear controls and
+lower-emphasis settings. Navigation selection is visibly quieter.
+
+Review identified two remaining browsing defects: the reserved second title
+line leaves too much space before short-title prices, and fitted category
+thumbnails retain grey side areas. Both require revision before final acceptance.
+Wishlist empty uses the shared compact state language. Collection shows the
+same frameless tile with range pricing and more product content; its existing
+filter controls and provider ordering are preserved.
 
 ## Completion evidence
 

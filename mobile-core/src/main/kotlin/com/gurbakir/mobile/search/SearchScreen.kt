@@ -158,17 +158,7 @@ private fun SearchInput(state: SearchUiState, actions: SearchActions) {
                         onSearch = { submit() }
                     )
             )
-            FilledIconButton(
-                onClick = submit,
-                enabled = state.query.isNotBlank(),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).testTag(SearchTestTags.SUBMIT)
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_nav_search),
-                    contentDescription = stringResource(R.string.search_title)
-                )
-            }
+            SearchSubmitAction(enabled = state.query.isNotBlank(), onSubmit = submit)
         }
         if (state.isQueryTooShort) {
             Text(
@@ -180,6 +170,18 @@ private fun SearchInput(state: SearchUiState, actions: SearchActions) {
                         .testTag(SearchTestTags.TOO_SHORT)
             )
         }
+    }
+}
+
+@Composable
+private fun SearchSubmitAction(enabled: Boolean, onSubmit: () -> Unit) {
+    FilledIconButton(
+        onClick = onSubmit,
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).testTag(SearchTestTags.SUBMIT)
+    ) {
+        Icon(painterResource(R.drawable.ic_nav_search), contentDescription = stringResource(R.string.search_title))
     }
 }
 

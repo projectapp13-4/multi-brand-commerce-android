@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -47,8 +48,28 @@ import org.junit.runner.RunWith
 class HomeScreenTest {
     @get:Rule val composeRule = createComposeRule()
 
+    private fun performContentRefresh() {
+        val refresh = composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsDisplayed()
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions].single()
+        composeRule.runOnIdle { assertTrue(refresh.action()) }
+    }
+
     @Test
-    fun wordmarkDoesNotOverlapRefreshAtLargeTextOnCompactWidth() {
+    fun quietHomeRetainsRefreshAsAnAccessibleContentAction() {
+        var refreshes = 0
+        composeRule.setContent {
+            CoreTestTheme {
+                HomeScreen(presentationState(), "Test", HomeActions(refreshContent = { refreshes += 1 }))
+            }
+        }
+        val refresh = composeRule.onNodeWithTag(HomeTestTags.REFRESH)
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions].single()
+        composeRule.runOnIdle { assertTrue(refresh.action()) }
+        assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun wordmarkDoesNotOverlapCartAtLargeTextOnCompactWidth() {
         composeRule.setContent {
             CoreTestTheme {
                 val density = LocalDensity.current
@@ -61,8 +82,8 @@ class HomeScreenTest {
         }
 
         val wordmark = composeRule.onNodeWithTag(HomeTestTags.WORDMARK).fetchSemanticsNode().boundsInRoot
-        val refresh = composeRule.onNodeWithTag(HomeTestTags.REFRESH).fetchSemanticsNode().boundsInRoot
-        assertTrue("Home wordmark overlaps Refresh at large text", wordmark.right <= refresh.left)
+        val cart = composeRule.onNodeWithTag(HomeTestTags.CART).fetchSemanticsNode().boundsInRoot
+        assertTrue("Home wordmark overlaps Cart at large text", wordmark.right <= cart.left)
     }
 
     @Test
@@ -126,14 +147,14 @@ class HomeScreenTest {
         var state by mutableStateOf(presentationState())
         val actions = HomeActions(refreshContent = { refreshes += 1 })
         composeRule.setContent { CoreTestTheme { HomeScreen(state, "Test", actions) } }
-        composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsDisplayed().assertIsEnabled().performClick()
+        performContentRefresh()
         assertEquals(1, refreshes)
 
         composeRule.runOnIdle {
             state = presentationState(editorial = HomeEditorialState.IntentionalEmpty, sections = emptyList())
         }
         composeRule.onNodeWithTag(HomeTestTags.EMPTY).assertIsDisplayed()
-        composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsEnabled().performClick()
+        performContentRefresh()
         assertEquals(2, refreshes)
     }
 
@@ -142,7 +163,10 @@ class HomeScreenTest {
         var state by mutableStateOf(HomeUiState(requestActive = true))
         val actions = HomeActions(refreshContent = {})
         composeRule.setContent { CoreTestTheme { HomeScreen(state, "Test", actions) } }
-        composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsDisplayed().assertIsNotEnabled()
+        assertTrue(
+            composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsDisplayed()
+                .fetchSemanticsNode().config[SemanticsActions.CustomActions].isEmpty()
+        )
 
         composeRule.runOnIdle {
             state = HomeUiState(
@@ -152,7 +176,11 @@ class HomeScreenTest {
             )
         }
         composeRule.onNodeWithTag(HomeTestTags.HOME_ERROR).assertIsDisplayed()
-        composeRule.onNodeWithTag(HomeTestTags.REFRESH).assertIsEnabled()
+        assertEquals(
+            1,
+            composeRule.onNodeWithTag(HomeTestTags.REFRESH)
+                .fetchSemanticsNode().config[SemanticsActions.CustomActions].size
+        )
     }
 
     @Test

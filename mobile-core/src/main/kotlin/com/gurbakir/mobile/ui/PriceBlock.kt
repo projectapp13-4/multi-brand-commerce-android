@@ -98,7 +98,7 @@ internal fun PriceBlock(
 @Composable
 private fun PriceBlockEmphasis.priceStyle(): TextStyle = when (this) {
     PriceBlockEmphasis.CARD -> MaterialTheme.typography.titleSmall
-    PriceBlockEmphasis.DETAIL -> MaterialTheme.typography.titleLarge
+    PriceBlockEmphasis.DETAIL -> MaterialTheme.typography.titleMedium
     PriceBlockEmphasis.PURCHASE -> MaterialTheme.typography.titleMedium
 }
 

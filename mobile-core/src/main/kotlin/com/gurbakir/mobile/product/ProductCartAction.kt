@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,8 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.cart.CartFailureCategory
 import com.gurbakir.mobile.core.R
-import com.gurbakir.mobile.ui.PriceBlock
-import com.gurbakir.mobile.ui.PriceBlockEmphasis
+import com.gurbakir.mobile.home.localizedText
 
 @Composable
 internal fun ProductPurchaseBar(
@@ -43,50 +43,53 @@ internal fun ProductPurchaseBar(
 ) {
     val spacing = LocalBrandSpacing.current
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = PURCHASE_BAR_ELEVATION,
+        color = MaterialTheme.colorScheme.surface,
         modifier =
             Modifier.fillMaxWidth()
-                .then(
-                    if (includeNavigationBarInset) {
-                        Modifier.windowInsetsPadding(
-                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
                 .testTag(ProductDetailTestTags.PURCHASE_BAR)
     ) {
-        BoxWithConstraints(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .padding(horizontal = spacing.normalDp.dp, vertical = spacing.compactDp.dp)
-        ) {
-            val stackContent =
-                maxWidth < PURCHASE_BAR_COMPACT_WIDTH ||
-                    LocalDensity.current.fontScale >= PURCHASE_BAR_STACK_FONT_SCALE
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
-            ) {
-                if (stackContent) {
-                    PurchaseSummary(state, Modifier.fillMaxWidth())
-                    AddToCartButton(state, actions, Modifier.fillMaxWidth())
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
-                    ) {
-                        PurchaseSummary(state, Modifier.weight(1f))
-                        AddToCartButton(
-                            state,
-                            actions,
-                            Modifier.widthIn(min = PURCHASE_BUTTON_MIN_WIDTH)
+        Column {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            BoxWithConstraints(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .then(
+                            if (includeNavigationBarInset) {
+                                Modifier.windowInsetsPadding(
+                                    WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
+                                )
+                            } else {
+                                Modifier
+                            }
                         )
+                        .padding(horizontal = spacing.generousDp.dp, vertical = spacing.normalDp.dp)
+            ) {
+                val stackContent =
+                    maxWidth < PURCHASE_BAR_COMPACT_WIDTH ||
+                        LocalDensity.current.fontScale >= PURCHASE_BAR_STACK_FONT_SCALE
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
+                ) {
+                    if (stackContent) {
+                        PurchaseSummary(state, Modifier.fillMaxWidth())
+                        AddToCartButton(state, actions, Modifier.fillMaxWidth())
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            PurchaseSummary(state, Modifier.weight(1f))
+                            AddToCartButton(
+                                state,
+                                actions,
+                                Modifier.widthIn(min = PURCHASE_BUTTON_MIN_WIDTH)
+                            )
+                        }
                     }
+                    ProductCartFeedback(state, actions)
                 }
-                ProductCartFeedback(state, actions)
             }
         }
     }
@@ -94,18 +97,27 @@ internal fun ProductPurchaseBar(
 
 @Composable
 private fun PurchaseSummary(state: ProductDetailUiState, modifier: Modifier) {
-    PriceBlock(
-        minimumPrice = state.minimumPrice,
-        maximumPrice = state.maximumPrice,
-        currentPrice = state.selectedVariant?.price,
-        compareAtPrice = state.selectedVariant?.compareAtPrice,
-        availabilityText = state.availabilityText(),
-        unavailable = state.hasUnavailableSelection,
-        modifier = modifier,
-        emphasis = PriceBlockEmphasis.PURCHASE,
-        priceTestTag = ProductDetailTestTags.PURCHASE_PRICE,
-        availabilityTestTag = ProductDetailTestTags.PURCHASE_AVAILABILITY
-    )
+    val variant = state.selectedVariant
+    if (variant?.availableForSale == true) {
+        Text(
+            variant.price.localizedText(),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = modifier.testTag(ProductDetailTestTags.PURCHASE_PRICE)
+        )
+    } else {
+        val missing = state.displayOptions.filter { it.name !in state.selectedOptions }
+        val context = when {
+            state.hasUnavailableSelection -> stringResource(R.string.product_unavailable)
+            missing.size == 1 -> stringResource(R.string.product_choose_option, missing.single().name)
+            else -> stringResource(R.string.product_choose_options)
+        }
+        Text(
+            context,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier.testTag(ProductDetailTestTags.PURCHASE_AVAILABILITY)
+        )
+    }
 }
 
 @Composable
@@ -113,6 +125,7 @@ private fun AddToCartButton(state: ProductDetailUiState, actions: ProductDetailA
     Button(
         onClick = actions.onAddToCart,
         enabled = state.purchaseIntent != null && !state.addingToCart,
+        shape = MaterialTheme.shapes.small,
         modifier = modifier.heightIn(min = MINIMUM_TOUCH_TARGET_SIZE).testTag(ProductDetailTestTags.ADD_TO_CART)
     ) {
         Text(
@@ -168,8 +181,7 @@ private fun ProductDetailUiState.cartFeedbackResource(): Int? = when {
     else -> null
 }
 
-private val PURCHASE_BAR_ELEVATION = 3.dp
-private val PURCHASE_BAR_COMPACT_WIDTH = 340.dp
+private val PURCHASE_BAR_COMPACT_WIDTH = 300.dp
 private val PURCHASE_BUTTON_MIN_WIDTH = 144.dp
 private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
 private const val PURCHASE_BAR_STACK_FONT_SCALE = 1.5f

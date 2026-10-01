@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -161,12 +162,12 @@ private fun WishlistSummary(productCount: Int, clearEnabled: Boolean, onRequestC
             TextButton(
                 onClick = onRequestClear,
                 enabled = clearEnabled,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
                 modifier = Modifier.heightIn(min = 48.dp).testTag(WishlistTestTags.CLEAR)
             ) {
                 Text(
                     stringResource(R.string.wishlist_clear),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
         }
