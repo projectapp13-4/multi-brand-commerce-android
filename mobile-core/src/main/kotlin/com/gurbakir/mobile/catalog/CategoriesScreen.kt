@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -21,6 +24,8 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -80,20 +86,19 @@ private fun CategoriesGrid(
                     .fillMaxHeight(),
             contentPadding =
                 contentPadding.withDestinationSpacing(
-                    horizontal = spacing.sectionDp.dp,
+                    horizontal = spacing.generousDp.dp,
                     vertical = spacing.normalDp.dp
                 ),
             horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
-            verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
         ) {
-            categoryStateItems(state, columnCount, onRetry, onOpenCollection)
+            categoryStateItems(state, onRetry, onOpenCollection)
         }
     }
 }
 
 private fun LazyGridScope.categoryStateItems(
     state: CategoriesUiState,
-    columnCount: Int,
     onRetry: () -> Unit,
     onOpenCollection: (String) -> Unit
 ) {
@@ -111,32 +116,12 @@ private fun LazyGridScope.categoryStateItems(
         }
 
         is CategoriesUiState.Content -> {
-            val centeredFinalItem = state.items.lastOrNull().takeIf {
-                columnCount == 2 && state.items.size % 2 == 1
-            }
-            val pairedItems = if (centeredFinalItem == null) state.items else state.items.dropLast(1)
-            items(pairedItems, key = { it.stableId }) { item ->
+            items(state.items, key = { it.stableId }) { item ->
                 CategoryTile(
                     item = item,
                     onClick = { onOpenCollection(item.collection.handle) },
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-            centeredFinalItem?.let { centeredItem ->
-                item(span = { GridItemSpan(maxLineSpan) }, key = centeredItem.stableId) {
-                    BoxWithConstraints(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.TopCenter
-                    ) {
-                        val tileWidth =
-                            (maxWidth - LocalBrandSpacing.current.normalDp.dp) / columnCount
-                        CategoryTile(
-                            item = centeredItem,
-                            onClick = { onOpenCollection(centeredItem.collection.handle) },
-                            modifier = Modifier.width(tileWidth)
-                        )
-                    }
-                }
             }
             categoryRefreshItems(state, onRetry)
         }
@@ -146,52 +131,68 @@ private fun LazyGridScope.categoryStateItems(
 @Composable
 private fun CategoryTile(item: CatalogCategoryItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val label = item.title
+    val spacing = LocalBrandSpacing.current
     Column(
         modifier =
             modifier
                 .clickable(role = Role.Button, onClick = onClick)
-                .testTag(CatalogTestTags.category(item.collection.handle)),
-        verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)
+                .testTag(CatalogTestTags.category(item.collection.handle))
     ) {
-        HomeMedia(
-            media = item.collection.media,
-            fallbackDescription = label,
-            modifier = Modifier.fillMaxWidth().aspectRatio(CATEGORY_MEDIA_ASPECT_RATIO),
-            contentScale = ContentScale.Crop,
-            shape = MaterialTheme.shapes.medium
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier =
-                Modifier.fillMaxWidth()
-                    .heightIn(min = CATEGORY_LABEL_MIN_HEIGHT)
-                    .testTag(CatalogTestTags.categoryLabel(item.collection.handle))
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.normalDp.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.generousDp.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HomeMedia(
+                media = item.collection.media,
+                fallbackDescription = label,
+                modifier = Modifier.size(CATEGORY_MEDIA_SIZE),
+                contentScale = ContentScale.Fit,
+                shape = MaterialTheme.shapes.small
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier =
+                    Modifier.weight(1f)
+                        .testTag(CatalogTestTags.categoryLabel(item.collection.handle))
+            )
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(CATEGORY_CHEVRON_SIZE)
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = CATEGORY_DIVIDER_ALPHA))
     }
 }
 
 @Composable
 private fun CategoryTileSkeleton() {
-    Column(verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp)) {
-        CommerceSkeleton(modifier = Modifier.fillMaxWidth().aspectRatio(CATEGORY_MEDIA_ASPECT_RATIO))
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
+    ) {
+        CommerceSkeleton(modifier = Modifier.size(CATEGORY_MEDIA_SIZE))
         CommerceSkeleton(
             modifier =
-                Modifier.fillMaxWidth(CATEGORY_LABEL_SKELETON_WIDTH_FRACTION)
+                Modifier.weight(1f)
                     .height(CATEGORY_LABEL_MIN_HEIGHT)
         )
     }
 }
 
 internal fun categoryColumnCount(availableWidth: androidx.compose.ui.unit.Dp, fontScale: Float): Int =
-    if (fontScale >= LARGE_TEXT_FONT_SCALE || availableWidth < 360.dp) 1 else 2
+    if (fontScale >= LARGE_TEXT_FONT_SCALE || availableWidth < CATEGORY_TWO_COLUMN_WIDTH) 1 else 2
 
-private const val CATEGORY_MEDIA_ASPECT_RATIO = 1f
 private const val CATEGORY_SKELETON_COUNT = 4
-private const val CATEGORY_LABEL_SKELETON_WIDTH_FRACTION = 0.72f
+private const val CATEGORY_DIVIDER_ALPHA = 0.55f
+private val CATEGORY_MEDIA_SIZE = 80.dp
+private val CATEGORY_CHEVRON_SIZE = 20.dp
+private val CATEGORY_TWO_COLUMN_WIDTH = 600.dp
 private val CATEGORY_GRID_MAX_WIDTH = 720.dp
 private val CATEGORY_LABEL_MIN_HEIGHT = 48.dp
 

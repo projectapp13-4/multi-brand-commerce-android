@@ -46,6 +46,7 @@
     <string name="search_title">Search</string>
     <string name="search_input_label">Search products</string>
     <string name="search_clear_query">Clear search</string>
+    <string name="search_history_settings_short">Settings</string>
     <string name="search_minimum_length">Enter at least 2 characters to search.</string>
     <string name="search_privacy_note">Your searches may be saved only in the history on this device.</string>
     <string name="search_empty">No products matched this search.</string>

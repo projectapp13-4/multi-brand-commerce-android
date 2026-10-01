@@ -5,6 +5,7 @@ object SearchTestTags {
     const val GRID = "search-grid"
     const val INPUT = "search-input"
     const val SUBMIT = "search-submit"
+    const val CLEAR = "search-clear"
     const val TOO_SHORT = "search-too-short"
     const val LOADING = "search-loading"
     const val EMPTY = "search-empty"

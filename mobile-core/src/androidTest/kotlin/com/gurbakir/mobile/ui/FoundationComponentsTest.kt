@@ -96,6 +96,7 @@ class FoundationComponentsTest {
             InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.primary_home)
         composeRule.setContent {
             TestTheme {
+                val navigationColors = commerceNavigationItemColors()
                 NavigationSuiteScaffold(
                     navigationSuiteItems = {
                         AppNavigationItem(
@@ -104,6 +105,7 @@ class FoundationComponentsTest {
                             labelResourceId = R.string.primary_home,
                             selectedIconResourceId = R.drawable.ic_nav_home_selected,
                             unselectedIconResourceId = R.drawable.ic_nav_home,
+                            colors = navigationColors,
                             testTag = NAVIGATION_ITEM_TAG
                         )
                     },

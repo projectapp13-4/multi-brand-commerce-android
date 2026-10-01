@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -28,6 +29,10 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
@@ -43,6 +48,12 @@ enum class DestinationTitleAlignment {
     CENTER
 }
 
+enum class DestinationTopBar {
+    TITLE,
+    ACTIONS,
+    NONE
+}
+
 @Composable
 @Suppress("LongParameterList") // Scaffold slots and hierarchy metadata are one Compose DSL contract.
 fun DestinationScaffold(
@@ -50,6 +61,7 @@ fun DestinationScaffold(
     level: DestinationLevel,
     modifier: Modifier = Modifier,
     titleAlignment: DestinationTitleAlignment = DestinationTitleAlignment.START,
+    topBar: DestinationTopBar = DestinationTopBar.TITLE,
     titleTestTag: String? = null,
     onNavigateUp: (() -> Unit)? = null,
     navigateUpTestTag: String? = null,
@@ -60,32 +72,50 @@ fun DestinationScaffold(
     check(level == DestinationLevel.PRIMARY || onNavigateUp != null) {
         "Secondary destinations require an Up action."
     }
+    check(topBar != DestinationTopBar.NONE || level == DestinationLevel.PRIMARY) {
+        "Secondary destinations must retain their Up action."
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().semantics { paneTitle = title },
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
-            val navigationIcon: @Composable () -> Unit = {
-                if (level == DestinationLevel.SECONDARY) {
-                    AppNavigateUpButton(
-                        onClick = checkNotNull(onNavigateUp),
-                        testTag = navigateUpTestTag
-                    )
+            if (topBar != DestinationTopBar.NONE) {
+                val titleContent: @Composable () -> Unit = {
+                    if (topBar == DestinationTopBar.TITLE) {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.optionalTestTag(titleTestTag).semantics { heading() }
+                        )
+                    }
                 }
-            }
-            when (titleAlignment) {
-                DestinationTitleAlignment.START ->
-                    TopAppBar(
-                        title = { Text(title, Modifier.optionalTestTag(titleTestTag)) },
-                        navigationIcon = navigationIcon,
-                        actions = actions
-                    )
+                val navigationIcon: @Composable () -> Unit = {
+                    if (level == DestinationLevel.SECONDARY) {
+                        AppNavigateUpButton(
+                            onClick = checkNotNull(onNavigateUp),
+                            testTag = navigateUpTestTag
+                        )
+                    }
+                }
+                when (titleAlignment) {
+                    DestinationTitleAlignment.START ->
+                        TopAppBar(
+                            title = titleContent,
+                            expandedHeight = COMPACT_TOP_BAR_HEIGHT,
+                            navigationIcon = navigationIcon,
+                            actions = actions
+                        )
 
-                DestinationTitleAlignment.CENTER ->
-                    CenterAlignedTopAppBar(
-                        title = { Text(title, Modifier.optionalTestTag(titleTestTag)) },
-                        navigationIcon = navigationIcon,
-                        actions = actions
-                    )
+                    DestinationTitleAlignment.CENTER ->
+                        CenterAlignedTopAppBar(
+                            title = titleContent,
+                            expandedHeight = COMPACT_TOP_BAR_HEIGHT,
+                            navigationIcon = navigationIcon,
+                            actions = actions
+                        )
+                }
             }
         },
         bottomBar = bottomBar,
@@ -134,3 +164,4 @@ private fun Modifier.optionalTestTag(testTag: String?): Modifier =
     then(if (testTag == null) Modifier else Modifier.testTag(testTag))
 
 private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
+private val COMPACT_TOP_BAR_HEIGHT = 56.dp

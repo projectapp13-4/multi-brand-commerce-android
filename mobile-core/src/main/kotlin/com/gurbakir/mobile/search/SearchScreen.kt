@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +47,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -56,12 +58,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.catalog.CatalogError
-import com.gurbakir.mobile.catalog.CatalogProductCard
-import com.gurbakir.mobile.catalog.catalogProductCardMinimumWidth
+import com.gurbakir.mobile.catalog.CatalogProductTile
+import com.gurbakir.mobile.catalog.catalogProductTileMinimumWidth
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
+import com.gurbakir.mobile.ui.DestinationTopBar
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
 import com.gurbakir.mobile.wishlist.WishlistMembershipUiState
@@ -74,7 +77,7 @@ fun SearchScreen(state: SearchUiState, actions: SearchActions, wishlist: Wishlis
         title = stringResource(R.string.search_title),
         level = DestinationLevel.PRIMARY,
         modifier = Modifier.testTag(SearchTestTags.ROOT),
-        titleAlignment = DestinationTitleAlignment.CENTER
+        topBar = DestinationTopBar.NONE
     ) { padding ->
         SearchGrid(state, actions, wishlist, padding)
     }
@@ -89,7 +92,7 @@ private fun SearchGrid(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
+        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(padding)
@@ -114,48 +117,59 @@ private fun SearchInput(state: SearchUiState, actions: SearchActions) {
     val spacing = LocalBrandSpacing.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val inputLabel = stringResource(R.string.search_input_label)
+    val submit: () -> Unit = {
+        actions.onSubmit()
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)) {
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = actions.onQueryChanged,
-            modifier = Modifier.fillMaxWidth().testTag(SearchTestTags.INPUT),
-            placeholder = { Text(stringResource(R.string.search_input_label)) },
-            leadingIcon = {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = actions.onQueryChanged,
+                modifier =
+                    Modifier.weight(1f)
+                        .semantics { contentDescription = inputLabel }
+                        .testTag(SearchTestTags.INPUT),
+                placeholder = { Text(inputLabel) },
+                trailingIcon = {
+                    if (state.query.isNotBlank()) {
+                        IconButton(
+                            onClick = { actions.onQueryChanged("") },
+                            modifier = Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).testTag(SearchTestTags.CLEAR)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_search_clear),
+                                contentDescription = stringResource(R.string.search_clear_query)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions =
+                    KeyboardActions(
+                        onSearch = { submit() }
+                    )
+            )
+            FilledIconButton(
+                onClick = submit,
+                enabled = state.query.isNotBlank(),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.size(MINIMUM_TOUCH_TARGET_SIZE).testTag(SearchTestTags.SUBMIT)
+            ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_nav_search),
-                    contentDescription = null
+                    painterResource(R.drawable.ic_nav_search),
+                    contentDescription = stringResource(R.string.search_title)
                 )
-            },
-            trailingIcon = {
-                if (state.query.isNotBlank()) {
-                    IconButton(
-                        onClick = { actions.onQueryChanged("") },
-                        modifier = Modifier.size(MINIMUM_TOUCH_TARGET_SIZE)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_search_clear),
-                            contentDescription = stringResource(R.string.search_clear_query)
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = MaterialTheme.shapes.large,
-            colors =
-                OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions =
-                KeyboardActions(
-                    onSearch = {
-                        actions.onSubmit()
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }
-                )
-        )
+            }
+        }
         if (state.isQueryTooShort) {
             Text(
                 text = stringResource(R.string.search_minimum_length),
@@ -205,7 +219,7 @@ private fun LazyGridScope.loadedSearchItems(
     item(span = { GridItemSpan(maxLineSpan) }) {
         Text(
             text = stringResource(R.string.search_result_count, state.totalCount ?: state.products.size),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier =
                 Modifier.semantics { liveRegion = LiveRegionMode.Polite }
@@ -213,7 +227,7 @@ private fun LazyGridScope.loadedSearchItems(
         )
     }
     items(state.products, key = { it.id }) { product ->
-        CatalogProductCard(
+        CatalogProductTile(
             product,
             onClick = { actions.onOpenProduct(product.id) },
             wishlist =
@@ -297,17 +311,19 @@ private fun SearchHistory(state: SearchUiState, actions: SearchActions) {
 private fun SearchHistorySettingsButton(expanded: Boolean, onExpandedChanged: (Boolean) -> Unit) {
     val expandedDescription = stringResource(R.string.state_expanded)
     val collapsedDescription = stringResource(R.string.state_collapsed)
+    val actionDescription = stringResource(R.string.search_history_settings)
     TextButton(
         onClick = { onExpandedChanged(!expanded) },
         modifier =
             Modifier.semantics {
+                contentDescription = actionDescription
                 stateDescription = if (expanded) expandedDescription else collapsedDescription
             }.testTag(SearchTestTags.HISTORY_SETTINGS)
     ) {
         Text(
-            stringResource(
-                if (expanded) R.string.search_history_settings_hide else R.string.search_history_settings
-            )
+            stringResource(R.string.search_history_settings_short),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

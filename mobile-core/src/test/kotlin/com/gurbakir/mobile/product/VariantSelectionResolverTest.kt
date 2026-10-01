@@ -59,4 +59,26 @@ class VariantSelectionResolverTest {
         assertEquals("gid://shopify/ProductVariant/12", state.selectedVariant?.id)
         assertNull(state.purchaseIntent)
     }
+
+    @Test
+    fun `new user choices reject sold out matches while available choices remain selectable`() {
+        val product = productFixture()
+
+        assertFalse(VariantSelectionResolver.canSelect(product, "Color", "Blue", mapOf("Size" to "Small")))
+        assertTrue(VariantSelectionResolver.canSelect(product, "Color", "Red", mapOf("Size" to "Small")))
+        assertFalse(VariantSelectionResolver.canSelect(product, "Color", "Blue", emptyMap()))
+    }
+
+    @Test
+    fun `restored sold out variant remains inspectable without becoming purchasable`() {
+        val product = productFixture()
+        val selection = mapOf("Size" to "Small", "Color" to "Blue")
+
+        assertEquals(selection, VariantSelectionResolver.restoreSelection(product, selection))
+        assertEquals(
+            "gid://shopify/ProductVariant/12",
+            VariantSelectionResolver.selectedVariant(product, selection)?.id
+        )
+        assertNull(ProductDetailUiState(product = product, selectedOptions = selection).purchaseIntent)
+    }
 }

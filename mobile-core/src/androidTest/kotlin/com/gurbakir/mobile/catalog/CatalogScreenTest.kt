@@ -4,6 +4,7 @@ package com.gurbakir.mobile.catalog
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -11,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -86,7 +89,7 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun compactCategoriesKeepTwoMenuLabelsInTheFirstRowAndPreserveMediaDescriptions() {
+    fun compactCategoriesUseScanningRowsAndPreserveMenuLabelsAndMediaDescriptions() {
         val items =
             listOf(
                 category(
@@ -125,8 +128,11 @@ class CatalogScreenTest {
 
         val firstBounds = first.fetchSemanticsNode().boundsInRoot
         val secondBounds = second.fetchSemanticsNode().boundsInRoot
-        assertTrue("Expected the first two category tiles in one row", abs(firstBounds.top - secondBounds.top) < 1f)
-        assertTrue("Expected two distinct category columns", firstBounds.left < secondBounds.left)
+        assertTrue("Expected successive navigation rows", firstBounds.bottom <= secondBounds.top)
+        assertTrue(
+            "Navigation rows must use the same leading alignment",
+            abs(firstBounds.left - secondBounds.left) < 1f
+        )
     }
 
     @Test
@@ -237,8 +243,8 @@ class CatalogScreenTest {
                 .boundsInRoot
         val minimumTouchTarget = 48f * context.resources.displayMetrics.density
         assertTrue(
-            "Catalog media must use a 3:4 portrait frame",
-            abs(mediaBounds.height / mediaBounds.width - 4f / 3f) < 0.03f
+            "Catalog media must preserve imagery in a compact square frame",
+            abs(mediaBounds.height / mediaBounds.width - 1f) < 0.03f
         )
         assertTrue("Product title must precede price", titleBounds.top < priceBounds.top)
         assertTrue("Price must precede availability", priceBounds.top < availabilityBounds.top)
@@ -277,6 +283,33 @@ class CatalogScreenTest {
             .performDeterministicClick()
         composeRule.waitForIdle()
         assertEquals(1, loadMore)
+    }
+
+    @Test
+    fun normalAvailabilityIsSilentAndLongTileTitlesKeepTwoLinesWithFullAccessibleText() {
+        val title =
+            "A deliberately long product title that remains available to accessibility while scanning a compact grid"
+        val available = product("available", available = true, ranged = false).copy(title = title)
+        val soldOut = product("sold-out", available = false, ranged = true)
+        setCatalogContent {
+            CollectionScreen(
+                state = CollectionUiState(handle = "test", title = "Collection", products = listOf(available, soldOut)),
+                actions = CollectionActions({}, {}, {}, {}, {})
+            )
+        }
+        composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID).performScrollToIndex(1)
+        composeRule.onNodeWithTag(CatalogTestTags.productAvailability(available.handle), useUnmergedTree = true)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(CatalogTestTags.productAvailability(soldOut.handle), useUnmergedTree = true)
+            .assertIsDisplayed()
+        val titleNode = composeRule.onNodeWithTag(
+            CatalogTestTags.productTitle(available.handle),
+            useUnmergedTree = true
+        )
+        titleNode.assertTextEquals(title)
+        val layouts = mutableListOf<TextLayoutResult>()
+        titleNode.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(2, layouts.single().lineCount)
     }
 
     @Test

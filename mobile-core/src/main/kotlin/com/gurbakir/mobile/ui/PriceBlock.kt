@@ -28,7 +28,7 @@ internal enum class PriceBlockEmphasis {
 @Suppress("LongParameterList")
 internal fun PriceBlock(
     minimumPrice: StorefrontMoney?,
-    availabilityText: String,
+    availabilityText: String?,
     unavailable: Boolean,
     modifier: Modifier = Modifier,
     maximumPrice: StorefrontMoney? = minimumPrice,
@@ -79,17 +79,19 @@ internal fun PriceBlock(
                 textDecoration = TextDecoration.LineThrough
             )
         }
-        Text(
-            text = availabilityText,
-            style = emphasis.availabilityStyle(),
-            color =
-                if (unavailable) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            modifier = Modifier.optionalTestTag(availabilityTestTag)
-        )
+        availabilityText?.let { availability ->
+            Text(
+                text = availability,
+                style = emphasis.availabilityStyle(),
+                color =
+                    if (unavailable) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                modifier = Modifier.optionalTestTag(availabilityTestTag)
+            )
+        }
     }
 }
 

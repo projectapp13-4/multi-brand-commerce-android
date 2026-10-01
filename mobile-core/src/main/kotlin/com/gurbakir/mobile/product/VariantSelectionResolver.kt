@@ -46,7 +46,8 @@ internal object VariantSelectionResolver {
     ): Boolean =
         product.options.any { option -> option.name == optionName && option.values.any { it.name == value } } &&
             product.variants.any { variant ->
-                variant.matchesPartial((currentSelection - optionName) + (optionName to value))
+                variant.availableForSale &&
+                    variant.matchesPartial((currentSelection - optionName) + (optionName to value))
             }
 
     fun restoreSelection(product: StorefrontProductDetail, restored: Map<String, String>): Map<String, String> =

@@ -4,14 +4,16 @@
 package com.gurbakir.mobile.search
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -20,8 +22,10 @@ import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.catalog.CatalogTestTags
+import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.performDeterministicClick
 import com.gurbakir.mobile.wishlist.WishlistMembershipUiState
 import com.gurbakir.mobile.wishlist.WishlistTestTags
@@ -152,7 +156,7 @@ class SearchScreenTest {
 
     @Test
     @SdkSuppress(minSdkVersion = 24)
-    fun imeSearchIsTheOnlyExplicitSubmitAndClearsInputFocus() {
+    fun visibleSubmitAndImeSearchUseTheSameActionAndClearInputFocus() {
         var submitted = 0
         setSearchContent {
             SearchScreen(
@@ -161,7 +165,9 @@ class SearchScreenTest {
             )
         }
 
-        composeRule.onAllNodesWithTag(SearchTestTags.SUBMIT).assertCountEquals(0)
+        composeRule.onNodeWithTag(SearchTestTags.SUBMIT).assertIsDisplayed().performDeterministicClick()
+        composeRule.waitForIdle()
+        assertEquals(1, submitted)
         composeRule
             .onNodeWithTag(SearchTestTags.INPUT)
             .performClick()
@@ -169,11 +175,34 @@ class SearchScreenTest {
             .performImeAction()
         composeRule.waitForIdle()
 
-        assertEquals(1, submitted)
+        assertEquals(2, submitted)
         composeRule
             .onNodeWithTag(SearchTestTags.INPUT)
             .assertIsDisplayed()
             .assertIsNotFocused()
+    }
+
+    @Test
+    fun clearQueryDoesNotSubmitAndEmptyInputDisablesVisibleSubmit() {
+        var submitted = 0
+        var query by androidx.compose.runtime.mutableStateOf("bakır")
+        setSearchContent {
+            SearchScreen(
+                state = SearchUiState(query = query, historyLoading = false),
+                actions = actions(submit = { submitted += 1 }, queryChanged = { query = it })
+            )
+        }
+
+        composeRule.onNodeWithTag(SearchTestTags.SUBMIT).assertIsDisplayed()
+        val clearLabel = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.search_clear_query
+        )
+        composeRule.onNodeWithContentDescription(clearLabel).performDeterministicClick()
+        composeRule.waitForIdle()
+
+        assertEquals("", query)
+        assertEquals(0, submitted)
+        composeRule.onNodeWithTag(SearchTestTags.SUBMIT).assertIsNotEnabled()
     }
 
     @Test
@@ -210,9 +239,10 @@ class SearchScreenTest {
         clearHistory: () -> Unit = {},
         historyEnabledChanged: (Boolean) -> Unit = {},
         openProduct: (String) -> Unit = {},
-        setWishlist: (String, Boolean) -> Unit = { _, _ -> }
+        setWishlist: (String, Boolean) -> Unit = { _, _ -> },
+        queryChanged: (String) -> Unit = {}
     ) = SearchActions(
-        onQueryChanged = {},
+        onQueryChanged = queryChanged,
         onSubmit = submit,
         onRetry = {},
         onLoadMore = loadMore,

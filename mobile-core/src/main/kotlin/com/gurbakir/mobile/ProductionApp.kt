@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItemColors
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
@@ -133,6 +134,7 @@ import com.gurbakir.mobile.ui.AppNavigationItem
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
+import com.gurbakir.mobile.ui.commerceNavigationItemColors
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.update.UpdatePolicyDestination
 import com.gurbakir.mobile.wishlist.WishlistDestination
@@ -227,6 +229,7 @@ fun ProductionAppShell(
     val defaultLayoutType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
     val alwaysShowPrimaryLabels = LocalDensity.current.fontScale < LARGE_TEXT_FONT_SCALE
+    val navigationItemColors = commerceNavigationItemColors()
     NavigationSuiteScaffold(
         modifier =
             modifier.then(
@@ -242,7 +245,8 @@ fun ProductionAppShell(
                     navController,
                     currentDestination,
                     applicationComposition,
-                    alwaysShowPrimaryLabels
+                    alwaysShowPrimaryLabels,
+                    navigationItemColors
                 )
             }
         },
@@ -264,7 +268,8 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
     navController: NavHostController,
     currentDestination: NavDestination?,
     applicationComposition: ApplicationComposition,
-    alwaysShowLabels: Boolean
+    alwaysShowLabels: Boolean,
+    colors: NavigationSuiteItemColors
 ) {
     applicationComposition.primaryNavigation.destinations.forEach { primary ->
         val destination = primary.presentation()
@@ -276,7 +281,8 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
             alwaysShowLabel = alwaysShowLabels,
             selectedIconResourceId = destination.selectedIconResourceId,
             unselectedIconResourceId = destination.unselectedIconResourceId,
-            testTag = destination.testTag
+            testTag = destination.testTag,
+            colors = colors
         )
     }
 }

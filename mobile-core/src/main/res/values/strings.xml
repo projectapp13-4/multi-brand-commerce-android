@@ -46,6 +46,7 @@
     <string name="search_title">Ara</string>
     <string name="search_input_label">Ürün ara</string>
     <string name="search_clear_query">Aramayı temizle</string>
+    <string name="search_history_settings_short">Ayarlar</string>
     <string name="search_minimum_length">Aramak için en az 2 karakter girin.</string>
     <string name="search_privacy_note">Aramalarınız yalnız bu cihazdaki geçmişe kaydedilebilir.</string>
     <string name="search_empty">Bu aramayla eşleşen ürün bulunamadı.</string>

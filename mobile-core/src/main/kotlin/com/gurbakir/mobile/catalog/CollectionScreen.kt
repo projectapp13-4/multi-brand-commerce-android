@@ -77,7 +77,7 @@ private fun CollectionGrid(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
+        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(contentPadding)
@@ -144,7 +144,7 @@ private fun LazyGridScope.loadedProductItems(
     itemSpacing: Dp
 ) {
     items(state.products, key = { it.id }) { product ->
-        CatalogProductCard(
+        CatalogProductTile(
             product,
             onClick = { actions.onOpenProduct(product.id) },
             wishlist =
