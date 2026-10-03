@@ -141,8 +141,8 @@ dependencies {
     androidTestImplementation(libs.room.testing)
 
     // Exact inherited artifacts: opt-in native compatibility evidence, no production edge.
-    androidTestImplementation("androidx.graphics:graphics-path:1.0.1")
-    androidTestImplementation("androidx.datastore:datastore-core:1.1.7")
+    androidTestImplementation(libs.androidx.graphics.path)
+    androidTestImplementation(libs.androidx.datastore.core)
 
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)

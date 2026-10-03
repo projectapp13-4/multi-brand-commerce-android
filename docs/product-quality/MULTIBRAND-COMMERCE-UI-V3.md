@@ -601,6 +601,42 @@ read-only access limitation is saved under
 availability remains owner-reported rather than newly read back; no track,
 tester, Internal Testing, public Production or Geldik Mi mutation occurred.
 
+## Source PR and engineering validation recovery
+
+The preserved branch's third implementation commit is
+`4bbdaba13031b3c6a1dc5c6cb330a03177f7fabe`. Focused source
+[PR #34](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/34)
+is open against freshly verified baseline `b780e30`; its independent exact-head
+review found no actionable defect. It is not yet merged. Exact-head
+[CI run 37146924719](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37146924719)
+completed with API 30 and API 23 instrumentation jobs passing. The validate job
+passed secret scanning, public-readiness checks and onboarding/enrollment, then
+failed Android Lint with three errors: the window background constructor must
+use the available KTX extension, and the two native-probe Android-test
+coordinates must use the version catalog. Later JVM/package/portability steps
+were skipped in that run, so it is not broad acceptance.
+
+The corrections retain the same ColorDrawable behavior and exact dependency
+versions; only the Android-test declarations consume the new catalog aliases.
+No reviewed layout, production dependency or provider configuration changes.
+Focused lint verification and new exact-head CI remain pending at this checkpoint.
+
+The first isolated native runtime attempt timed out before full boot. A second,
+smaller per-launch attempt also ran no native method. Investigation found that
+the reduced runner incorrectly rejected the correct owned AVD name because ADB
+returned doubled carriage returns. Actual kernel/PackageManager readiness was
+therefore not measured; that attempt does not establish a native incompatibility.
+Its emulator logs also report 4GiB guest RAM and 1080x2400 despite smaller launch
+arguments. Both APK and AVD configuration were preserved; only the process tree
+started by the runner was stopped. Native runtime acceptance remains open.
+
+After host cleanup, supported browser inventory recovered and identified the
+existing Gür Bakır Play Console tab. Binding that exact tab still timed out in
+the browser driver's focus-emulation command before Console content could be
+read. This is an access limitation, not a track readback. Receipt:
+`out/ui-v3/iteration-3-final/play-console-access-after-cleanup-20261003.json`.
+No version bump, v3 signing, upload, tester or other track mutation occurred.
+
 ## Completion evidence
 
 Visual iterations, focused/broad executed tests, PR/merge/CI identifiers,
