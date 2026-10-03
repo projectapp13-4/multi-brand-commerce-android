@@ -21,11 +21,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,9 +91,20 @@ fun HomeScreen(
         actions = { HomeTopBarActions(actions, cartQuantity) }
     ) { scaffoldPadding ->
         val refreshLabel = stringResource(R.string.home_refresh_description)
+        val refreshState = rememberPullToRefreshState()
         PullToRefreshBox(
             isRefreshing = state.requestActive,
             onRefresh = { if (!state.requestActive) actions.refreshContent() },
+            state = refreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = refreshState,
+                    isRefreshing = state.requestActive,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .padding(top = scaffoldPadding.calculateTopPadding())
+                        .testTag(HomeTestTags.REFRESHING)
+                )
+            },
             modifier = Modifier.fillMaxSize().testTag(HomeTestTags.REFRESH).semantics {
                 customActions = if (state.requestActive) {
                     emptyList()
@@ -175,13 +187,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                             }
                         }
                     }
-                }
-            }
-            if (presentation.refreshing) {
-                item {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.REFRESHING)
-                    )
                 }
             }
             state.failure?.let { failure ->

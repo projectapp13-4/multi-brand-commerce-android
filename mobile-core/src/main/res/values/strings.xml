@@ -2,6 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
     <string name="product_choose_option">%1$s seçin</string>
     <string name="product_choose_options">Seçenekleri seçin</string>
+    <string name="product_clear_selection">Seçimleri temizle</string>
+    <plurals name="collection_loaded_count_compact">
+        <item quantity="one">%1$d ürün gösteriliyor</item>
+        <item quantity="other">%1$d ürün gösteriliyor</item>
+    </plurals>
     <string name="product_not_found_body">Diğer ürünleri inceleyebilirsiniz.</string>
     <string name="home_title">Ana Sayfa</string>
     <string name="home_product_range_title">Ürün Gamımız</string>
@@ -17,7 +22,6 @@
     <string name="home_error_service">Mağaza içeriği şu anda yüklenemedi.</string>
     <string name="home_error_partial">Bazı mağaza içerikleri yüklenemedi. Görünen içerikler korunuyor.</string>
     <string name="home_refresh_description">Ana sayfa içeriğini yenile</string>
-    <string name="home_refreshing_description">Ana sayfa içeriği yenileniyor</string>
     <string name="home_unavailable_title">Mağaza içeriği kullanılamıyor</string>
     <string name="home_unavailable">İçerik şu anda kullanılamıyor. Yenileme düğmesini kullanarak tekrar kontrol edebilirsiniz.</string>
     <string name="home_nonrenderable">İçerik seçimi mevcut, ancak ürün bilgileri şu anda gösterilemiyor.</string>
@@ -31,7 +35,6 @@
     <string name="collection_not_found">Bu koleksiyon bulunamadı veya artık yayımlanmıyor.</string>
     <string name="collection_empty">Bu koleksiyonda şu anda ürün yok.</string>
     <string name="collection_filtered_empty">Seçilen filtrelerle eşleşen ürün yok.</string>
-    <string name="collection_loaded_count">Yüklenen ürün: %1$d</string>
     <string name="collection_load_more">Daha fazla ürün yükle</string>
     <string name="collection_sort_label">Sırala: %1$s</string>
     <string name="collection_sort_featured">Koleksiyon sırası</string>
@@ -43,7 +46,6 @@
     <string name="collection_sort_title_z_a">Ad: Z-A</string>
     <string name="collection_filter_value">%1$s (%2$d)</string>
     <string name="price_range">%1$s &#8211; %2$s</string>
-    <string name="collection_available">Sat&#305;&#351;a uygun</string>
     <string name="collection_unavailable">Şu anda satışta değil</string>
     <string name="collection_open_product">%1$s &#252;r&#252;n&#252;n&#252; a&#231;</string>
     <string name="search_title">Ara</string>
@@ -63,7 +65,6 @@
     <string name="search_history_remove">Kaldır</string>
     <string name="search_history_clear">Tüm arama geçmişini temizle</string>
     <string name="search_history_settings">Arama geçmişi ayarları</string>
-    <string name="search_history_settings_hide">Arama geçmişi ayarlarını gizle</string>
     <string name="retry">Yeniden dene</string>
     <string name="home_video_play">Videoyu oynat</string>
     <string name="home_open_collection">Koleksiyonu aç</string>
@@ -85,11 +86,9 @@
     <string name="product_variant_changed">Ba&#287;lant&#305;daki se&#231;enek art&#305;k bu &#252;r&#252;ne ait de&#287;il. L&#252;tfen ge&#231;erli bir se&#231;im yap&#305;n.</string>
     <string name="product_description_title">&#220;r&#252;n a&#231;&#305;klamas&#305;</string>
     <string name="product_compare_at_price">&#214;nceki fiyat: %1$s</string>
-    <string name="product_select_options">G&#252;ncel fiyat ve uygunluk i&#231;in se&#231;enekleri tamamlay&#305;n.</string>
     <string name="product_unavailable">Bu se&#231;enek &#351;u anda sat&#305;&#351;a uygun de&#287;il.</string>
+    <string name="product_sold_out">Bu &#252;r&#252;n &#351;u anda sat&#305;&#351;a uygun de&#287;il.</string>
     <string name="product_backorder_available">Stokta de&#287;il; sipari&#351;e a&#231;&#305;k.</string>
-    <string name="product_available">Sat&#305;&#351;a uygun.</string>
-    <string name="product_option_unavailable">%1$s &#8212; sat&#305;&#351;a uygun de&#287;il</string>
     <string name="product_no_media">Bu &#252;r&#252;n i&#231;in g&#252;venli g&#246;rsel bulunmuyor.</string>
     <string name="product_media_previous">&#214;nceki</string>
     <string name="product_media_next">Sonraki</string>

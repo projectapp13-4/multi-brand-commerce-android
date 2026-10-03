@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <application>
+    <!-- SDK 36 defines disabled as enum 64; older runtimes ignore the new attribute. -->
+    <application android:pageSizeCompat="disabled">
         <activity
             android:name="com.gurbakir.mobile.localization.AppLocaleProbeActivity"
             android:exported="false" />

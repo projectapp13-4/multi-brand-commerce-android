@@ -2,7 +2,11 @@
 
 package com.gurbakir.mobile.catalog
 
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
@@ -15,6 +19,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
@@ -31,6 +36,7 @@ import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontMoney
 import java.math.BigDecimal
 import java.net.URI
+import java.util.Locale
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,6 +48,27 @@ import org.junit.runner.RunWith
 class CatalogScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun collectionCountUsesEnglishSingularAndPluralWhileRetainingTurkishCopy() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val expected = mapOf(
+            "en-US" to listOf("0 products shown", "1 product shown", "3 products shown"),
+            "tr" to listOf("0 ürün gösteriliyor", "1 ürün gösteriliyor", "3 ürün gösteriliyor")
+        )
+        expected.forEach { (languageTag, labels) ->
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(languageTag))
+            }
+            val resources = context.createConfigurationContext(configuration).resources
+            listOf(0, 1, 3).zip(labels).forEach { (quantity, label) ->
+                assertEquals(
+                    label,
+                    resources.getQuantityString(R.plurals.collection_loaded_count_compact, quantity, quantity)
+                )
+            }
+        }
+    }
 
     @Test
     fun wishlistOffCollectionCardHasNoHeartAndStillOpensProduct() {
@@ -335,6 +362,45 @@ class CatalogScreenTest {
 
         composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_ROOT).assertIsDisplayed()
         composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_EMPTY).assertIsDisplayed()
+    }
+
+    @Test
+    fun populatedCollectionKeepsCountAndLongSortActionUsableAtTwoHundredPercentText() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var selected: CollectionCatalogSort? = null
+        val item = product("large-text", available = true, ranged = true)
+        setCatalogContent(fontScale = 2f) {
+            Box(Modifier.requiredWidth(320.dp)) {
+                CollectionScreen(
+                    CollectionUiState(
+                        handle = "test",
+                        title = "Collection",
+                        products = listOf(item),
+                        sort = CollectionCatalogSort.PRICE_HIGH_TO_LOW
+                    ),
+                    CollectionActions({}, {}, { selected = it }, {}, {})
+                )
+            }
+        }
+        val grid = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID)
+        val count = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_RESULT_COUNT)
+            .assertIsDisplayed()
+            .assertTextEquals(context.resources.getQuantityString(R.plurals.collection_loaded_count_compact, 1, 1))
+            .fetchSemanticsNode().boundsInRoot
+        val sort = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_SORT).assertIsDisplayed()
+        val sortBounds = sort.fetchSemanticsNode().boundsInRoot
+        val viewport = grid.fetchSemanticsNode().boundsInRoot
+        assertTrue("Large-text controls must reflow without overlap", count.bottom <= sortBounds.top)
+        assertTrue("The count must fit the viewport", count.left >= viewport.left && count.right <= viewport.right)
+        assertTrue(
+            "The long sort action must fit the viewport",
+            sortBounds.left >= viewport.left && sortBounds.right <= viewport.right
+        )
+        sort.performDeterministicClick()
+        composeRule.onNodeWithText(context.getString(R.string.collection_sort_newest)).performDeterministicClick()
+        assertEquals(CollectionCatalogSort.NEWEST, selected)
+        grid.performScrollToIndex(1)
+        composeRule.onNodeWithTag(CatalogTestTags.product(item.handle)).assertIsDisplayed()
     }
 
     private fun setCatalogContent(fontScale: Float = 1f, content: @androidx.compose.runtime.Composable () -> Unit) {

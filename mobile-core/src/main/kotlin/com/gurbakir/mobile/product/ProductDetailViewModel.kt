@@ -49,7 +49,7 @@ constructor(
         val selection = _state.value.selectedOptions
         if (!VariantSelectionResolver.canSelect(product, optionName, value, selection)) return
         val updated = (selection - optionName) + (optionName to value)
-        saveSelection(product.id, updated)
+        saveSelection(product.id, updated, userChoice = true)
         savedStateHandle[KEY_MEDIA_INDEX] = 0
         _state.value =
             _state.value.copy(
@@ -64,6 +64,21 @@ constructor(
         if (index !in 0..lastIndex) return
         savedStateHandle[KEY_MEDIA_INDEX] = index
         _state.value = _state.value.copy(mediaIndex = index)
+    }
+
+    fun clearSelection() {
+        val state = _state.value
+        val product = state.product ?: return
+        if (state.addingToCart || state.displayOptions.isEmpty() || state.selectedOptions.isEmpty()) return
+        saveSelection(product.id, emptyMap(), userChoice = true)
+        savedStateHandle[KEY_MEDIA_INDEX] = 0
+        _state.value = state.copy(
+            selectedOptions = emptyMap(),
+            invalidRequestedVariant = false,
+            mediaIndex = 0,
+            cartFeedback = null,
+            cartFailure = null
+        )
     }
 
     fun setMediaViewer(open: Boolean) {
@@ -124,9 +139,16 @@ constructor(
     private fun StorefrontProductDetail.toInitialState(requestedVariantId: String?): ProductDetailUiState {
         val requestedVariant = requestedVariantId?.let { id -> variants.firstOrNull { it.id == id } }
         val sameProduct = savedStateHandle.get<String>(KEY_SELECTION_PRODUCT) == id
-        val restored = restoredSelectionFor(id)
+        val hasUserSelectionForRoute = sameProduct &&
+            savedStateHandle.get<String>(KEY_SELECTION_REQUEST) == requestedVariantId.orEmpty()
+        if (!hasUserSelectionForRoute) savedStateHandle.remove<String>(KEY_SELECTION_REQUEST)
+        val savedValues = savedStateHandle.get<ArrayList<String>>(KEY_SELECTED_OPTIONS)?.takeIf {
+            sameProduct
+        }.orEmpty()
+        val restored = decodeProductOptionSelection(savedValues)
         val selection =
             when {
+                hasUserSelectionForRoute -> VariantSelectionResolver.restoreSelection(this, restored)
                 requestedVariant != null -> VariantSelectionResolver.selectionForVariant(requestedVariant)
                 requestedVariantId != null -> emptyMap()
                 restored.isNotEmpty() -> VariantSelectionResolver.restoreSelection(this, restored)
@@ -138,32 +160,25 @@ constructor(
             ProductDetailUiState(
                 product = this,
                 selectedOptions = selection,
-                invalidRequestedVariant = requestedVariantId != null && requestedVariant == null
+                invalidRequestedVariant = !hasUserSelectionForRoute &&
+                    requestedVariantId != null && requestedVariant == null
             )
         val safeIndex = restoredIndex.coerceIn(0, initial.displayMedia.lastIndex.coerceAtLeast(0))
         saveSelection(id, selection)
         return initial.copy(mediaIndex = safeIndex)
     }
 
-    private fun saveSelection(productId: String, selection: Map<String, String>) {
+    private fun saveSelection(productId: String, selection: Map<String, String>, userChoice: Boolean = false) {
         savedStateHandle[KEY_SELECTION_PRODUCT] = productId
         savedStateHandle[KEY_SELECTED_OPTIONS] =
             ArrayList(selection.toSortedMap().flatMap { (name, value) -> listOf(name, value) })
-    }
-
-    private fun restoredSelectionFor(productId: String): Map<String, String> {
-        val values =
-            if (savedStateHandle.get<String>(KEY_SELECTION_PRODUCT) == productId) {
-                savedStateHandle.get<ArrayList<String>>(KEY_SELECTED_OPTIONS).orEmpty()
-            } else {
-                emptyList()
-            }
-        return if (values.size % 2 == 0) values.chunked(2).associate { it[0] to it[1] } else emptyMap()
+        if (userChoice) savedStateHandle[KEY_SELECTION_REQUEST] = requestedVariantId.orEmpty()
     }
 
     private companion object {
         const val KEY_SELECTION_PRODUCT = "product.selectionProduct"
         const val KEY_SELECTED_OPTIONS = "product.selectedOptions"
+        const val KEY_SELECTION_REQUEST = "product.selectionRequest"
         const val KEY_MEDIA_INDEX = "product.mediaIndex"
     }
 }
@@ -208,6 +223,9 @@ data class ProductDetailUiState(
 }
 
 data class ProductPurchaseIntent(val merchandiseId: String, val quantity: Int)
+
+private fun decodeProductOptionSelection(values: List<String>): Map<String, String> =
+    if (values.size % 2 == 0) values.chunked(2).associate { it[0] to it[1] } else emptyMap()
 
 enum class ProductCartFeedback {
     ADDED,

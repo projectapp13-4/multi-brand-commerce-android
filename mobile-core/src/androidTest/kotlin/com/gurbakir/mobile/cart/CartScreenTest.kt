@@ -12,7 +12,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -157,10 +159,13 @@ class CartScreenTest {
         composeRule
             .onNodeWithTag(CartTestTags.CHECKOUT)
             .performScrollTo()
-            .performDeterministicClick()
+            .performClick()
         composeRule.waitForIdle()
 
         assertTrue(checkoutStarted)
+        val content = composeRule.onNodeWithTag(CartTestTags.CONTENT).fetchSemanticsNode().boundsInRoot
+        val checkout = composeRule.onNodeWithTag(CartTestTags.CHECKOUT).fetchSemanticsNode().boundsInRoot
+        assertTrue("Checkout must remain entirely within the safe scroll viewport", checkout.bottom <= content.bottom)
     }
 
     @Test
@@ -175,6 +180,25 @@ class CartScreenTest {
 
         composeRule.onNodeWithTag(CartTestTags.OWNERSHIP).assertIsDisplayed()
         composeRule.onNodeWithTag(CartTestTags.line(line.productId)).assertIsDisplayed()
+    }
+
+    @Test
+    fun largeTextCheckoutScrollsEntirelyIntoTheSafeViewportAndReceivesANativeClick() {
+        var checkoutStarted = false
+        val line = line(quantity = 1, CartQuantityRule(minimum = 1, maximum = null, increment = 1))
+        setCartContent(fontScale = 2f) {
+            CartScreen(activeState(line), actions(checkout = { checkoutStarted = true }))
+        }
+        composeRule.onNodeWithTag(CartTestTags.CONTENT).performScrollToNode(hasTestTag(CartTestTags.CHECKOUT))
+        val checkout = composeRule.onNodeWithTag(CartTestTags.CHECKOUT).performScrollTo()
+        val viewport = composeRule.onNodeWithTag(CartTestTags.CONTENT).fetchSemanticsNode().boundsInRoot
+        val button = checkout.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue("The complete checkout control must fit above the gesture area", button.bottom <= viewport.bottom)
+        assertTrue("The checkout control must fit below the header", button.top >= viewport.top)
+        checkout.performClick()
+        composeRule.waitForIdle()
+        assertTrue(checkoutStarted)
+        captureReviewScreenshot("cart-checkout-safe-large-text", composeRule)
     }
 
     @Test

@@ -3,6 +3,7 @@
 
 package com.gurbakir.mobile.product
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -10,20 +11,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.waitUntilExactlyOneExists
@@ -31,7 +40,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
+import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.performDeterministicClick
 import com.gurbakir.mobile.wishlist.WishlistMembershipUiState
 import com.gurbakir.mobile.wishlist.WishlistTestTags
@@ -66,17 +78,149 @@ class ProductDetailScreenTest {
     }
 
     @Test
+    fun soldOutProductExplainsUnavailabilityInsteadOfAskingForADisabledOption() {
+        val original = product()
+        val soldOut = original.copy(
+            availableForSale = false,
+            variants = original.variants.map { it.copy(availableForSale = false) }
+        )
+        setProductContent { ProductDetailScreen(ProductDetailUiState(product = soldOut), actions()) }
+        val unavailable = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.product_sold_out
+        )
+        composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_AVAILABILITY).assertTextEquals(unavailable)
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsNotEnabled()
+    }
+
+    @Test
+    fun clearingChoicesMakesAnotherSellableCombinationReachableWithoutEnablingSoldOutChoices() {
+        var state by mutableStateOf(
+            ProductDetailUiState(
+                product = diagonalAvailabilityProduct(),
+                selectedOptions = mapOf("Size" to "Small", "Color" to "Red")
+            )
+        )
+        var cleared = 0
+        setProductContent {
+            ProductDetailScreen(
+                state,
+                actions(
+                    selectOption = { name, value ->
+                        if (VariantSelectionResolver.canSelect(
+                                requireNotNull(state.product),
+                                name,
+                                value,
+                                state.selectedOptions
+                            )
+                        ) {
+                            state = state.copy(selectedOptions = state.selectedOptions + (name to value))
+                        }
+                    },
+                    clearSelection = {
+                        cleared += 1
+                        state = state.copy(selectedOptions = emptyMap(), mediaIndex = 0)
+                    }
+                )
+            )
+        }
+        val content = composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+        content.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Size", "Large")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Size", "Large")).assertIsNotEnabled()
+        content.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Color", "Blue")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Color", "Blue")).assertIsNotEnabled()
+
+        content.performScrollToNode(hasTestTag(ProductDetailTestTags.CLEAR_SELECTION))
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertIsDisplayed()
+            .assertIsEnabled().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+            .performDeterministicClick()
+        assertEquals(1, cleared)
+        assertTrue(state.selectedOptions.isEmpty())
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertDoesNotExist()
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsNotEnabled()
+
+        content.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Size", "Large")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Size", "Large")).assertIsEnabled()
+            .performDeterministicClick()
+        content.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Color", "Blue")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Color", "Blue")).assertIsEnabled()
+            .performDeterministicClick()
+        assertEquals("gid://shopify/ProductVariant/14", state.selectedVariant?.id)
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsEnabled()
+    }
+
+    @Test
+    fun clearingChoicesIsHiddenForDefaultVariantsAndEntirelySoldOutProducts() {
+        val original = product()
+        val default = original.copy(
+            options = listOf(option("default", "Title", "Default Title")),
+            variants = listOf(
+                original.variants.first().copy(
+                    selectedOptions = listOf(StorefrontSelectedOption("Title", "Default Title"))
+                )
+            )
+        )
+        var state by mutableStateOf(
+            ProductDetailUiState(
+                product = default,
+                selectedOptions = mapOf("Title" to "Default Title")
+            )
+        )
+        setProductContent { ProductDetailScreen(state, actions()) }
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            state = ProductDetailUiState(
+                product = original.copy(
+                    availableForSale = false,
+                    variants = original.variants.map { it.copy(availableForSale = false) }
+                ),
+                selectedOptions = mapOf("Size" to "Small", "Color" to "Red")
+            )
+        }
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertDoesNotExist()
+        composeRule.onNodeWithTag(ProductDetailTestTags.ADD_TO_CART).assertIsNotEnabled()
+    }
+
+    @Test
+    fun clearingChoicesRetainsItsTouchTargetButIsDisabledDuringCartMutationAtLargeText() {
+        val state = ProductDetailUiState(
+            product = diagonalAvailabilityProduct(),
+            selectedOptions = mapOf("Size" to "Small", "Color" to "Red"),
+            addingToCart = true
+        )
+        setProductContent(fontScale = 2f) { ProductDetailScreen(state, actions(clearSelection = {})) }
+        composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(ProductDetailTestTags.CLEAR_SELECTION))
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertIsDisplayed()
+            .assertIsNotEnabled().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+    }
+
+    @Test
+    fun clearingChoicesIsHiddenWhenTheHostDoesNotBindTheOptionalAction() {
+        val state = ProductDetailUiState(
+            product = diagonalAvailabilityProduct(),
+            selectedOptions = mapOf("Size" to "Small", "Color" to "Red")
+        )
+        setProductContent { ProductDetailScreen(state, actions()) }
+        composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(ProductDetailTestTags.option("Size", "Small")))
+        composeRule.onNodeWithTag(ProductDetailTestTags.CLEAR_SELECTION).assertDoesNotExist()
+    }
+
+    @Test
     fun optionsWrapAndUnavailableValuesKeepConciseDisabledAccessibleLabels() {
-        val value = "An additional size"
+        val value = "An additional size for larger cookware"
         val original = product()
         val size = original.options.first().copy(
             values = original.options.first().values + StorefrontProductOptionValue("extra-size", value)
         )
         setProductContent {
-            ProductDetailScreen(
-                ProductDetailUiState(product = original.copy(options = listOf(size) + original.options.drop(1))),
-                actions()
-            )
+            Box(Modifier.requiredWidth(320.dp)) {
+                ProductDetailScreen(
+                    ProductDetailUiState(product = original.copy(options = listOf(size) + original.options.drop(1))),
+                    actions()
+                )
+            }
         }
         val list = composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
         list.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Size", value)))
@@ -89,6 +233,11 @@ class ProductDetailScreenTest {
         assertTrue("The additional option must wrap into a fully visible row", last.top >= first.bottom)
         list.performScrollToNode(hasTestTag(ProductDetailTestTags.option("Color", "Blue")))
         composeRule.onNodeWithTag(ProductDetailTestTags.option("Color", "Blue")).assertIsNotEnabled()
+        val unavailable = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.product_unavailable
+        )
+        composeRule.onNodeWithTag(ProductDetailTestTags.option("Color", "Blue"))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, unavailable))
         composeRule.onNodeWithText("Blue").assertIsDisplayed()
     }
 
@@ -107,6 +256,68 @@ class ProductDetailScreenTest {
         composeRule.waitForIdle()
         assertEquals(1, state.mediaIndex)
         composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_VIEWER).assertDoesNotExist()
+    }
+
+    @Test
+    fun accessibleMediaRequestInterruptsAControlledFlingAndDisplaysTheRequestedImage() {
+        val original = product()
+        val galleryMedia = (0..2).map { index ->
+            original.media.single().copy(
+                id = "gid://shopify/MediaImage/${21 + index}",
+                image = media().copy(
+                    uri = URI("https://cdn.shopify.com/s/files/1/product-$index.jpg"),
+                    altText = "Product view $index"
+                )
+            )
+        }
+        var state by mutableStateOf(ProductDetailUiState(product = original.copy(media = galleryMedia), mediaIndex = 1))
+        val mediaRequests = mutableListOf<Int>()
+        var arrowRequest: Int? = null
+        setProductContent {
+            ProductDetailScreen(
+                state,
+                actions(selectMedia = {
+                    mediaRequests += it
+                    state = state.copy(mediaIndex = it)
+                })
+            )
+        }
+        composeRule.onNodeWithContentDescription("Product view 1", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.mainClock.autoAdvance = false
+        try {
+            composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_OPEN)
+                .performTouchInput {
+                    swipeLeft(startX = width * 0.75f, endX = width * 0.5f, durationMillis = 100)
+                }
+            composeRule.mainClock.advanceTimeByFrame()
+            assertEquals("The controlled partial fling must retain its starting selection", 1, state.mediaIndex)
+            val viewport = composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_OPEN).fetchSemanticsNode().boundsInRoot
+            val movingImage = composeRule.onNodeWithContentDescription("Product view 1", useUnmergedTree = true)
+                .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            assertTrue(
+                "The image must still be displaced when the external request arrives",
+                movingImage.right < viewport.right - 1f
+            )
+            composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_PREVIOUS)
+                .performSemanticsAction(SemanticsActions.OnClick) { click ->
+                    val before = mediaRequests.size
+                    click()
+                    assertEquals("Previous must synchronously issue one media request", before + 1, mediaRequests.size)
+                    arrowRequest = mediaRequests.last()
+                }
+            assertEquals("Previous must request the page before the original selection", 0, arrowRequest)
+            composeRule.mainClock.advanceTimeByFrame()
+            composeRule.mainClock.advanceTimeBy(1_000)
+        } finally {
+            composeRule.mainClock.autoAdvance = true
+        }
+        composeRule.waitForIdle()
+        assertEquals(0, state.mediaIndex)
+        val visible = composeRule.onNodeWithContentDescription("Product view 0", useUnmergedTree = true)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val viewport = composeRule.onNodeWithTag(ProductDetailTestTags.MEDIA_OPEN).fetchSemanticsNode().boundsInRoot
+        assertEquals(viewport.left, visible.left, 1f)
+        assertEquals(viewport.right, visible.right, 1f)
     }
 
     @Test
@@ -227,6 +438,16 @@ class ProductDetailScreenTest {
     }
 
     @Test
+    fun compactScrollableViewportKeepsAFullOptionTouchTargetAboveThePurchaseDock() {
+        assertCompactOptionRemainsAbovePurchaseDock(fontScale = 1f)
+    }
+
+    @Test
+    fun largeTextCompactViewportKeepsAFullOptionTouchTargetAboveThePurchaseDock() {
+        assertCompactOptionRemainsAbovePurchaseDock(fontScale = 2f)
+    }
+
+    @Test
     fun purchaseBarStacksInstructionAndActionAtTwoHundredPercentText() {
         setProductContent(fontScale = 2f) {
             ProductDetailScreen(ProductDetailUiState(product = product()), actions())
@@ -295,13 +516,43 @@ class ProductDetailScreenTest {
         composeRule.waitUntilExactlyOneExists(hasTestTag(ProductDetailTestTags.ROOT), timeoutMillis = 5_000)
     }
 
+    private fun assertCompactOptionRemainsAbovePurchaseDock(fontScale: Float) {
+        var selected: Pair<String, String>? = null
+        setProductContent(fontScale = fontScale) {
+            Box(Modifier.requiredWidth(360.dp)) {
+                ProductDetailScreen(
+                    ProductDetailUiState(product = product()),
+                    actions(selectOption = { name, value -> selected = name to value })
+                )
+            }
+        }
+        val list = composeRule.onNodeWithTag(ProductDetailTestTags.CONTENT)
+        val viewport = list.fetchSemanticsNode().boundsInRoot
+        val dock = composeRule.onNodeWithTag(ProductDetailTestTags.PURCHASE_BAR).fetchSemanticsNode().boundsInRoot
+        assertTrue("The scrollable viewport must end above the purchase dock", viewport.bottom <= dock.top + 1f)
+        val optionTag = ProductDetailTestTags.option("Size", "Small")
+        list.performScrollToNode(hasTestTag(optionTag))
+        val option = composeRule.onNodeWithTag(optionTag).performScrollTo().assertIsDisplayed()
+            .assertIsEnabled().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        val bounds = option.fetchSemanticsNode().boundsInRoot
+        assertTrue("The complete option must be inside the visible scroll viewport", bounds.top >= viewport.top - 1f)
+        assertTrue(
+            "The complete option touch target must remain above the purchase dock",
+            bounds.bottom <= dock.top + 1f
+        )
+        captureReviewScreenshot("product-option-above-dock-font-$fontScale", composeRule)
+        option.performClick()
+        assertEquals("Size" to "Small", selected)
+    }
+
     @Suppress("LongParameterList")
     private fun actions(
         selectOption: (String, String) -> Unit = { _, _ -> },
         selectMedia: (Int) -> Unit = {},
         openMedia: () -> Unit = {},
         closeMedia: () -> Unit = {},
-        setWishlist: (String, Boolean) -> Unit = { _, _ -> }
+        setWishlist: (String, Boolean) -> Unit = { _, _ -> },
+        clearSelection: (() -> Unit)? = null
     ) = ProductDetailActions(
         onBack = {},
         onBrowse = {},
@@ -310,8 +561,26 @@ class ProductDetailScreenTest {
         onSelectMedia = selectMedia,
         onOpenMediaViewer = openMedia,
         onCloseMediaViewer = closeMedia,
+        onClearSelection = clearSelection,
         onSetWishlist = setWishlist
     )
+
+    private fun diagonalAvailabilityProduct(): StorefrontProductDetail {
+        val original = product()
+        val large = original.variants.last()
+        return original.copy(
+            variants = original.variants.map { variant ->
+                if (variant.id == large.id) variant.copy(availableForSale = false) else variant
+            } + large.copy(
+                id = "gid://shopify/ProductVariant/14",
+                title = "Large / Blue",
+                selectedOptions = listOf(
+                    StorefrontSelectedOption("Size", "Large"),
+                    StorefrontSelectedOption("Color", "Blue")
+                )
+            )
+        )
+    }
 
     private fun product(): StorefrontProductDetail = StorefrontProductDetail(
         id = "gid://shopify/Product/1",

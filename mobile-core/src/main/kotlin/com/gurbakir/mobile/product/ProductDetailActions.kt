@@ -8,6 +8,7 @@ data class ProductDetailActions(
     val onSelectMedia: (Int) -> Unit,
     val onOpenMediaViewer: () -> Unit,
     val onCloseMediaViewer: () -> Unit,
+    val onClearSelection: (() -> Unit)? = null,
     val onAddToCart: () -> Unit = {},
     val onOpenCart: () -> Unit = {},
     val onSetWishlist: ((String, Boolean) -> Unit)? = null

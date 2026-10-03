@@ -8,6 +8,9 @@ The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
 The second pull request's current implementation and visual evidence are in
 [Gür Bakır pre-tester UI refinement](product-quality/GURBAKIR-PRETESTER-UI-PR2.md).
+The shared commerce v3 refinement and its acceptance status are tracked in
+[Multi-Brand commerce UI v3](product-quality/MULTIBRAND-COMMERCE-UI-V3.md).
+The pre-tester documents above retain their historical PR checkpoints.
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 
@@ -138,6 +141,7 @@ scope. They do not override current source or later accepted decisions.
 | [`phase3/P3-16-HANDOFF.md`](phase3/P3-16-HANDOFF.md) | Historical pre-campaign production/release entry audit |
 | [`phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md`](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) | Current bounded Gürbakır closed-test preparation and remaining release gates |
 | [`product-quality/UI-REFINEMENT-WORKSTREAM-HISTORY-AND-HANDOFF.md`](product-quality/UI-REFINEMENT-WORKSTREAM-HISTORY-AND-HANDOFF.md) | Current UI-refinement continuation point |
+| [`product-quality/MULTIBRAND-COMMERCE-UI-V3.md`](product-quality/MULTIBRAND-COMMERCE-UI-V3.md) | Shared commerce v3 implementation, exact-source visual iterations and outstanding acceptance/release gates |
 | [`preparation/ARCHITECTURE-DIRECTION.md`](preparation/ARCHITECTURE-DIRECTION.md) | Durable native application direction |
 
 ## Current constraints and supporting references

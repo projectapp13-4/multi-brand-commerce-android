@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.mobile.CoreTestTheme
+import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.navigateProduct
 import com.gurbakir.mobile.navigation.CollectionRoute
 import com.gurbakir.mobile.performDeterministicClick
@@ -66,6 +67,20 @@ class HomeScreenTest {
             .fetchSemanticsNode().config[SemanticsActions.CustomActions].single()
         composeRule.runOnIdle { assertTrue(refresh.action()) }
         assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun activeRefreshKeepsItsIndicatorBelowTheHeaderAndVisibleAboveEditorialContent() {
+        val initial = presentationState()
+        setHome(
+            initial.copy(requestActive = true, presentation = initial.presentation?.copy(refreshing = true)),
+            HomeActions(refreshContent = {})
+        )
+        val wordmark = composeRule.onNodeWithTag(HomeTestTags.WORDMARK).fetchSemanticsNode().boundsInRoot
+        val indicator = composeRule.onNodeWithTag(HomeTestTags.REFRESHING)
+            .assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue("The refresh indicator must stay below the header", indicator.top >= wordmark.bottom)
+        captureReviewScreenshot("home-refreshing", composeRule)
     }
 
     @Test

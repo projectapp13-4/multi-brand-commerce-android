@@ -2,6 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
     <string name="product_choose_option">Choose %1$s</string>
     <string name="product_choose_options">Choose options</string>
+    <string name="product_clear_selection">Clear selection</string>
+    <plurals name="collection_loaded_count_compact">
+        <item quantity="one">%1$d product shown</item>
+        <item quantity="other">%1$d products shown</item>
+    </plurals>
     <string name="product_not_found_body">You can browse the other products.</string>
     <string name="home_title">Home</string>
     <string name="home_product_range_title">Our Product Range</string>
@@ -17,7 +22,6 @@
     <string name="home_error_service">Store content could not load right now.</string>
     <string name="home_error_partial">Some store content could not load. Visible content is retained.</string>
     <string name="home_refresh_description">Refresh Home content</string>
-    <string name="home_refreshing_description">Home content is refreshing</string>
     <string name="home_unavailable_title">Store content is unavailable</string>
     <string name="home_unavailable">Content is unavailable right now. Use Refresh to check again.</string>
     <string name="home_nonrenderable">Content is selected, but its current product information cannot be shown.</string>
@@ -31,7 +35,6 @@
     <string name="collection_not_found">This collection was not found or is no longer published.</string>
     <string name="collection_empty">There are no products in this collection right now.</string>
     <string name="collection_filtered_empty">No products match the selected filters.</string>
-    <string name="collection_loaded_count">Products loaded: %1$d</string>
     <string name="collection_load_more">Load more products</string>
     <string name="collection_sort_label">Sort: %1$s</string>
     <string name="collection_sort_featured">Collection order</string>
@@ -43,7 +46,6 @@
     <string name="collection_sort_title_z_a">Name: Z-A</string>
     <string name="collection_filter_value">%1$s (%2$d)</string>
     <string name="price_range">%1$s &#8211; %2$s</string>
-    <string name="collection_available">Available</string>
     <string name="collection_unavailable">Currently unavailable</string>
     <string name="collection_open_product">Open %1$s</string>
     <string name="search_title">Search</string>
@@ -63,7 +65,6 @@
     <string name="search_history_remove">Remove</string>
     <string name="search_history_clear">Clear all search history</string>
     <string name="search_history_settings">Search history settings</string>
-    <string name="search_history_settings_hide">Hide search history settings</string>
     <string name="retry">Try again</string>
     <string name="home_video_play">Play video</string>
     <string name="home_open_collection">Open collection</string>
@@ -85,11 +86,9 @@
     <string name="product_variant_changed">The option in this link no longer belongs to this product. Choose a valid option.</string>
     <string name="product_description_title">Product description</string>
     <string name="product_compare_at_price">Previous price: %1$s</string>
-    <string name="product_select_options">Complete the options to see current price and availability.</string>
     <string name="product_unavailable">This option is currently unavailable for sale.</string>
+    <string name="product_sold_out">This product is currently unavailable for sale.</string>
     <string name="product_backorder_available">Not in stock; available to order.</string>
-    <string name="product_available">Available for sale.</string>
-    <string name="product_option_unavailable">%1$s &#8212; unavailable for sale</string>
     <string name="product_no_media">No approved image is available for this product.</string>
     <string name="product_media_previous">Previous</string>
     <string name="product_media_next">Next</string>

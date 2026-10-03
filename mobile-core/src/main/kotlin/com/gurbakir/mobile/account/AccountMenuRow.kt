@@ -33,6 +33,7 @@ internal fun AccountMenuRow(
     @DrawableRes iconResource: Int? = null,
     @DrawableRes trailingIconResource: Int = R.drawable.ic_chevron_right,
     trailingIconRotationDegrees: Float = 0f,
+    lowEmphasis: Boolean = false,
     enabled: Boolean = true,
     testTag: String? = null
 ) {
@@ -45,6 +46,11 @@ internal fun AccountMenuRow(
                 .defaultMinSize(minHeight = 48.dp)
                 .then(if (testTag == null) Modifier else Modifier.testTag(testTag)),
         color = Color.Transparent,
+        contentColor = if (lowEmphasis) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
         shape = MaterialTheme.shapes.small
     ) {
         Row(
@@ -66,7 +72,7 @@ internal fun AccountMenuRow(
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (lowEmphasis) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )
             Icon(

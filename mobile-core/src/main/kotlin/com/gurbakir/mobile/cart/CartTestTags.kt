@@ -2,6 +2,7 @@ package com.gurbakir.mobile.cart
 
 internal object CartTestTags {
     const val ROOT = "cart-root"
+    const val CONTENT = "cart-content"
     const val LOADING = "cart-loading"
     const val LOADING_STATE = "cart-loading-state"
     const val EMPTY = "cart-empty"

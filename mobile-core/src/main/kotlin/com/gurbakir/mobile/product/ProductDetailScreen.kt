@@ -4,6 +4,7 @@
 package com.gurbakir.mobile.product
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -162,9 +163,10 @@ private fun ProductDetailBody(
     LazyColumn(
         modifier =
             Modifier.fillMaxSize()
+                .padding(padding)
                 .consumeDestinationInsets(padding)
                 .testTag(ProductDetailTestTags.CONTENT),
-        contentPadding = padding.withDestinationSpacing(horizontal = spacing.generousDp.dp),
+        contentPadding = PaddingValues(horizontal = spacing.generousDp.dp, vertical = spacing.generousDp.dp),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         when {
@@ -374,7 +376,15 @@ private fun ProductOptionGroup(
     state: ProductDetailUiState,
     actions: ProductDetailActions
 ) {
-    VariantSelector(option.name, state.valueStates(option)) { value -> actions.onSelectOption(option.name, value) }
+    val canClear = option.id == state.displayOptions.firstOrNull()?.id &&
+        state.selectedOptions.isNotEmpty() && state.product?.variants?.any { it.availableForSale } == true
+    VariantSelector(
+        name = option.name,
+        values = state.valueStates(option),
+        onSelect = { value -> actions.onSelectOption(option.name, value) },
+        onClearSelection = actions.onClearSelection.takeIf { canClear },
+        clearSelectionEnabled = !state.addingToCart
+    )
 }
 
 @Composable
@@ -456,7 +466,9 @@ private fun ProductMediaPager(media: List<StorefrontMedia>, index: Int, descript
     val currentIndex by rememberUpdatedState(index)
     val currentOnSelect by rememberUpdatedState(onSelect)
     LaunchedEffect(index) {
-        if (!pager.isScrollInProgress && pager.currentPage != index) pager.scrollToPage(index)
+        with(pager) {
+            scroll(MutatePriority.PreventUserInput) { updateCurrentPage(index) }
+        }
     }
     LaunchedEffect(pager) {
         snapshotFlow { pager.settledPage }.collect { page ->

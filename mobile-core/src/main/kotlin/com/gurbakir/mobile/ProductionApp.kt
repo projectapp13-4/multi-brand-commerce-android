@@ -9,6 +9,7 @@ package com.gurbakir.mobile
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.drawable.ColorDrawable
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -214,6 +216,18 @@ fun MobileCoreApp(
 }
 
 @Composable
+private fun AppWindowBackground() {
+    val activity = LocalContext.current.findActivity()
+    val background = MaterialTheme.colorScheme.background.toArgb()
+    DisposableEffect(activity, background) {
+        val window = activity?.window
+        val previous = window?.decorView?.background
+        window?.setBackgroundDrawable(ColorDrawable(background))
+        onDispose { window?.setBackgroundDrawable(previous) }
+    }
+}
+
+@Composable
 @Suppress("LongParameterList") // Composition, navigation state, overlay and content are independent shell inputs.
 fun ProductionAppShell(
     navController: NavHostController,
@@ -223,6 +237,7 @@ fun ProductionAppShell(
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
+    AppWindowBackground()
     val primaryDestination = currentDestination.primaryDestination()?.takeIf {
         it in applicationComposition.primaryNavigation.destinations
     }
@@ -534,6 +549,7 @@ private fun ProductDestination(
                 onBrowse = { navController.popBackStackOrHome() },
                 onRetry = viewModel::retry,
                 onSelectOption = viewModel::selectOption,
+                onClearSelection = viewModel::clearSelection,
                 onSelectMedia = viewModel::selectMedia,
                 onOpenMediaViewer = { viewModel.setMediaViewer(true) },
                 onCloseMediaViewer = { viewModel.setMediaViewer(false) },

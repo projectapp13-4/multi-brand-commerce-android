@@ -7,10 +7,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.gurbakir.account.CustomerFulfillmentLine
@@ -95,7 +97,9 @@ class OrderScreenTest {
         composeRule.waitForIdle()
         captureReviewScreenshot("order-detail-large-text", composeRule)
 
-        composeRule.onNodeWithTag(OrderDetailTestTags.fulfillment(1)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(OrderDetailTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(OrderDetailTestTags.fulfillment(1)))
+        composeRule.onNodeWithTag(OrderDetailTestTags.fulfillment(1)).assertIsDisplayed()
         composeRule.onNodeWithTag(OrderDetailTestTags.tracking(0)).performScrollTo().performDeterministicClick()
         assertEquals("https://www.carrier.example/takip?code=SYNTHETIC", trackingOpened)
         composeRule.onAllNodesWithTag(OrderDetailTestTags.tracking(1)).assertCountEquals(0)

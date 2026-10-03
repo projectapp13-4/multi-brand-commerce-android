@@ -29,7 +29,6 @@
     <string name="collection_not_found">This collection was not found or is no longer published.</string>
     <string name="collection_empty">There are no products in this collection right now.</string>
     <string name="collection_filtered_empty">No products match the selected filters.</string>
-    <string name="collection_loaded_count">Products loaded: %1$d</string>
     <string name="collection_load_more">Load more products</string>
     <string name="collection_sort_label">Sort: %1$s</string>
     <string name="collection_sort_featured">Collection order</string>
@@ -41,7 +40,6 @@
     <string name="collection_sort_title_z_a">Name: Z-A</string>
     <string name="collection_filter_value">%1$s (%2$d)</string>
     <string name="price_range">%1$s &#8211; %2$s</string>
-    <string name="collection_available">Available</string>
     <string name="collection_unavailable">Currently unavailable</string>
     <string name="collection_open_product">Open %1$s</string>
     <string name="search_title">Search</string>
@@ -60,7 +58,6 @@
     <string name="search_history_remove">Remove</string>
     <string name="search_history_clear">Clear all search history</string>
     <string name="search_history_settings">Search history settings</string>
-    <string name="search_history_settings_hide">Hide search history settings</string>
     <string name="retry">Try again</string>
     <string name="route_recovery_title">This content is not available yet</string>
     <string name="route_recovery_message">You can safely return to the home screen.</string>
@@ -106,11 +103,8 @@
     <string name="product_variant_changed">The option in this link no longer belongs to this product. Choose a valid option.</string>
     <string name="product_description_title">Product description</string>
     <string name="product_compare_at_price">Previous price: %1$s</string>
-    <string name="product_select_options">Complete the options to see current price and availability.</string>
     <string name="product_unavailable">This option is currently unavailable for sale.</string>
     <string name="product_backorder_available">Not in stock; available to order.</string>
-    <string name="product_available">Available for sale.</string>
-    <string name="product_option_unavailable">%1$s &#8212; unavailable for sale</string>
     <string name="product_no_media">No approved image is available for this product.</string>
     <string name="product_media_previous">Previous</string>
     <string name="product_media_next">Next</string>

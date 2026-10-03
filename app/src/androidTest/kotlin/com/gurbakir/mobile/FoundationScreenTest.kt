@@ -7,10 +7,13 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.foundation.config.ConfigurationIssue
@@ -38,7 +41,11 @@ class FoundationScreenTest {
         composeRule.onNodeWithTag(FoundationTestTags.TITLE).assertIsDisplayed()
         composeRule.onNodeWithTag(FoundationTestTags.ENVIRONMENT).assertIsDisplayed()
         composeRule.onNodeWithTag(FoundationTestTags.CONFIGURATION_STATUS).assertIsDisplayed()
-        composeRule.onAllNodesWithText(waiting).assertCountEquals(4)
+        IntegrationId.entries.forEach { id ->
+            val statusTag = FoundationTestTags.integrationStatus(id)
+            composeRule.onNodeWithTag(FoundationTestTags.CONTENT).performScrollToNode(hasTestTag(statusTag))
+            composeRule.onNodeWithTag(statusTag).assertIsDisplayed().assertTextEquals(waiting)
+        }
     }
 
     @Test
@@ -60,6 +67,8 @@ class FoundationScreenTest {
     fun unconfiguredFirebaseDetailsActionIsDisabled() {
         setFoundationContent()
 
+        composeRule.onNodeWithTag(FoundationTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(FoundationTestTags.integrationAction(IntegrationId.FIREBASE)))
         composeRule
             .onNodeWithTag(FoundationTestTags.integrationAction(IntegrationId.FIREBASE))
             .assertIsNotEnabled()

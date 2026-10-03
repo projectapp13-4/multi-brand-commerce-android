@@ -107,8 +107,14 @@ private fun PurchaseSummary(state: ProductDetailUiState, modifier: Modifier) {
     } else {
         val missing = state.displayOptions.filter { it.name !in state.selectedOptions }
         val context = when {
-            state.hasUnavailableSelection -> stringResource(R.string.product_unavailable)
+            state.product?.variants?.none { it.availableForSale } == true ->
+                stringResource(R.string.product_sold_out)
+
+            state.hasUnavailableSelection ->
+                stringResource(R.string.product_unavailable)
+
             missing.size == 1 -> stringResource(R.string.product_choose_option, missing.single().name)
+
             else -> stringResource(R.string.product_choose_options)
         }
         Text(

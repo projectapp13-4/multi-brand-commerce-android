@@ -5,6 +5,7 @@ package com.gurbakir.mobile.cart
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,16 +28,23 @@ internal fun CheckoutPanel(enabled: Boolean, onCheckout: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.normalDp.dp)
     ) {
-        Text(stringResource(R.string.checkout_external_context))
+        Text(
+            stringResource(R.string.checkout_external_context),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Button(
             onClick = onCheckout,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth().testTag(CartTestTags.CHECKOUT)
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth().heightIn(min = MINIMUM_TOUCH_TARGET_SIZE).testTag(CartTestTags.CHECKOUT)
         ) {
             Text(stringResource(R.string.checkout_start))
         }
     }
 }
+
+private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
 
 @Composable
 internal fun CheckoutFeedback(
