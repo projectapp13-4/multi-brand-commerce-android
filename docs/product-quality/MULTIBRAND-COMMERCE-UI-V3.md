@@ -1,8 +1,9 @@
 # Multi-Brand Base Commerce UI and Gür Bakır v3
 
-Status: **iteration 3 visual acceptance reviewed; engineering/release gates open**, 2026-10-03.
+Status: **iteration 3 UI accepted and merged; release-candidate gates open**, 2026-10-03.
 The final reviewed UI candidate is visually accepted within the evidence limits
-below. Broad engineering acceptance and the v3 release remain incomplete.
+below. Shared UI engineering acceptance is complete; release-candidate native,
+artifact and Closed Alpha acceptance remain incomplete.
 
 ## Scope and source authority
 
@@ -637,10 +638,98 @@ read. This is an access limitation, not a track readback. Receipt:
 `out/ui-v3/iteration-3-final/play-console-access-after-cleanup-20261003.json`.
 No version bump, v3 signing, upload, tester or other track mutation occurred.
 
+## Accepted UI source merge
+
+Corrected exact-head [CI 37148388803](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37148388803)
+passed all three required jobs on `4b460c97823714a0ac7a18a63a9ac2435f9496e2`:
+full formatting/detekt/Android Lint, registered JVM and assembly lanes,
+public-readiness/onboarding, Synthetic and Trial package isolation,
+repository portability, API 30 and API 23 instrumentation. The duplicate
+local focused lint run was interrupted with scoped Ctrl-C under host memory
+pressure after CI static analysis passed; its exit 1 is not recorded as a pass.
+
+[PR #34](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/34)
+was independently reviewed, marked ready and merged with an expected-head guard
+as `6d70bb38cd29de16e0bf6cfddaf1a6623a2985f8`. Baseline main was freshly
+verified unchanged before merge. Source and merged-main Git tree hashes both
+equal `cca190c531e3eb1844ee016bcdf34bbacb0251c1`; the preserved worktree
+fast-forwarded without changing that file tree or discarding pending work.
+Exact merged-main [CI 37150312892](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37150312892)
+passed all three required jobs, freshly observed at 20:25:54 UTC. The source UI's
+engineering and bounded visual acceptance are complete.
+
+The additional configured version-2 debug rebuild started at 20:10 UTC and
+remained at `:mobile-core:kspDebugKotlin` with no log progress from 20:21:39
+through 20:41 UTC. It was stopped only through its owned session (exit 1);
+owned daemon PID 3588 was subsequently absent. Source and existing artifacts
+were preserved. This duplicate build is interrupted, not a passing build.
+It does not replace the already executed runtime acceptance or merged-main CI.
+
+Only after the accepted UI merge and passing merged-main CI, the release
+candidate source is set to versionCode 3 / versionName 0.3.0. The second focused
+PR includes the finite native-runtime CI gate. No v3 bundle has been signed or
+uploaded at this checkpoint.
+
+A finite stable API 36 ps16k CI probe is being completed for the second release
+candidate PR. It reuses the existing pinned setup actions/KVM and tests the
+same inherited native bytes without production dependency or compatibility-mode
+changes. Local boot/parser failures are preserved as harness/environment evidence;
+they do not substitute for actual kernel/native-operation results. The new probe
+has not run in CI at this checkpoint. ELF RELRO and ARM64 evidence remain separate.
+The finite runner's Bash syntax, scoped diff check and 21 pure protocol/manifest
+fixtures passed; independent source review found no remaining actionable issue.
+Runner SHA-256: `D180BBBF3E5A1AFD1F1CB046751B7EF69616532487EC4619748005D6707BB7BE`.
+Its actual execution requires kernel 16384, x86_64, owned AVD, responsive Android
+services, application-scoped disabled compatibility, exact native bytes, and
+two separate JNI operations with no skip, crash or timeout accepted as a pass.
+
+Signing preparation has been reviewed without opening credentials or running
+the helper. The ignored invoker requires exact fresh merged main, a clean
+worktree and 3 / 0.3.0; signing material stays in process environment, heap
+dumps/configuration caching are disabled, credentials are cleaned up, and
+only its exact known source-byte rewrite can be restored. Unexpected edits
+are preserved. The separate ignored AAB verifier's 19 pure parser fixtures
+passed after fail-closed ELF/RELRO and exact unique signer checks were tightened.
+Neither helper preparation nor those fixtures constitutes signing, artifact
+validation, native execution, or Play proof.
+
+## Version-3 candidate validation
+
+The second source [PR #35](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/35)
+opens candidate `8469f7019ec21ab55235eac8c57e01509aa8e010` against accepted
+UI main `6d70bb3`. [Initial CI 37153164581](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37153164581)
+passed full validation, API 30 and API 23. It also built the standalone native
+APK successfully (132 tasks, 66 executed and 66
+from cache). Manifest identity/disabled test compatibility, ZIP alignment and
+both inherited x86_64 native hashes passed. The native job then failed before
+boot because the emulator could not find the AVD registered by `avdmanager`.
+Kernel page size and both native operations were unobserved. The harness now
+gives both tools the same fresh, process-scoped `ANDROID_AVD_HOME` under the
+runner's owned temporary evidence directory and verifies its registry file
+before launch. No runtime acceptance checks are relaxed.
+
+Independent binary parsing confirmed the literal RELRO arithmetic findings
+without a `MemSiz`/parser error. For all four inherited 64-bit libraries, the
+16KiB-rounded protection range has zero writable `PT_LOAD` content outside
+the declared RELRO range. The [immutable Android 16 linker source](https://android.googlesource.com/platform/bionic/+/09a271af557444c9a6b3f3146d6d474156fd6cdb/linker/linker_phdr.cpp)
+rounds touched pages; the documented crash mechanism requires content there
+that must remain writable. That mechanism is not indicated by these exact
+binary layouts. This is source/binary-derived evidence, not ARM64 runtime proof.
+The original literal flags remain false. Official Maven/release readback still
+finds no newer Graphics Path than 1.1.0; a forced upgrade is not justified by
+this diagnostic alone. Final acceptance still requires actual native CI,
+unchanged final native bytes and the separate signed-artifact/runtime checks.
+
+Subsequent supported Play browser selection and a scoped new-tab attempt also
+timed out before any Console content could be read. The new tab's creation
+outcome is unknown; no release action was issued. Those access failures do not
+establish a Closed Alpha or tester readback.
+
 ## Completion evidence
 
-Visual iterations, focused/broad executed tests, PR/merge/CI identifiers,
-final exact-source screenshot index, signed AAB receipt and Closed Alpha
-readback will be added as they occur. Until then, engineering acceptance,
-broad engineering acceptance and v3 release are **NOT COMPLETE**. The reviewed
-iteration-3 UI candidate's bounded visual acceptance is recorded above.
+Visual iterations, focused/broad executed tests, screenshot provenance and
+the accepted UI PR/merge/CI are recorded above. Candidate native-runtime CI,
+final version-3 merged source, signed AAB receipt and Closed Alpha readback will
+be added as they occur. Until those gates close, v3 release acceptance is
+**NOT COMPLETE**. A passing x86_64 JNI probe cannot erase the separately recorded
+inherited ARM64/static RELRO limitations or validate a final signed bundle.
