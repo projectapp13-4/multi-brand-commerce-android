@@ -693,6 +693,38 @@ passed after fail-closed ELF/RELRO and exact unique signer checks were tightened
 Neither helper preparation nor those fixtures constitutes signing, artifact
 validation, native execution, or Play proof.
 
+## Version-3 candidate validation
+
+The second source [PR #35](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/35)
+opens candidate `8469f7019ec21ab55235eac8c57e01509aa8e010` against accepted
+UI main `6d70bb3`. [Initial CI 37153164581](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37153164581)
+passed full validation, API 30 and API 23. It also built the standalone native
+APK successfully (132 tasks, 66 executed and 66
+from cache). Manifest identity/disabled test compatibility, ZIP alignment and
+both inherited x86_64 native hashes passed. The native job then failed before
+boot because the emulator could not find the AVD registered by `avdmanager`.
+Kernel page size and both native operations were unobserved. The harness now
+gives both tools the same fresh, process-scoped `ANDROID_AVD_HOME` under the
+runner's owned temporary evidence directory and verifies its registry file
+before launch. No runtime acceptance checks are relaxed.
+
+Independent binary parsing confirmed the literal RELRO arithmetic findings
+without a `MemSiz`/parser error. For all four inherited 64-bit libraries, the
+16KiB-rounded protection range has zero writable `PT_LOAD` content outside
+the declared RELRO range. The [immutable Android 16 linker source](https://android.googlesource.com/platform/bionic/+/09a271af557444c9a6b3f3146d6d474156fd6cdb/linker/linker_phdr.cpp)
+rounds touched pages; the documented crash mechanism requires content there
+that must remain writable. That mechanism is not indicated by these exact
+binary layouts. This is source/binary-derived evidence, not ARM64 runtime proof.
+The original literal flags remain false. Official Maven/release readback still
+finds no newer Graphics Path than 1.1.0; a forced upgrade is not justified by
+this diagnostic alone. Final acceptance still requires actual native CI,
+unchanged final native bytes and the separate signed-artifact/runtime checks.
+
+Subsequent supported Play browser selection and a scoped new-tab attempt also
+timed out before any Console content could be read. The new tab's creation
+outcome is unknown; no release action was issued. Those access failures do not
+establish a Closed Alpha or tester readback.
+
 ## Completion evidence
 
 Visual iterations, focused/broad executed tests, screenshot provenance and

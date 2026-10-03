@@ -124,7 +124,10 @@ if ss -H -ltn | awk '{print $4}' | grep -Eq ":($port|$((port + 1)))$"; then
   echo "The selected emulator ports are already occupied." >&2
   exit 1
 fi
+export ANDROID_AVD_HOME="$evidence_directory/avd"
+mkdir -p "$ANDROID_AVD_HOME"
 printf 'no\n' | timeout --kill-after=2s 60s avdmanager create avd --name "$avd_name" --package "$image" --device pixel_5 > "$evidence_directory/avd-create.log" 2>&1
+[[ -f "$ANDROID_AVD_HOME/$avd_name.ini" ]] || { echo "Owned AVD registry was not created in the isolated directory." >&2; sanitize_log "$evidence_directory/avd-create.log"; exit 1; }
 setsid "$emulator" -avd "$avd_name" -port "$port" -read-only -no-window -no-snapshot \
   -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 2048 -cores 2 -skin 480x800 \
   > "$evidence_directory/emulator.log" 2>&1 &
