@@ -2,12 +2,17 @@
 
 package com.gurbakir.mobile.wishlist
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -55,7 +60,12 @@ fun WishlistProductButton(productId: String, action: WishlistProductAction, modi
 }
 
 @Composable
-fun WishlistProductIconButton(productId: String, action: WishlistProductAction?, modifier: Modifier = Modifier) {
+fun WishlistProductIconButton(
+    productId: String,
+    action: WishlistProductAction?,
+    modifier: Modifier = Modifier,
+    onMedia: Boolean = false
+) {
     if (action == null) return
     val saved = action.saved
     val stateText =
@@ -77,13 +87,24 @@ fun WishlistProductIconButton(productId: String, action: WishlistProductAction?,
                 .semantics { stateDescription = stateText }
                 .testTag(WishlistTestTags.toggle(productId))
     ) {
-        Icon(
-            painter =
-                painterResource(
-                    if (saved) R.drawable.ic_nav_wishlist_selected else R.drawable.ic_nav_wishlist
-                ),
-            contentDescription = actionDescription
-        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = if (onMedia) {
+                Modifier.size(MEDIA_CONTROL_SIZE)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = MEDIA_CONTROL_ALPHA), CircleShape)
+            } else {
+                Modifier
+            }
+        ) {
+            Icon(
+                painter =
+                    painterResource(
+                        if (saved) R.drawable.ic_nav_wishlist_selected else R.drawable.ic_nav_wishlist
+                    ),
+                contentDescription = actionDescription,
+                modifier = Modifier.size(if (onMedia) MEDIA_ICON_SIZE else STANDARD_ICON_SIZE)
+            )
+        }
     }
 }
 
@@ -120,3 +141,7 @@ object WishlistTestTags {
 }
 
 private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
+private val MEDIA_CONTROL_SIZE = 32.dp
+private val MEDIA_ICON_SIZE = 20.dp
+private val STANDARD_ICON_SIZE = 24.dp
+private const val MEDIA_CONTROL_ALPHA = 0.9f

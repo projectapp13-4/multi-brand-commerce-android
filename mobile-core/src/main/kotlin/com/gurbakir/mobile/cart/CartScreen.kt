@@ -29,7 +29,6 @@ import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
-import com.gurbakir.mobile.ui.withDestinationSpacing
 
 @Composable
 fun CartScreen(state: CartState, actions: CartActions, checkoutState: CheckoutState = CheckoutState()) {
@@ -81,8 +80,10 @@ private fun CartBody(
         modifier =
             Modifier.fillMaxSize()
                 .centeredDestinationContent(720.dp)
-                .consumeDestinationInsets(padding),
-        contentPadding = padding.withDestinationSpacing(),
+                .padding(padding)
+                .consumeDestinationInsets(padding)
+                .testTag(CartTestTags.CONTENT),
+        contentPadding = PaddingValues(spacing.generousDp.dp),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         cartMessages(state, checkoutState, actions)

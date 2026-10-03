@@ -7,8 +7,15 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItemColors
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -28,7 +35,8 @@ internal fun NavigationSuiteScope.AppNavigationItem(
     alwaysShowLabel: Boolean = true,
     @DrawableRes selectedIconResourceId: Int,
     @DrawableRes unselectedIconResourceId: Int,
-    testTag: String
+    testTag: String,
+    colors: NavigationSuiteItemColors
 ) {
     item(
         selected = selected,
@@ -57,6 +65,7 @@ internal fun NavigationSuiteScope.AppNavigationItem(
             )
         },
         alwaysShowLabel = alwaysShowLabel,
+        colors = colors,
         modifier =
             Modifier.sizeIn(
                 minWidth = MINIMUM_TOUCH_TARGET_SIZE,
@@ -66,8 +75,38 @@ internal fun NavigationSuiteScope.AppNavigationItem(
     )
 }
 
+@Composable
+internal fun commerceNavigationItemColors(): NavigationSuiteItemColors {
+    val scheme = MaterialTheme.colorScheme
+    val indicator = scheme.primary.copy(alpha = NAVIGATION_INDICATOR_ALPHA)
+    return NavigationSuiteDefaults.itemColors(
+        navigationBarItemColors = NavigationBarItemDefaults.colors(
+            selectedIconColor = scheme.primary,
+            selectedTextColor = scheme.primary,
+            indicatorColor = indicator,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant
+        ),
+        navigationRailItemColors = NavigationRailItemDefaults.colors(
+            selectedIconColor = scheme.primary,
+            selectedTextColor = scheme.primary,
+            indicatorColor = indicator,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant
+        ),
+        navigationDrawerItemColors = NavigationDrawerItemDefaults.colors(
+            selectedContainerColor = indicator,
+            selectedIconColor = scheme.primary,
+            selectedTextColor = scheme.primary,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant
+        )
+    )
+}
+
 internal fun navigationIconTestTag(itemTestTag: String, selected: Boolean): String =
     "$itemTestTag-icon-${if (selected) "selected" else "unselected"}"
 
 private val NAVIGATION_ICON_SIZE = 24.dp
 private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
+private const val NAVIGATION_INDICATOR_ALPHA = 0.08f

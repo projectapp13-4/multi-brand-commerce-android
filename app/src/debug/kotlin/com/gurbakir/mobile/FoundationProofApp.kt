@@ -306,7 +306,7 @@ internal fun FoundationScreen(state: FoundationUiState, onIntegrationSelected: (
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding).testTag(FoundationTestTags.CONTENT),
             contentPadding = PaddingValues(spacing.sectionDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
         ) {
@@ -452,6 +452,7 @@ private fun CustomerAccountProofUiState.statusResourceId(): Int = when (failure)
 
 internal object FoundationTestTags {
     const val ROOT = "foundation-root"
+    const val CONTENT = "foundation-content"
     const val TITLE = "foundation-title"
     const val ENVIRONMENT = "foundation-environment"
     const val CONFIGURATION_STATUS = "foundation-configuration-status"

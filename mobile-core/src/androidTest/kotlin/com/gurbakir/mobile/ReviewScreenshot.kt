@@ -1,10 +1,7 @@
 package com.gurbakir.mobile
 
 import android.graphics.Bitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
-import androidx.compose.ui.test.onRoot
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 
@@ -12,7 +9,10 @@ internal fun captureReviewScreenshot(name: String, rule: ComposeContentTestRule)
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     if (InstrumentationRegistry.getArguments().getString("captureUi") != "true") return
 
-    val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+    rule.waitForIdle()
+    val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+        "The controlled Android fixture did not produce a readable runtime screenshot."
+    }
     val files = instrumentation.targetContext.getExternalFilesDir(null)
         ?: instrumentation.targetContext.filesDir
     val file = File(files, "phase2-$name.png")

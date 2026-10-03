@@ -111,8 +111,8 @@ private fun AddressFormContent(
                 .testTag(AddressFormTestTags.CONTENT),
         contentPadding =
             padding.withDestinationSpacing(
-                horizontal = spacing.sectionDp.dp,
-                vertical = spacing.sectionDp.dp
+                horizontal = spacing.generousDp.dp,
+                vertical = spacing.generousDp.dp
             ),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
@@ -122,11 +122,11 @@ private fun AddressFormContent(
                     stringResource(
                         if (state.isCreate) R.string.address_create_heading else R.string.address_edit_heading
                     ),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
             )
         }
-        item { Text(stringResource(R.string.address_form_explanation)) }
+        item { Text(stringResource(R.string.address_form_explanation), style = MaterialTheme.typography.bodyMedium) }
         item {
             Text(
                 text = stringResource(R.string.address_country_value),
@@ -261,6 +261,7 @@ private fun AddressTextField(
         }
     }
     OutlinedTextField(
+        shape = MaterialTheme.shapes.medium,
         value = spec.value,
         onValueChange = onValueChanged,
         label = { Text(stringResource(spec.label)) },

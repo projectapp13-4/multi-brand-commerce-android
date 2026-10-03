@@ -2,8 +2,13 @@
 
 package com.gurbakir.mobile.catalog
 
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -11,7 +16,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
@@ -28,6 +36,7 @@ import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontMoney
 import java.math.BigDecimal
 import java.net.URI
+import java.util.Locale
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,6 +48,27 @@ import org.junit.runner.RunWith
 class CatalogScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun collectionCountUsesEnglishSingularAndPluralWhileRetainingTurkishCopy() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val expected = mapOf(
+            "en-US" to listOf("0 products shown", "1 product shown", "3 products shown"),
+            "tr" to listOf("0 ürün gösteriliyor", "1 ürün gösteriliyor", "3 ürün gösteriliyor")
+        )
+        expected.forEach { (languageTag, labels) ->
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(languageTag))
+            }
+            val resources = context.createConfigurationContext(configuration).resources
+            listOf(0, 1, 3).zip(labels).forEach { (quantity, label) ->
+                assertEquals(
+                    label,
+                    resources.getQuantityString(R.plurals.collection_loaded_count_compact, quantity, quantity)
+                )
+            }
+        }
+    }
 
     @Test
     fun wishlistOffCollectionCardHasNoHeartAndStillOpensProduct() {
@@ -86,7 +116,7 @@ class CatalogScreenTest {
     }
 
     @Test
-    fun compactCategoriesKeepTwoMenuLabelsInTheFirstRowAndPreserveMediaDescriptions() {
+    fun compactCategoriesUseScanningRowsAndPreserveMenuLabelsAndMediaDescriptions() {
         val items =
             listOf(
                 category(
@@ -125,8 +155,11 @@ class CatalogScreenTest {
 
         val firstBounds = first.fetchSemanticsNode().boundsInRoot
         val secondBounds = second.fetchSemanticsNode().boundsInRoot
-        assertTrue("Expected the first two category tiles in one row", abs(firstBounds.top - secondBounds.top) < 1f)
-        assertTrue("Expected two distinct category columns", firstBounds.left < secondBounds.left)
+        assertTrue("Expected successive navigation rows", firstBounds.bottom <= secondBounds.top)
+        assertTrue(
+            "Navigation rows must use the same leading alignment",
+            abs(firstBounds.left - secondBounds.left) < 1f
+        )
     }
 
     @Test
@@ -237,8 +270,8 @@ class CatalogScreenTest {
                 .boundsInRoot
         val minimumTouchTarget = 48f * context.resources.displayMetrics.density
         assertTrue(
-            "Catalog media must use a 3:4 portrait frame",
-            abs(mediaBounds.height / mediaBounds.width - 4f / 3f) < 0.03f
+            "Catalog media must preserve imagery in a compact square frame",
+            abs(mediaBounds.height / mediaBounds.width - 1f) < 0.03f
         )
         assertTrue("Product title must precede price", titleBounds.top < priceBounds.top)
         assertTrue("Price must precede availability", priceBounds.top < availabilityBounds.top)
@@ -280,6 +313,33 @@ class CatalogScreenTest {
     }
 
     @Test
+    fun normalAvailabilityIsSilentAndLongTileTitlesKeepTwoLinesWithFullAccessibleText() {
+        val title =
+            "A deliberately long product title that remains available to accessibility while scanning a compact grid"
+        val available = product("available", available = true, ranged = false).copy(title = title)
+        val soldOut = product("sold-out", available = false, ranged = true)
+        setCatalogContent {
+            CollectionScreen(
+                state = CollectionUiState(handle = "test", title = "Collection", products = listOf(available, soldOut)),
+                actions = CollectionActions({}, {}, {}, {}, {})
+            )
+        }
+        composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID).performScrollToIndex(1)
+        composeRule.onNodeWithTag(CatalogTestTags.productAvailability(available.handle), useUnmergedTree = true)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(CatalogTestTags.productAvailability(soldOut.handle), useUnmergedTree = true)
+            .assertIsDisplayed()
+        val titleNode = composeRule.onNodeWithTag(
+            CatalogTestTags.productTitle(available.handle),
+            useUnmergedTree = true
+        )
+        titleNode.assertTextEquals(title)
+        val layouts = mutableListOf<TextLayoutResult>()
+        titleNode.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(2, layouts.single().lineCount)
+    }
+
+    @Test
     fun filteredEmptyStateRemainsReadableAtTwoHundredPercentText() {
         setCatalogContent(fontScale = 2f) {
             CollectionScreen(
@@ -302,6 +362,45 @@ class CatalogScreenTest {
 
         composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_ROOT).assertIsDisplayed()
         composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_EMPTY).assertIsDisplayed()
+    }
+
+    @Test
+    fun populatedCollectionKeepsCountAndLongSortActionUsableAtTwoHundredPercentText() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var selected: CollectionCatalogSort? = null
+        val item = product("large-text", available = true, ranged = true)
+        setCatalogContent(fontScale = 2f) {
+            Box(Modifier.requiredWidth(320.dp)) {
+                CollectionScreen(
+                    CollectionUiState(
+                        handle = "test",
+                        title = "Collection",
+                        products = listOf(item),
+                        sort = CollectionCatalogSort.PRICE_HIGH_TO_LOW
+                    ),
+                    CollectionActions({}, {}, { selected = it }, {}, {})
+                )
+            }
+        }
+        val grid = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID)
+        val count = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_RESULT_COUNT)
+            .assertIsDisplayed()
+            .assertTextEquals(context.resources.getQuantityString(R.plurals.collection_loaded_count_compact, 1, 1))
+            .fetchSemanticsNode().boundsInRoot
+        val sort = composeRule.onNodeWithTag(CatalogTestTags.COLLECTION_SORT).assertIsDisplayed()
+        val sortBounds = sort.fetchSemanticsNode().boundsInRoot
+        val viewport = grid.fetchSemanticsNode().boundsInRoot
+        assertTrue("Large-text controls must reflow without overlap", count.bottom <= sortBounds.top)
+        assertTrue("The count must fit the viewport", count.left >= viewport.left && count.right <= viewport.right)
+        assertTrue(
+            "The long sort action must fit the viewport",
+            sortBounds.left >= viewport.left && sortBounds.right <= viewport.right
+        )
+        sort.performDeterministicClick()
+        composeRule.onNodeWithText(context.getString(R.string.collection_sort_newest)).performDeterministicClick()
+        assertEquals(CollectionCatalogSort.NEWEST, selected)
+        grid.performScrollToIndex(1)
+        composeRule.onNodeWithTag(CatalogTestTags.product(item.handle)).assertIsDisplayed()
     }
 
     private fun setCatalogContent(fontScale: Float = 1f, content: @androidx.compose.runtime.Composable () -> Unit) {

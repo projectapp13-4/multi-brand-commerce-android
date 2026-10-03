@@ -12,16 +12,9 @@ internal val ProductDetailUiState.hasUnavailableSelection: Boolean
             (selectedVariant == null && displayOptions.isEmpty())
 
 @Composable
-internal fun ProductDetailUiState.availabilityText(): String = when {
-    selectedVariant == null && displayOptions.isNotEmpty() ->
-        stringResource(R.string.product_select_options)
-
-    selectedVariant == null -> stringResource(R.string.product_unavailable)
-
-    selectedVariant?.availableForSale == false -> stringResource(R.string.product_unavailable)
-
-    selectedVariant?.currentlyNotInStock == true ->
+internal fun ProductDetailUiState.availabilityText(): String? = when {
+    selectedVariant?.availableForSale == true && selectedVariant?.currentlyNotInStock == true ->
         stringResource(R.string.product_backorder_available)
 
-    else -> stringResource(R.string.product_available)
+    else -> null
 }

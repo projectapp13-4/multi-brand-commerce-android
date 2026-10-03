@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItemColors
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toDrawable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -133,6 +136,7 @@ import com.gurbakir.mobile.ui.AppNavigationItem
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
+import com.gurbakir.mobile.ui.commerceNavigationItemColors
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.update.UpdatePolicyDestination
 import com.gurbakir.mobile.wishlist.WishlistDestination
@@ -212,6 +216,18 @@ fun MobileCoreApp(
 }
 
 @Composable
+private fun AppWindowBackground() {
+    val activity = LocalContext.current.findActivity()
+    val background = MaterialTheme.colorScheme.background.toArgb()
+    DisposableEffect(activity, background) {
+        val window = activity?.window
+        val previous = window?.decorView?.background
+        window?.setBackgroundDrawable(background.toDrawable())
+        onDispose { window?.setBackgroundDrawable(previous) }
+    }
+}
+
+@Composable
 @Suppress("LongParameterList") // Composition, navigation state, overlay and content are independent shell inputs.
 fun ProductionAppShell(
     navController: NavHostController,
@@ -221,12 +237,14 @@ fun ProductionAppShell(
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
+    AppWindowBackground()
     val primaryDestination = currentDestination.primaryDestination()?.takeIf {
         it in applicationComposition.primaryNavigation.destinations
     }
     val defaultLayoutType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
     val alwaysShowPrimaryLabels = LocalDensity.current.fontScale < LARGE_TEXT_FONT_SCALE
+    val navigationItemColors = commerceNavigationItemColors()
     NavigationSuiteScaffold(
         modifier =
             modifier.then(
@@ -242,7 +260,8 @@ fun ProductionAppShell(
                     navController,
                     currentDestination,
                     applicationComposition,
-                    alwaysShowPrimaryLabels
+                    alwaysShowPrimaryLabels,
+                    navigationItemColors
                 )
             }
         },
@@ -264,7 +283,8 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
     navController: NavHostController,
     currentDestination: NavDestination?,
     applicationComposition: ApplicationComposition,
-    alwaysShowLabels: Boolean
+    alwaysShowLabels: Boolean,
+    colors: NavigationSuiteItemColors
 ) {
     applicationComposition.primaryNavigation.destinations.forEach { primary ->
         val destination = primary.presentation()
@@ -276,7 +296,8 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
             alwaysShowLabel = alwaysShowLabels,
             selectedIconResourceId = destination.selectedIconResourceId,
             unselectedIconResourceId = destination.unselectedIconResourceId,
-            testTag = destination.testTag
+            testTag = destination.testTag,
+            colors = colors
         )
     }
 }
@@ -528,6 +549,7 @@ private fun ProductDestination(
                 onBrowse = { navController.popBackStackOrHome() },
                 onRetry = viewModel::retry,
                 onSelectOption = viewModel::selectOption,
+                onClearSelection = viewModel::clearSelection,
                 onSelectMedia = viewModel::selectMedia,
                 onOpenMediaViewer = { viewModel.setMediaViewer(true) },
                 onCloseMediaViewer = { viewModel.setMediaViewer(false) },

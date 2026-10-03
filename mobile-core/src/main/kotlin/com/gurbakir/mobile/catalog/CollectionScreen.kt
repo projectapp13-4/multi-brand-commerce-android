@@ -7,10 +7,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -30,9 +33,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -77,7 +82,7 @@ private fun CollectionGrid(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
+        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .consumeDestinationInsets(contentPadding)
@@ -144,7 +149,7 @@ private fun LazyGridScope.loadedProductItems(
     itemSpacing: Dp
 ) {
     items(state.products, key = { it.id }) { product ->
-        CatalogProductCard(
+        CatalogProductTile(
             product,
             onClick = { actions.onOpenProduct(product.id) },
             wishlist =
@@ -177,39 +182,34 @@ private fun LazyGridScope.loadedProductItems(
 @Composable
 private fun CollectionControls(state: CollectionUiState, actions: CollectionActions) {
     val spacing = LocalBrandSpacing.current
-    var sortExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
     ) {
-        Text(
-            text = stringResource(R.string.collection_loaded_count, state.products.size),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier =
-                Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = pluralStringResource(
+                    R.plurals.collection_loaded_count_compact,
+                    state.products.size,
+                    state.products.size
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically)
+                    .semantics { liveRegion = LiveRegionMode.Polite }
                     .testTag(CatalogTestTags.COLLECTION_RESULT_COUNT)
-        )
-        Box {
-            TextButton(
-                onClick = { sortExpanded = true },
-                modifier = Modifier.testTag(CatalogTestTags.COLLECTION_SORT)
-            ) {
-                Text(stringResource(R.string.collection_sort_label, stringResource(state.sort.labelResourceId())))
-            }
-            DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
-                CollectionCatalogSort.entries.forEach { sort ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(sort.labelResourceId())) },
-                        onClick = {
-                            sortExpanded = false
-                            actions.onSortSelected(sort)
-                        }
-                    )
-                }
-            }
+            )
+            CollectionSortAction(state.sort, actions.onSortSelected)
         }
         state.productTypeFilter?.let { filter ->
-            Text(filter.label, style = MaterialTheme.typography.titleSmall)
+            Text(
+                filter.label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
@@ -230,6 +230,30 @@ private fun CollectionControls(state: CollectionUiState, actions: CollectionActi
                         modifier = Modifier.testTag(CatalogTestTags.filter(value.value))
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionSortAction(sort: CollectionCatalogSort, onSelect: (CollectionCatalogSort) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { expanded = true }, modifier = Modifier.testTag(CatalogTestTags.COLLECTION_SORT)) {
+            Text(
+                stringResource(R.string.collection_sort_label, stringResource(sort.labelResourceId())),
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            CollectionCatalogSort.entries.forEach { value ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(value.labelResourceId())) },
+                    onClick = {
+                        expanded = false
+                        onSelect(value)
+                    }
+                )
             }
         }
     }

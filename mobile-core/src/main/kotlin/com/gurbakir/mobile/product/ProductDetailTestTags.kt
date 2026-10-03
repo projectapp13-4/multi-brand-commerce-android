@@ -10,6 +10,7 @@ internal object ProductDetailTestTags {
     const val PRICE = "product-detail-price"
     const val AVAILABILITY = "product-detail-availability"
     const val INVALID_VARIANT = "product-detail-invalid-variant"
+    const val CLEAR_SELECTION = "product-detail-clear-selection"
     const val MEDIA = "product-detail-media"
     const val MEDIA_OPEN = "product-detail-media-open"
     const val MEDIA_VIEWER = "product-detail-media-viewer"

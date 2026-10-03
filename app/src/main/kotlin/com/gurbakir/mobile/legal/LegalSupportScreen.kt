@@ -6,6 +6,7 @@ package com.gurbakir.mobile.legal
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,7 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -95,7 +96,7 @@ fun LegalSupportScreen(state: LegalSupportUiState, actions: LegalSupportActions)
                 LegalSupportHeader()
             }
             items(state.pages, key = { it.id.name }) { page ->
-                LegalPageCard(
+                LegalPageRow(
                     page = page,
                     feedback = state.feedback?.takeIf { it.pageId == page.id },
                     focusRequester = requireNotNull(focusRequesters[page.id]),
@@ -112,17 +113,18 @@ private fun LegalSupportHeader() {
     Column(verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)) {
         Text(
             text = stringResource(R.string.legal_support_intro),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyMedium
         )
         Text(
             text = stringResource(R.string.legal_support_external_context),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-private fun LegalPageCard(
+private fun LegalPageRow(
     page: LegalPageMetadata,
     feedback: LegalPageFeedback?,
     focusRequester: FocusRequester,
@@ -132,47 +134,56 @@ private fun LegalPageCard(
     var metadataExpanded by rememberSaveable(page.id.name) { mutableStateOf(false) }
     val openDescription =
         stringResource(R.string.legal_support_open_accessibility, stringResource(page.titleResourceId))
-    Card(modifier = Modifier.fillMaxWidth().testTag(LegalSupportTestTags.page(page.id))) {
+    Column(modifier = Modifier.fillMaxWidth().testTag(LegalSupportTestTags.page(page.id))) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(spacing.generousDp.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.normalDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
         ) {
             Text(
                 text = stringResource(page.titleResourceId),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
             )
-            Text(stringResource(page.summaryResourceId))
-            TextButton(
-                onClick = { metadataExpanded = !metadataExpanded },
-                modifier = Modifier.testTag(LegalSupportTestTags.metadataToggle(page.id))
-            ) {
-                Text(
-                    stringResource(
-                        if (metadataExpanded) {
-                            R.string.legal_support_details_hide
-                        } else {
-                            R.string.legal_support_details_show
-                        }
+            Text(
+                stringResource(page.summaryResourceId),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TextButton(
+                    onClick = { metadataExpanded = !metadataExpanded },
+                    modifier = Modifier.weight(1f).testTag(LegalSupportTestTags.metadataToggle(page.id))
+                ) {
+                    Text(
+                        stringResource(
+                            if (metadataExpanded) {
+                                R.string.legal_support_details_hide
+                            } else {
+                                R.string.legal_support_details_show
+                            }
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
+                }
+                TextButton(
+                    onClick = onOpen,
+                    modifier =
+                        Modifier.weight(1f)
+                            .focusRequester(focusRequester)
+                            .focusable()
+                            .semantics { contentDescription = openDescription }
+                            .testTag(LegalSupportTestTags.open(page.id))
+                ) {
+                    Text(stringResource(R.string.legal_support_open), style = MaterialTheme.typography.labelSmall)
+                }
             }
             if (metadataExpanded) {
                 LegalPageMetadataDetails(page)
             }
             feedback?.let { LegalPageFeedbackMessage(it, page) }
-            Button(
-                onClick = onOpen,
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .focusRequester(focusRequester)
-                        .focusable()
-                        .semantics { contentDescription = openDescription }
-                        .testTag(LegalSupportTestTags.open(page.id))
-            ) {
-                Text(stringResource(R.string.legal_support_open))
-            }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

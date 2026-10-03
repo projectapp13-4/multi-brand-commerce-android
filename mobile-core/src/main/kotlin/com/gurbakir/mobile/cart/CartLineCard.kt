@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,7 +36,11 @@ import com.gurbakir.mobile.home.localizedText
 @Composable
 internal fun CartLineCard(line: CartLine, mutating: Boolean, actions: CartActions) {
     val spacing = LocalBrandSpacing.current
-    Card(modifier = Modifier.fillMaxWidth().testTag(CartTestTags.line(line.productId))) {
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag(CartTestTags.line(line.productId)),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(spacing.generousDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
@@ -55,7 +60,7 @@ private fun CartLineIdentity(line: CartLine) {
         horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(96.dp)) {
+        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(96.dp)) {
             if (line.image == null) {
                 Box(contentAlignment = Alignment.Center) { Text(stringResource(R.string.cart_no_image)) }
             } else {
@@ -73,9 +78,13 @@ private fun CartLineIdentity(line: CartLine) {
         ) {
             Text(line.productTitle, style = MaterialTheme.typography.titleMedium)
             if (line.variantTitle.isNotBlank() && line.variantTitle != "Default Title") {
-                Text(line.variantTitle)
+                Text(line.variantTitle, style = MaterialTheme.typography.bodyMedium)
             }
-            Text(stringResource(R.string.cart_unit_price, line.unitPrice.localizedText()))
+            Text(
+                stringResource(R.string.cart_unit_price, line.unitPrice.localizedText()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(line.totalPrice.localizedText(), style = MaterialTheme.typography.titleMedium)
             CartLineAvailability(line)
         }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,8 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
-import com.gurbakir.mobile.catalog.CatalogProductCard
-import com.gurbakir.mobile.catalog.catalogProductCardMinimumWidth
+import com.gurbakir.mobile.catalog.CatalogProductTile
+import com.gurbakir.mobile.catalog.catalogProductTileMinimumWidth
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.CommerceStatePanel
 import com.gurbakir.mobile.ui.DestinationLevel
@@ -100,7 +101,7 @@ private fun WishlistBody(
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductCardMinimumWidth(LocalDensity.current.fontScale)),
+        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
                 .centeredDestinationContent(720.dp)
@@ -123,7 +124,7 @@ private fun WishlistBody(
 
             else -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    WishlistSummary(state.entries.size)
+                    WishlistSummary(state.entries.size, !state.mutating, onRequestClear)
                 }
                 if (state.hasRetryableItems) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -139,42 +140,40 @@ private fun WishlistBody(
                 ) { entry ->
                     WishlistEntry(entry, actions, state.mutating)
                 }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = onRequestClear,
-                            enabled = !state.mutating,
-                            modifier = Modifier.testTag(WishlistTestTags.CLEAR)
-                        ) {
-                            Text(stringResource(R.string.wishlist_clear))
-                        }
-                    }
-                }
             }
         }
     }
 }
 
 @Composable
-private fun WishlistSummary(productCount: Int) {
+private fun WishlistSummary(productCount: Int, clearEnabled: Boolean, onRequestClear: () -> Unit) {
     val spacing = LocalBrandSpacing.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = pluralStringResource(R.plurals.wishlist_product_count, productCount, productCount),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = onRequestClear,
+                enabled = clearEnabled,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                modifier = Modifier.heightIn(min = 48.dp).testTag(WishlistTestTags.CLEAR)
+            ) {
+                Text(
+                    stringResource(R.string.wishlist_clear),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
         Text(
-            text = pluralStringResource(R.plurals.wishlist_product_count, productCount, productCount),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = stringResource(R.string.wishlist_device_only),
+            stringResource(R.string.wishlist_device_only),
             style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.End,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
@@ -182,55 +181,16 @@ private fun WishlistSummary(productCount: Int) {
 
 @Composable
 private fun WishlistEmpty(onBrowse: () -> Unit) {
-    val spacing = LocalBrandSpacing.current
-    Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .heightIn(min = EMPTY_STATE_MINIMUM_HEIGHT)
-                .padding(horizontal = spacing.sectionDp.dp, vertical = spacing.generousDp.dp)
-                .testTag(WishlistTestTags.EMPTY),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacing.normalDp.dp, Alignment.CenterVertically)
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.size(EMPTY_ICON_CONTAINER_SIZE)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_nav_wishlist),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(EMPTY_ICON_SIZE)
-                )
-            }
-        }
-        Text(
-            text = stringResource(R.string.wishlist_empty),
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() }
-        )
-        Text(
-            text = stringResource(R.string.wishlist_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Button(
-            onClick = onBrowse,
-            modifier = Modifier.testTag(WishlistTestTags.BROWSE)
-        ) {
-            Text(stringResource(R.string.wishlist_browse))
-        }
-        Text(
-            text = stringResource(R.string.wishlist_device_only),
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    CommerceStatePanel(
+        title = stringResource(R.string.wishlist_empty),
+        body = stringResource(R.string.wishlist_empty_body),
+        icon = painterResource(R.drawable.ic_nav_wishlist),
+        primaryActionLabel = stringResource(R.string.wishlist_browse),
+        onPrimaryAction = onBrowse,
+        primaryActionTestTag = WishlistTestTags.BROWSE,
+        secondaryInformation = stringResource(R.string.wishlist_device_only),
+        testTag = WishlistTestTags.EMPTY
+    )
 }
 
 @Composable
@@ -272,7 +232,7 @@ private fun WishlistPartialError(onRetry: () -> Unit) {
 private fun WishlistEntry(entry: WishlistResolvedEntry, actions: WishlistActions, mutating: Boolean) {
     val product = entry.product
     if (product != null) {
-        CatalogProductCard(
+        CatalogProductTile(
             product = product.toCatalogSummary(),
             onClick = { actions.onOpenProduct(entry.productId) },
             wishlist =
@@ -327,7 +287,3 @@ private fun WishlistItemIssue?.messageResourceId(): Int = when (this) {
     WishlistItemIssue.CONFIGURATION -> R.string.wishlist_product_configuration
     WishlistItemIssue.SERVICE, null -> R.string.wishlist_product_service
 }
-
-private val EMPTY_STATE_MINIMUM_HEIGHT = 280.dp
-private val EMPTY_ICON_CONTAINER_SIZE = 64.dp
-private val EMPTY_ICON_SIZE = 32.dp

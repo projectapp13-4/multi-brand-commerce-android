@@ -98,7 +98,7 @@ class OwnedHomeVideoPlayerTest {
         val mediaUrl = InstrumentationRegistry.getArguments().getString("ownedHomeMediaUrl").orEmpty()
         assumeTrue("Requires an explicitly selected project-owned video", mediaUrl.isNotBlank())
         val section = ownedSection(mediaUrl).copy(caption = "Caption line\n".repeat(60))
-        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("multi-brand-trial-store.myshopify.com"))
+        val coordinator = HomePlaybackCoordinator(ownedHomeMediaPolicy(mediaUrl))
         coordinator.session(section).updatePosition(1_000)
         lateinit var scroll: androidx.compose.foundation.ScrollState
         composeRule.setContent {
@@ -132,7 +132,7 @@ class OwnedHomeVideoPlayerTest {
         val mediaUrl = InstrumentationRegistry.getArguments().getString("ownedHomeMediaUrl").orEmpty()
         assumeTrue("Requires an explicitly selected project-owned video", mediaUrl.isNotBlank())
         val section = ownedSection(mediaUrl).copy(caption = "Caption line\n".repeat(60))
-        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("multi-brand-trial-store.myshopify.com"))
+        val coordinator = HomePlaybackCoordinator(ownedHomeMediaPolicy(mediaUrl))
         val session = coordinator.session(section)
         session.updatePosition(1_000)
         composeRule.setContent {
@@ -157,13 +157,17 @@ class OwnedHomeVideoPlayerTest {
         composeRule.onNodeWithTag(HomeTestTags.videoPlay(section.stableId)).performScrollTo().performClick()
         composeRule.waitUntil(15_000) { session.currentAttempt?.firstFrameRendered == true }
         val attempt = session.currentAttempt
-        val height = composeRule.onNodeWithTag(HomeTestTags.VIDEO_PLAYER).fetchSemanticsNode().size.height
+        val player = composeRule.onNodeWithTag(HomeTestTags.VIDEO_PLAYER).fetchSemanticsNode()
+        val viewport = composeRule.onNodeWithTag(HomeTestTags.CONTENT).fetchSemanticsNode()
+        val pixelMargin = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        val scrollDistance = player.positionInRoot.y + player.size.height - viewport.positionInRoot.y + pixelMargin
         composeRule.onNodeWithTag(HomeTestTags.CONTENT).performSemanticsAction(SemanticsActions.ScrollBy) {
-            it(0f, height + 200f)
+            assertTrue(it(0f, scrollDistance))
         }
         composeRule.waitUntil(3_000) { !session.isPlaying }
         composeRule.onNodeWithTag(HomeTestTags.video(section.stableId)).assertExists()
         composeRule.onNodeWithTag(HomeTestTags.VIDEO_PLAYER).assertDoesNotExist()
+        assertEquals(HomePlaybackPauseReason.VISIBILITY_LOST, session.lastPauseReason)
         assertTrue(session.playbackPositionMillis >= 1_000)
         composeRule.onNodeWithTag(HomeTestTags.CONTENT).performScrollToIndex(0)
         composeRule.onNodeWithTag(HomeTestTags.videoPlay(section.stableId)).assertIsDisplayed()
@@ -202,7 +206,7 @@ class OwnedHomeVideoPlayerTest {
         val mediaUrl = InstrumentationRegistry.getArguments().getString("ownedHomeMediaUrl").orEmpty()
         assumeTrue("Requires an explicitly selected project-owned video", mediaUrl.isNotBlank())
         val section = ownedSection(mediaUrl)
-        val coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("multi-brand-trial-store.myshopify.com"))
+        val coordinator = HomePlaybackCoordinator(ownedHomeMediaPolicy(mediaUrl))
         composeRule.setContent {
             CoreTestTheme {
                 Column(Modifier.verticalScroll(rememberScrollState())) {

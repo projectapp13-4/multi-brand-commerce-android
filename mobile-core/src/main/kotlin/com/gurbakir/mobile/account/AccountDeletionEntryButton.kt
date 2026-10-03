@@ -11,6 +11,7 @@ internal fun AccountDeletionButton(enabled: Boolean, onAccountDeletion: () -> Un
     AccountMenuRow(
         title = stringResource(R.string.account_deletion_entry),
         iconResource = R.drawable.ic_account_delete,
+        lowEmphasis = true,
         enabled = enabled,
         testTag = AccountTestTags.ACCOUNT_DELETION,
         onClick = onAccountDeletion

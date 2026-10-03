@@ -42,7 +42,8 @@ internal fun CommerceStatePanel(
     secondaryActionLabel: String? = null,
     onSecondaryAction: (() -> Unit)? = null,
     secondaryActionTestTag: String? = null,
-    testTag: String? = null
+    testTag: String? = null,
+    secondaryInformation: String? = null
 ) {
     require((primaryActionLabel == null) == (onPrimaryAction == null))
     require((secondaryActionLabel == null) == (onSecondaryAction == null))
@@ -51,14 +52,14 @@ internal fun CommerceStatePanel(
     val spacing = LocalBrandSpacing.current
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         modifier = modifier.fillMaxWidth().optionalTestTag(testTag)
     ) {
         Column(
             modifier =
                 Modifier.fillMaxWidth()
                     .sizeIn(minHeight = MINIMUM_STATE_PANEL_HEIGHT)
-                    .padding(spacing.sectionDp.dp),
+                    .padding(spacing.generousDp.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement =
                 Arrangement.spacedBy(spacing.normalDp.dp, Alignment.CenterVertically)
@@ -72,13 +73,14 @@ internal fun CommerceStatePanel(
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { heading() }
             )
             Text(
                 text = body,
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
             CommerceStateAction(primaryActionLabel, onPrimaryAction, primaryActionTestTag, primary = true)
@@ -88,6 +90,14 @@ internal fun CommerceStatePanel(
                 secondaryActionTestTag,
                 primary = false
             )
+            secondaryInformation?.let { information ->
+                Text(
+                    information,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -98,6 +108,7 @@ private fun CommerceStateAction(label: String?, onAction: (() -> Unit)?, testTag
     if (primary) {
         Button(
             onClick = onAction,
+            shape = MaterialTheme.shapes.small,
             modifier =
                 Modifier.sizeIn(minHeight = MINIMUM_TOUCH_TARGET_SIZE)
                     .optionalTestTag(testTag)
@@ -128,5 +139,5 @@ private fun Modifier.optionalTestTag(testTag: String?): Modifier =
     then(if (testTag == null) Modifier else Modifier.testTag(testTag))
 
 private val MINIMUM_TOUCH_TARGET_SIZE = 48.dp
-private val STATE_ICON_SIZE = 40.dp
+private val STATE_ICON_SIZE = 32.dp
 private val MINIMUM_STATE_PANEL_HEIGHT = 160.dp

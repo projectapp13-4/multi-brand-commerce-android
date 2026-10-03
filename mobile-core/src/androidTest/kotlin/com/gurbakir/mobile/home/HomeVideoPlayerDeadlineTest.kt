@@ -44,7 +44,7 @@ class HomeVideoPlayerDeadlineTest {
         val policy = StorefrontMediaPolicy(TRIAL_SHOP_DOMAIN)
         val probe = StallProbe()
         val coordinator =
-            controlledCoordinator(shortFirstFrameLimits()) { _, _ ->
+            controlledCoordinator(shortFirstFrameLimits(), policy) { _, _ ->
                 DataSource.Factory { BlockingDataSource(probe) }
             }
         val section = ownedSection("https://cdn.shopify.com/videos/first-frame-stall.mp4", "first-frame-stall")
@@ -73,10 +73,10 @@ class HomeVideoPlayerDeadlineTest {
     fun realPlayerPostFrameStallUsesFiniteBufferingDeadlineCancelsIoAndWaitsForRetry() {
         val mediaUrl = InstrumentationRegistry.getArguments().getString("ownedHomeMediaUrl").orEmpty()
         assumeTrue("Requires an explicitly selected project-owned video", mediaUrl.isNotBlank())
-        val policy = StorefrontMediaPolicy(TRIAL_SHOP_DOMAIN)
+        val policy = ownedHomeMediaPolicy(mediaUrl)
         val probe = StallProbe()
         val coordinator =
-            controlledCoordinator(shortPostFrameLimits()) { attempt, rendition ->
+            controlledCoordinator(shortPostFrameLimits(), policy) { attempt, rendition ->
                 PostFirstFrameStallFactory(
                     delegate = HomePlaybackDataSourceFactory(attempt, rendition, policy),
                     attempt = attempt,
@@ -118,6 +118,7 @@ class HomeVideoPlayerDeadlineTest {
 
     private fun controlledCoordinator(
         limits: HomePlaybackLimits,
+        policy: StorefrontMediaPolicy,
         provider: (HomePlaybackAttempt, HomeVideoRendition) -> DataSource.Factory
     ): HomePlaybackCoordinator {
         val constructor = HomePlaybackCoordinator::class.java.declaredConstructors.singleOrNull { candidate ->
@@ -131,7 +132,7 @@ class HomeVideoPlayerDeadlineTest {
         } ?: throw AssertionError("Controlled real-player data-source seam is missing")
         constructor.isAccessible = true
         return constructor.newInstance(
-            StorefrontMediaPolicy(TRIAL_SHOP_DOMAIN),
+            policy,
             HomePlaybackClock(SystemClock::elapsedRealtime),
             limits,
             provider,

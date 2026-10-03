@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +34,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,17 +88,46 @@ fun HomeScreen(
                 DestinationTitleAlignment.CENTER
             },
         titleTestTag = HomeTestTags.WORDMARK,
-        actions = { HomeTopBarActions(actions, cartQuantity, state.requestActive) }
+        actions = { HomeTopBarActions(actions, cartQuantity) }
     ) { scaffoldPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize()
-                .centeredDestinationContent(1200.dp)
-                .consumeDestinationInsets(scaffoldPadding)
-                .testTag(HomeTestTags.CONTENT),
-            contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
-            verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
+        val refreshLabel = stringResource(R.string.home_refresh_description)
+        val refreshState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = state.requestActive,
+            onRefresh = { if (!state.requestActive) actions.refreshContent() },
+            state = refreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = refreshState,
+                    isRefreshing = state.requestActive,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                        .padding(top = scaffoldPadding.calculateTopPadding())
+                        .testTag(HomeTestTags.REFRESHING)
+                )
+            },
+            modifier = Modifier.fillMaxSize().testTag(HomeTestTags.REFRESH).semantics {
+                customActions = if (state.requestActive) {
+                    emptyList()
+                } else {
+                    listOf(
+                        CustomAccessibilityAction(refreshLabel) {
+                            actions.refreshContent()
+                            true
+                        }
+                    )
+                }
+            }
         ) {
-            homeStateItems(state, actions, wishlist)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+                    .centeredDestinationContent(1200.dp)
+                    .consumeDestinationInsets(scaffoldPadding)
+                    .testTag(HomeTestTags.CONTENT),
+                contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
+                verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
+            ) {
+                homeStateItems(state, actions, wishlist)
+            }
         }
     }
 }
@@ -154,13 +187,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                             }
                         }
                     }
-                }
-            }
-            if (presentation.refreshing) {
-                item {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().testTag(HomeTestTags.REFRESHING)
-                    )
                 }
             }
             state.failure?.let { failure ->
@@ -235,7 +261,7 @@ internal fun HomeSectionHeading(title: HomeText, actionResourceId: Int? = null, 
     ) {
         Text(
             text = title.resolve(),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f).semantics { heading() }.testTag(HomeTestTags.TITLE)
         )
         actionResourceId?.let { resourceId -> TextButton(onClick = onAction) { Text(stringResource(resourceId)) } }
@@ -295,7 +321,7 @@ private fun CollectionTile(item: HomeCollectionItem, onClick: () -> Unit, modifi
         )
         Text(
             label,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().heightIn(min = HOME_COLLECTION_LABEL_MIN_HEIGHT)
@@ -317,11 +343,11 @@ private fun FeaturedProductCard(item: HomeFeaturedItem, onClick: () -> Unit, wis
             item.summary.title,
             Modifier.fillMaxWidth().aspectRatio(HOME_FEATURED_ASPECT_RATIO),
             ContentScale.Crop,
-            MaterialTheme.shapes.large
+            MaterialTheme.shapes.medium
         )
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.summary.title, style = MaterialTheme.typography.titleLarge, maxLines = 3)
+                Text(item.summary.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Text(
                     item.summary.price.localizedText(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -140,6 +140,10 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.room.testing)
 
+    // Exact inherited artifacts: opt-in native compatibility evidence, no production edge.
+    androidTestImplementation(libs.androidx.graphics.path)
+    androidTestImplementation(libs.androidx.datastore.core)
+
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
 }

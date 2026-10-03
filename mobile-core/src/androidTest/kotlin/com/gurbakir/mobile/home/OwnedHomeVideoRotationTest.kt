@@ -20,7 +20,6 @@ import androidx.lifecycle.ViewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
-import com.gurbakir.storefront.StorefrontMediaPolicy
 import com.gurbakir.storefront.StorefrontVideoSource
 import java.net.URI
 import org.junit.Assert.assertEquals
@@ -125,6 +124,6 @@ class OwnedHomeVideoRotationHolder : ViewModel() {
                 target = null,
                 revisionKey = "owned-rotation-revision"
             )
-        coordinator = HomePlaybackCoordinator(StorefrontMediaPolicy("multi-brand-trial-store.myshopify.com"))
+        coordinator = HomePlaybackCoordinator(ownedHomeMediaPolicy(mediaUrl))
     }
 }
