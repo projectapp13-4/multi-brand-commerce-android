@@ -1119,5 +1119,18 @@ fixtures cover successful completion, process crash, nonzero exit, negative
 status, missing kernel marker, incorrect native hash, timeout cleanup ordering
 and unavailable diagnostics; failures remain failures. Evidence:
 `out/ui-v3/native-failure-diagnostics-fixtures-466aef13-72ae-435b-9833-f1997d80d558/`.
-Diagnostic runtime results are pending. This harness investigation does not
-relabel the artifact source `8672d1d...`, accepted UI or prior scoped evidence.
+Diagnostic commit `03704615601a686543f4bd87fe63714c792c5b76` then passed all
+four jobs in exact-PR run `37178840388`: validation, API30, API23 and native16k.
+Native job `111367059917` completed both JNI operations on actual x86_64/API36/
+kernel 16384, with disabled compatibility and unchanged packaged native bytes.
+The crash did not recur in this run, so the failure-diagnostics branch was not
+exercised on that runtime; its eight focused fixtures remain separate evidence.
+The prior crash cause is still UNKNOWN, not declared fixed. Final-head and
+merged-main publication results are recorded with PR #37 and the final local
+closeout receipt. This harness investigation does not relabel the artifact
+source `8672d1d...`, accepted UI or prior scoped evidence.
+
+A later supported browser inventory again returned zero apps and zero browsers.
+Receipt: `out/ui-v3/play-console-late-supported-inventory-20261004.json`.
+The rejected launch was not retried through another mechanism or bypassed.
+Play upload/submission remains NOT RUN and review/availability UNKNOWN.
