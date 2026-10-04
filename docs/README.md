@@ -10,6 +10,9 @@ The second pull request's current implementation and visual evidence are in
 [Gür Bakır pre-tester UI refinement](product-quality/GURBAKIR-PRETESTER-UI-PR2.md).
 The shared commerce v3 refinement and its acceptance status are tracked in
 [Multi-Brand commerce UI v3](product-quality/MULTIBRAND-COMMERCE-UI-V3.md).
+Its exact merged 0.3.0 candidate is signed and locally verified, including a
+fresh Turkish runtime smoke. Closed Alpha upload is blocked by supported
+browser/tool access; no published v3 state is claimed.
 The pre-tester documents above retain their historical PR checkpoints.
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
