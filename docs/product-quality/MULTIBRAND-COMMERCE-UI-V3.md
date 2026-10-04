@@ -1087,3 +1087,50 @@ Consolidated immutable local acceptance receipt:
 The documentation diff passes `git diff --check`, public-readiness self-tests
 20/20 and public-readiness validation 23/23. Protected documentation PR/CI
 publication is tracked separately from the artifact's exact source identity.
+
+## Native CI failure diagnostics — 2026-10-04
+
+Documentation PR #36 merged as `41e311d6ae18b72b26d3be866afbf7d0ccc7fc25`
+after exact-head run `37177416448`, attempt 2, passed all four jobs. Attempt 1
+had passed the graphics JNI operation but the second instrumentation returned
+`Process crashed` without a completed DataStore test result. Its cause was
+unknown. A single unchanged-head native-job retry completed both operations
+on the strict x86_64/API36/kernel-16384 runtime; the original failure remains
+preserved in `out/ui-v3/iteration-3-final/pr36-native-failure-37177416448-111362875250.json`.
+
+Merged-main run `37178119421` reproduced the second instrumentation crash in
+native job `111364921451`, again without a crash stack or completed DataStore
+operation. The available logs cannot distinguish instrumentation lifecycle,
+runtime/environment or native-library causes. This is not established as a
+production application defect. The runner's cleanup discarded the missing
+runtime evidence, exposing a concrete diagnostics gap; another blind retry
+would not resolve it.
+
+The focused harness change captures a bounded crash-buffer excerpt and the
+owned test package's process exit information after a failed strict probe,
+before cleanup. Reads remain bound to the isolated owned emulator serial,
+bounded by timeouts, and use the existing output sanitizer. A failed probe
+still returns failure. Both JNI operations, package/native hashes, actual
+kernel page size, disabled compatibility and no-skip guards are unchanged.
+No application, UI, dependency, production profile, version or signed artifact
+bytes changed. Bash syntax, public-readiness validation and eight focused
+fixtures against the actual extracted Bash functions passed locally. The
+fixtures cover successful completion, process crash, nonzero exit, negative
+status, missing kernel marker, incorrect native hash, timeout cleanup ordering
+and unavailable diagnostics; failures remain failures. Evidence:
+`out/ui-v3/native-failure-diagnostics-fixtures-466aef13-72ae-435b-9833-f1997d80d558/`.
+Diagnostic commit `03704615601a686543f4bd87fe63714c792c5b76` then passed all
+four jobs in exact-PR run `37178840388`: validation, API30, API23 and native16k.
+Native job `111367059917` completed both JNI operations on actual x86_64/API36/
+kernel 16384, with disabled compatibility and unchanged packaged native bytes.
+The crash did not recur in this run, so the failure-diagnostics branch was not
+exercised on that runtime; its eight focused fixtures remain separate evidence.
+The prior crash cause is still UNKNOWN, not declared fixed. Final-head and
+merged-main publication results are recorded with PR #37 and the final local
+closeout receipt. This harness investigation does not relabel the artifact
+source `8672d1d...`, accepted UI or prior scoped evidence.
+
+A later supported browser inventory again returned zero apps and zero browsers.
+Receipt: `out/ui-v3/play-console-late-supported-inventory-20261004.json`.
+The rejected launch was not retried through another mechanism or bypassed.
+Play upload/submission remains NOT RUN and review/availability UNKNOWN.

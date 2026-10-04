@@ -199,6 +199,25 @@ probe_succeeded() {
     && ! grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed|INSTRUMENTATION_STATUS_CODE:[[:space:]]*-[0-9]+' "$log"
 }
 
+record_failed_probe_diagnostics() {
+  local method="$1" log
+  # Only the isolated, owned emulator has been selected; never read another device.
+  log="$evidence_directory/$method.crash.log"
+  if timeout --kill-after=2s 10s "$adb" -s "$serial" logcat -b crash -d -v threadtime -t 160 > "$log" 2>&1; then
+    printf 'native16k_failed_probe=%s diagnostic=bounded_crash_buffer\n' "$method"
+    sanitize_log "$log"
+  else
+    printf 'native16k_failed_probe=%s diagnostic=crash_buffer_unavailable\n' "$method"
+  fi
+  log="$evidence_directory/$method.exit-info.log"
+  if timeout --kill-after=2s 10s "$adb" -s "$serial" shell dumpsys activity exit-info "$package" > "$log" 2>&1; then
+    printf 'native16k_failed_probe=%s diagnostic=owned_package_exit_info\n' "$method"
+    sanitize_log "$log" | awk 'NR <= 120 { print }'
+  else
+    printf 'native16k_failed_probe=%s diagnostic=exit_info_unavailable\n' "$method"
+  fi
+}
+
 run_probe() {
   local method="$1" library="$2" expected="$3" result
   local log="$evidence_directory/$method.log"
@@ -210,10 +229,14 @@ run_probe() {
   set -e
   tr -d '\r' < "$log" > "$normalized"
   sanitize_log "$normalized"
+  if probe_succeeded "$result" "$normalized" "$library" "$expected"; then
+    return 0
+  fi
+  record_failed_probe_diagnostics "$method"
   if [[ "$result" == 124 || "$result" == 137 ]]; then
     timeout --kill-after=2s 10s "$adb" -s "$serial" shell am force-stop "$package" > /dev/null 2>&1 || true
   fi
-  probe_succeeded "$result" "$normalized" "$library" "$expected"
+  return 1
 }
 passed=0
 if run_probe publicConicConversionUsesThePackagedGraphicsNativeLibraryOn16KiB androidx.graphics.path "$graphics_sha"; then passed=$((passed + 1)); fi
