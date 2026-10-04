@@ -1038,6 +1038,14 @@ transport, credential/cookie extraction, authentication clear or logout was
 attempted. Final supported inventory again returned zero surfaces at 04:18 UTC.
 This is a concrete tool/policy constraint, not an observed OTP or legal challenge.
 
+The existing authorized Google Cloud CLI credential was also checked through
+Google's official token-metadata endpoint at 04:33 UTC (HTTP 200). Its granted
+scopes do **not** include the [required Publisher scope](https://developers.google.com/android-publisher/authorization).
+Receipt: `out/ui-v3/existing-publisher-scope-20261004.json`. No token/account
+identifier was persisted, new scope requested, credential created or Publisher
+write issued. That existing mechanism cannot provide a scoped Play API fallback;
+no permission or authentication control was weakened to overcome browser access.
+
 Receipt: `out/ui-v3/play-console-release-access-final-20261004.json`.
 **Upload: NOT RUN. Submission: NOT RUN. Play artifact/release identity,
 processing/review and current Alpha availability: UNKNOWN.** The owner's
