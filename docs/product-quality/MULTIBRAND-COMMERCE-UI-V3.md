@@ -733,3 +733,349 @@ final version-3 merged source, signed AAB receipt and Closed Alpha readback will
 be added as they occur. Until those gates close, v3 release acceptance is
 **NOT COMPLETE**. A passing x86_64 JNI probe cannot erase the separately recorded
 inherited ARM64/static RELRO limitations or validate a final signed bundle.
+
+## Verified merged-source checkpoint and release blockers — 2026-10-04
+
+This later checkpoint supplements the historical entries above. The shared UI
+refinement is merged and its bounded visual acceptance is closed. The version-3
+release is **NOT COMPLETE**: no accepted signed v3 archive, fresh 0.3.0 runtime
+capture or Closed Alpha upload/readback exists.
+
+Release-candidate [PR #35](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/35)
+merged accepted head `cd9265482957e5996a4c921e1e0ba4dbb6b004f0` as
+`8672d1d34cb51aba800660b0b87539b6543c7db5`. Corrected exact-head
+[CI 37154281915](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37154281915)
+and final merged-main
+[CI 37155357503](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37155357503)
+passed all four jobs: full validation, API 30, API 23 and the native-16k lane.
+The final overall Success was freshly observed on GitHub at 21:47 UTC on
+2026-10-03 after structured connector timeouts. Receipt:
+`out/ui-v3/iteration-3-final/final-main-ci-8672-success.json`.
+Production source selects code 3 / name 0.3.0; source configuration alone is
+not a verified signed-artifact identity.
+
+The final native lane actually booted an owned API 36 x86_64 runtime with
+kernel page size 16384 and disabled application-scoped compatibility. ZIP
+alignment and two distinct JNI operations passed, with no skips: Graphics Path
+conic conversion and MultiProcessDataStore shared-counter read/update/read.
+The neutral probe APK hash was
+`21DA6DED672F62E52EEA06E4A00775B70C9179BA79276B49744ACA0917A954A5`.
+The executed x86_64 library hashes match the inherited v2 bytes. Log:
+`out/ui-v3/iteration-3-final/final-main-native-8672-sanitized.log`.
+This is scoped x86_64 native-operation evidence. ARM64 16KiB execution and
+Play-served splits remain unobserved. The literal RELRO flags remain false;
+the separately recorded rounded protection geometry does not replace runtime
+proof or the pending final-bundle native-byte comparison.
+
+The 45 accepted screenshots and their 37-App/113-Core checks remain the
+recorded configured 2 / 0.2.0 UI candidate evidence. They were not relabeled
+0.3.0. The final comparison plan explicitly requires 33 fresh App images from
+the merged production-profile v3 APKs, including dark and 200-percent text.
+Address-list/order evidence remains controlled shared-core fixtures. No live
+private-customer, payment or checkout-submission pass is claimed. Root again
+reviewed preserved Home before/after originals while awaiting the release
+build; this added inspection is not a new Android runtime capture.
+
+Two signed-build attempts were interrupted, not passed. The first invocation
+is recorded in
+`out/ui-v3/iteration-3-final/first-v3-signing-build-interrupted-recovery.json`.
+The reviewed cached retry used helper SHA-256
+`F817A1C1B7541C6221E141A3B91EE7DC2B4A11BC342EDC0EB8D0985763924896`,
+fail-closed offline resolution and all three required production debug/test/
+signed-bundle tasks. It omitted only duplicate local formatting tasks already
+passed by exact-main CI. Its seven source-byte/syntax fixtures passed before
+execution. Session 87598 began at 22:27:14 UTC, reached project configuration,
+then showed no output progress from 22:45:36 until interruption after more
+than 35 minutes. Free RAM repeatedly measured roughly 54–209 MiB; even a native
+read-only process diagnostic timed out. No compiler/source failure was
+demonstrated. Host resource pressure is observed, not a fully diagnosed cause.
+
+The cached session exited 1. It produced only its preserved build log, no
+immutable archive and no build-provenance file. Wrapper finally/BSTR cleanup
+was not observed and is not claimed. Guarded process-check session 34989 exited
+0 and confirmed the exact owned client/daemon processes 2360/9236 absent.
+Only the proven helper-authored CRLF transformation of app/build.gradle.kts
+was restored, to canonical SHA-256
+`B4D05B46D5DF3BCEC81CDA2045389722CFB22F68156E6A1D6B058F7574FBB191`.
+Git was then clean, and HEAD/origin-main both remained exact `8672d1d` before
+this documentation-only update. Recovery receipt:
+`out/ui-v3/iteration-3-final/cached-v3-signing-build-interrupted-recovery.json`.
+Private process state ended with those processes; original DPAPI/P12 inputs
+were unchanged. No key export, rotation or off-machine backup work occurred.
+
+Ignored verification helpers are prepared and independently reviewed. Actual
+isolated fixture receipts cover AAB parser checks, universal-package checks,
+native geometry and 67 artifact secret/config scanner assertions. SDK/Gitleaks/
+WinAPI launches were mocked in the scanner fixtures. **Actual final-artifact
+scanning, signed-AAB verification and universal packaging are NOT RUN**, because
+there is no accepted archived v3 artifact. The exact helper identities and
+invocations are in
+`out/ui-v3/final-v3-artifact-verification-checklist-20261004.md`.
+
+After owned Java cleanup, supported selection of the existing Gür Bakır Play
+Console tab again timed out before any Console content, with a 30-second tool
+timeout and kernel reset. Earlier attempts failed at the browser driver's
+focus-emulation command. No raw browser transport, cookies, new integration,
+account, security bypass or Xiaomi interaction was used. The final receipt is
+`out/ui-v3/iteration-3-final/play-console-after-cached-build-recovery-20261004.json`.
+Current track/tester state is UNKNOWN; the owner's v2 availability statement
+remains separate from a fresh Console readback. No v3 upload/release action was
+issued. Tester configuration, Internal Testing, public Production, Geldik Mi,
+unrelated merchant configuration and App Links architecture were untouched.
+
+Remaining release work is concrete: finish a configured signed build on a
+responsive environment; verify its immutable package/version/signer/hash,
+manifest/App Links, production config, secret scan, bundle/native packaging;
+capture and review the fresh v3 screenshot matrix; then submit the exact
+accepted AAB only to the existing Closed Alpha when supported Console access
+permits readback. There is no v3 AAB SHA-256 or Closed Alpha v3 receipt to report.
+The preserved worktree contains this evidence-only continuation; no accepted
+UI implementation was discarded or reverted.
+
+## Signed v3 artifact and runtime acceptance — 2026-10-04
+
+This executed checkpoint supersedes the earlier unsigned/interrupted-build
+status above. Local artifact verification and bounded exact-v3 runtime
+acceptance are **PASS**. Closed Alpha delivery is **BLOCKED** by supported
+browser/tool access; no v3 upload or submission occurred. Release delivery is
+therefore **NOT COMPLETE**. No application implementation, dependency,
+production profile or version was changed during this release continuation.
+
+### Source and build provenance
+
+The artifact source is exactly
+`8672d1d34cb51aba800660b0b87539b6543c7db5`, Git tree
+`a6754b0debd1201989fe2afd3c07943867920275`. Both preserved worktree HEAD and
+fresh `origin/main` matched before signing and again after verification.
+Canonical main was fast-forwarded safely to this source; its unrelated
+untracked `%SystemDrive%/` directory was preserved. The known documentation
+append was hash-preserved separately, the canonical ledger bytes were used
+during strict source verification, and those exact saved evidence bytes were
+restored before this later append. No reset, stash, clean or worktree recreation
+was used.
+
+[PR #34](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/34)
+and [PR #35](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/35)
+were freshly read back as merged with the recorded merge identities.
+PR #35 changes only the workflow, native evidence runner, version declarations
+and this ledger. It changes no accepted UI implementation.
+The four jobs of exact-source
+[merged-main CI 37155357503](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37155357503)
+were freshly read back as completed/success at 04:07 UTC: `validate`, API 30
+`instrumentation`, API 23 `minimum-sdk-instrumentation`, and `native-16k`.
+This includes the recorded formatting, detekt, Android Lint, registered JVM,
+package/onboarding, Gür Bakır, Trial/Synthetic isolation and portability gates.
+Receipt: `out/ui-v3/merged-main-8672-jobs-refresh-20261004.json`.
+
+Host inspection identified the stale owned Edge renderer responsible for
+substantial private/working memory. Only the established owned renderer was
+stopped; its known parent was closed gracefully. Browser profile/authentication
+data was preserved. Signing ran serially without a local emulator or competing
+Gradle workload, with one worker, 1536MiB heap and 512MiB metaspace. Offline
+resolution, R8, shrinking, release lint and signing stayed enabled. The actual
+build ran 02:56:49–03:25:31 UTC, exit 0, **BUILD SUCCESSFUL in 28m17s**:
+473 tasks, 333 executed, 68 from cache and 72 up-to-date. A metaspace warning
+did not become a failure. Normal finally/credential cleanup was observed and
+the exact helper-owned source newline rewrite was restored.
+
+The immutable archive is outside transient Gradle build output:
+`out/ui-v3/signed-v3-8672-optimized-20261004T025800Z/`.
+The archived files were independently rehashed.
+
+| Archive | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `app-production-release.aab` | 10020353 | `B4039F405FF461DB3D1C9EBD17D00016D10C1B01A024DDD10B6BC053D411EDD4` |
+| `app-production-debug.apk` | 23848649 | `E913F0522B0E05C4634FF7E5F62B2115240FC366D057A9A4A9F53963CA518741` |
+| `app-production-debug-androidTest.apk` | 1177595 | `4382E5E1426CA2EF775730E261BAF75718DAA5BFBF56B1D2B80125CF0DA220FA` |
+
+The build provenance SHA-256 is
+`FE05954FF201C991A6EA2764A2C1705682718A9FF1158ECA4F231A70F15CE4F4`;
+the build log SHA-256 is
+`0393D1435C85E120E71E1CE204604507A5FD2767E43784B74BDA58CECB68AB4A`.
+The original build receipt retains its chronological pending-verification
+status; subsequent receipts supply executed acceptance rather than rewriting it.
+
+### Final artifact checks
+
+Actual AAB verification exited 0. Package is `com.gurbakir.mobile`, code `3`,
+name `0.3.0`, minSdk 23 and targetSdk 36; release is non-debuggable and
+`extractNativeLibs=false`. The freshly recovered local public upload certificate
+and final archive signer both equal
+`BDE0AFDD590B0AD7533231F2B25086B4ABE992A0289A57F1EAF27D9719AD1223`.
+There is exactly one signer. JAR cryptographic verification and bundletool
+1.18.3 validation pass. Self-signed/CA-chain trust warnings are preserved
+separately; they are not a failed archive signature. Current Play certificate
+readback remains unobserved because Console access is unavailable.
+
+The actual base manifest is saved with the AAB receipt. Collection App Link
+declarations match v2 exactly. Permissions are INTERNET, ACCESS_NETWORK_STATE,
+WAKE_LOCK and the package's DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION.
+Configured production identity remains PRODUCTION / Turkish-only / TR / TRY,
+`gurbakir.com`, Storefront 2026-07 and typed Home v2 `primary`; the existing
+production Firebase-disabled selection is unchanged. Generated public fields
+and final release DEX independently show the intended Customer Account callback
+`shop.81051975919.gurbakir.production://oauth/callback` and matching public
+client identity. The client value is recorded only by hash. Actual R8 execution,
+nonempty obfuscation mapping and release dependency/baseline-profile metadata
+are inventoried; release optimization was not weakened.
+
+The bundle requests PAGE_ALIGNMENT_16K. A locally generated universal package
+from the same AAB was independently checked: package/version, exact upload
+signer, `zipalign -c -P 16` and all eight native entry hashes pass. Local signed
+universal APK SHA-256:
+`9DC0498E73E628E700E1B360A7EE1B1D68A0489A982293831C59131189D3AE03`.
+APKS SHA-256:
+`3C723FC255CAE473CEC7B64BD157775DC3CBC2E2BE504D8A7E765E9449E28762`.
+This is local package evidence; Play-generated splits/distribution remain
+unobserved. The first diagnostic failed because SDK 36 emits `minSdkVersion`
+where the verifier expected `sdkVersion`; a narrowly copied verifier accepts
+either single numeric alias and rejects ambiguous/malformed rows. Its 107
+pure assertions passed before the corrected actual diagnostic exited 0.
+Original helpers and failed receipt are preserved.
+
+All eight final native entries match inherited v2 bytes. All four 64-bit ELF
+LOAD alignment checks pass. Literal RELRO end-alignment flags remain **false**;
+the separately parsed rounded protection range contains no declared writable
+LOAD content outside RELRO. Exact-main API 36 x86_64 / kernel 16384 / disabled
+compatibility / two actual JNI operations remains the recorded native runtime
+PASS. **ARM64 16KiB explicit JNI runtime is NOT RUN**. An ARM64 API 35 commerce
+smoke does not close that separate evidence limit.
+
+The initial actual pattern scan flagged one generic match each in debug APK
+and AAB. Metadata-only tracing isolated Kotlin serialization 1.11.0's public
+SDK ownership `verification.properties`, rather than application DEX. The
+installed JAR matches tracked dependency verification and the publisher's
+[Maven module](https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-core-jvm/1.11.0/kotlinx-serialization-core-jvm-1.11.0.module).
+The exact 164-byte metadata entry matches the
+[tagged upstream resource](https://raw.githubusercontent.com/Kotlin/kotlinx.serialization/v1.11.0/core/jvmMain/resources/META-INF/org/jetbrains/kotlinx/kotlinx-serialization-core-jvm/verification.properties),
+with source LF converted to published CRLF; the
+[SDK Console contract](https://support.google.com/googleplay/android-developer/answer/12244916?hl=en)
+describes this intentionally distributed ownership metadata. No token value was
+printed or persisted in diagnostics.
+
+A copied scanner masks only one exact assignment inside that exact path,
+whole-entry hash and byte length: Debug 1 / AAB 1 / Test 0. The same text
+elsewhere remains scanned; changed bytes/counts fail closed. Original server
+patterns inspect the complete unmasked corpus. Forty-four pure checks passed.
+Actual final scanning then exited 0 for all three unchanged archives, validating
+18 / 6 / 2 DEX files respectively with the Android SDK. Remaining Gitleaks
+findings and private-key/Shopify server-token/service-account-key pattern counts
+are all zero. Independent review passed 38 receipt checks. This is a scoped
+pattern scan, not mathematical absence-of-secrets proof. The original finding
+receipt and the later relative-scratch-path invocation failure are preserved;
+the successful run uses absolute evidence paths. No source fix was required.
+
+Executed receipt index, all relative to `out/ui-v3/`:
+
+| Evidence | Receipt | SHA-256 |
+| --- | --- | --- |
+| Final AAB | `aab-v3-B4039F40-verified-20261004/receipt.json` | `399E2E901847E0672FEEB8E482C01F154574C5589680874B70315B268D95E927` |
+| Release callback/R8 metadata | `artifact-v3-B4039F40-release-metadata-20261004.json` | `3A93E06EDDA95AF6E7583F95088329BB700255BD6CED134FDD18AD9A9A9325B4` |
+| Native geometry/v2 bytes | `native-v3-B4039F40-geometry-20261004.json` | `EA7A3E77932DEECE27C62A85C29616CE340E546C66904BDE32B0A7AF32018456` |
+| Local universal verification | `universal-verified-65d477784cae4c12a2b3cd195c6224b1/receipt.json` | `21EBF41AFDCADBC82AD5A58FD12A9698912F1F6A3911B7878C1EAE7634579F65` |
+| Final artifact scan | `artifact-v3-B4039F40-secret-config-final-absolute-20261004/receipt.json` | `9D6B77EDED031DEC0B4E021A4A5A685461A86E9661D3AEE4B15483F3184A6747` |
+| Independent scan review | `kotlin-metadata-scan-prepared-20261004T040300Z/actual-artifact-review.json` | `77DD8A51E809736CC8D354FE950C14204E8F7CF834AA6FA31B29A4CFC70C224A` |
+
+### Fresh exact-v3 runtime and visual provenance
+
+The owner's bounded release-smoke scope supersedes the earlier 33-image v3
+plan. The accepted 45-image design set retains its original 2 / 0.2.0 provenance;
+it was not relabeled. PR #35 changed no UI implementation, so this continuation
+used five selected existing tests, producing 18 new originals and JSON sidecars.
+
+Actual Test Lab matrix `matrix-2vkqd1gydtdep` completed **SUCCESS** on
+SmallPhone.arm / API 35 / 720x1280 / 320dpi / 360dp / fontScale 1 / light theme /
+English system. Fresh actual aapt2 checks prove the uploaded debug APK is
+`com.gurbakir.mobile.debug`, code 3 / name 0.3.0 / min 23 / target 36 and the
+matching test package is `com.gurbakir.mobile.debug.test`. All five selected
+checks pass with zero failures, errors or skips:
+
+- `CommerceUiRuntimeEvidenceTest#publicHomeShopCollectionAndEmptyCart`
+- `CommerceUiRuntimeEvidenceTest#publicSearchWishlistAndProductPurchaseStates`
+- `CommerceUiRuntimeEvidenceTest#signedOutAccountAndOwnedPolicyIndex`
+- `MainActivityLocaleTest#productionTurkishShellDoesNotFollowAnUnrelatedEnglishDeviceLocale`
+- `MainActivityLocaleTest#launchedMainActivityAppliesTheConfiguredForegroundLocalePolicy`
+
+Exact local input hashes, returned matrix/device/filter/GCS paths, terminal
+JUnit and all 18 PNG/sidecar pairs were checked. Every sidecar records version
+0.3.0, expected package/API/dimensions/font/light mode. Root explicitly inspected
+all 18 original readable PNGs: Home top/lower, Shop, Collection, Cart empty,
+Search populated/history, Product initial/options/selected/description/
+unavailable/options, Wishlist one/many/empty, Account signed-out and Help.
+
+Home remains editorial and manual-play; Search keeps direct entry and readable
+frameless results; Product Detail preserves media-first ordering, concise
+options, valid selected sale price/enabled dock and explicit sold-out disabled
+context; Wishlist count/clear and utility hierarchy remain coherent. Native
+shell text remains Turkish on the English system. No new reproducible source
+defect, immediate crash or ANR was observed in this successful smoke. It is
+production-profile **debug exact-source runtime**, not signed-AAB or
+Play-distributed runtime. Full logcat is not claimed by the visual review.
+No sign-in, live private customer use, add-to-cart CTA click, checkout/payment
+or merchant write occurred; Wishlist/history mutations were device-only on the
+disposable cloud runtime. Accepted dark/large-text/private fixture evidence
+retains its earlier scope and is not presented as a new private live pass.
+
+Runtime root:
+`out/ui-v3/runtime-v3-smoke-e913-20261004-601ffb5aaf104aaa8aee602763cce152/`.
+Screenshots: `evidence/testlab-app/SmallPhone.arm-35-en-portrait/artifacts/sdcard/Android/data/com.gurbakir.mobile.debug/files/commerce-ui-v3/`.
+Retrieval receipt `evidence/cloud-evidence-retrieval-20261004-041014.json` SHA-256
+`1FEE0D9A8C7573FA7220E835BFB2EE59BF2D9B72BC70B62B073F7FD460CB585F`;
+actual APK badging receipt `exact-apk-badging-receipt.json` SHA-256
+`32D9E5038E14E40104FFA4D1C9B1C46017C0D7751CCB208DEE6E7B80EC713315`;
+explicit `visual-review.json` SHA-256
+`E1FADB3D842423CD5A9C1140897343590997785A375BBB4CC81B79512F75CDD6`.
+
+### Play access, external boundaries and final status
+
+After resource recovery the supported browser inventory responds successfully
+but contains zero apps and zero browsers. Existing Edge, fresh Edge/IAB/Chrome
+tabs and the documented native launcher are unavailable through the enabled
+API. A shell attempt to start installed Edge with the preserved profile and
+official Gür Bakır Console URL was **rejected before execution by automatic
+approval review**, reason **"blocked by policy"**. No bypass, raw browser
+transport, credential/cookie extraction, authentication clear or logout was
+attempted. Final supported inventory again returned zero surfaces at 04:18 UTC.
+This is a concrete tool/policy constraint, not an observed OTP or legal challenge.
+
+Receipt: `out/ui-v3/play-console-release-access-final-20261004.json`.
+**Upload: NOT RUN. Submission: NOT RUN. Play artifact/release identity,
+processing/review and current Alpha availability: UNKNOWN.** The owner's
+earlier v2 availability statement remains owner-provided historical context.
+No Play review-pending status is fabricated. No tester, Internal Testing, public
+Production, Geldik Mi or unrelated merchant mutation occurred.
+
+Live `https://gurbakir.com/.well-known/assetlinks.json` was read at 03:05 UTC:
+HTTP 200, application/json, two-byte body `[]`, zero associations, SHA-256
+`4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945`.
+The live association is **PARTIAL**; Shopify ticket 70706239's pending scopes
+remain the earlier separately recorded support state, without a new ticket
+readback or mutation. App Links architecture is unchanged. Off-machine upload
+key backup remains **BLOCKED — EXTERNAL STORAGE UNAVAILABLE**, as explicitly
+scoped by the owner. No plaintext secret or fabricated backup was created.
+
+| Gate | Final executed status |
+| --- | --- |
+| Accepted source/UI and exact-source merged-main CI | PASS |
+| Signed v3 AAB identity, signature, bundle/config and pattern checks | PASS within recorded scope |
+| Final native bytes, 64-bit LOAD and local APK ZIP16K checks | PASS |
+| Exact-main x86_64/API36/16KiB explicit JNI operations | PASS |
+| Inherited literal RELRO end-alignment | False; scoped geometry retained |
+| ARM64 16KiB explicit JNI / Play-generated native splits | NOT RUN / unobserved |
+| Fresh production-profile debug v3 runtime/18-image review | PASS |
+| Existing Closed Alpha delivery | BLOCKED — supported browser/tool access |
+| Play upload/submission/current review/availability | NOT RUN / UNKNOWN |
+| Live App Links association | PARTIAL — empty association |
+| Independent off-machine upload-key backup | BLOCKED — external storage unavailable |
+
+The signed AAB and receipts remain in the persistent ignored evidence location.
+Signing material remains only in its established secure mechanism. Local heavy
+build/emulator work is stopped, and useful prior evidence and unrelated work
+are preserved. This documentation continuation records the verified local
+result and exact delivery blocker; it does not declare a published v3 release.
+Consolidated immutable local acceptance receipt:
+`out/ui-v3/release-local-accepted-8672-B4039F40-20261004.json`, SHA-256
+`B8C41599ED110010AAE2DAADD3E203509079F532CE41FB4C6B59AE7DC0168EEE`.
+The documentation diff passes `git diff --check`, public-readiness self-tests
+20/20 and public-readiness validation 23/23. Protected documentation PR/CI
+publication is tracked separately from the artifact's exact source identity.
