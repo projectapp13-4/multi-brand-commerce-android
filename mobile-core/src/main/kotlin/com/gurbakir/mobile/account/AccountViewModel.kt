@@ -30,16 +30,17 @@ data class AccountUiState(
     val summary: AccountSummary? = null,
     val notices: Set<AccountNotice> = emptySet(),
     val failure: AccountFailure? = null,
-    val retryable: Boolean = false
+    val retryable: Boolean = false,
+    val sessionRetained: Boolean = false
 ) {
     val busy: Boolean
         get() = phase in BUSY_PHASES
 
     val canSignIn: Boolean
-        get() = !busy && summary == null
+        get() = !busy && !sessionRetained
 
     val canUseSessionActions: Boolean
-        get() = !busy && summary != null
+        get() = !busy && sessionRetained
 }
 
 sealed interface AccountEffect {
@@ -140,7 +141,8 @@ constructor(private val controller: AccountController) : ViewModel() {
         _state.value =
             AccountUiState(
                 phase = activePhase,
-                summary = previous.summary.takeIf { preserveSummary }
+                summary = previous.summary.takeIf { preserveSummary },
+                sessionRetained = previous.sessionRetained
             )
         viewModelScope.launch {
             val result = action()
@@ -170,7 +172,8 @@ private fun AccountResult.toUiState(previousSummary: AccountSummary?): AccountUi
         AccountUiState(
             phase = AccountPhase.AUTHENTICATED,
             summary = summary,
-            notices = notices
+            notices = notices,
+            sessionRetained = true
         )
 
     is AccountResult.SignedOut ->
@@ -191,13 +194,15 @@ private fun AccountResult.toUiState(previousSummary: AccountSummary?): AccountUi
                 phase = AccountPhase.AUTHENTICATED,
                 summary = previousSummary,
                 failure = reason,
-                retryable = retryable
+                retryable = retryable,
+                sessionRetained = sessionRetained
             )
         } else {
             AccountUiState(
                 phase = AccountPhase.FAILED,
                 failure = reason,
-                retryable = retryable
+                retryable = retryable,
+                sessionRetained = sessionRetained
             )
         }
     }

@@ -13,11 +13,17 @@ private val DEFAULT_CART_LIFETIME: Duration = Duration.ofDays(DEFAULT_CART_LIFET
 enum class CartOwnership {
     ANONYMOUS,
     CUSTOMER_ASSOCIATED,
+    VERIFY_PENDING,
     DETACH_PENDING,
     QUARANTINED
 }
 
-data class PersistedCart(val id: SensitiveCartId, val expiresAt: Instant, val ownership: CartOwnership) {
+data class PersistedCart(
+    val id: SensitiveCartId,
+    val expiresAt: Instant,
+    val ownership: CartOwnership,
+    val customerId: SensitiveCustomerId? = null
+) {
     override fun toString(): String = "PersistedCart(id=<redacted>, expiresAt=$expiresAt, ownership=$ownership)"
 }
 
@@ -75,8 +81,12 @@ class CartCoordinator(
 
     suspend fun create(
         lines: List<CartLineInput>,
-        buyerAccessToken: SensitiveBuyerAccessToken? = null
+        buyerAccessToken: SensitiveBuyerAccessToken? = null,
+        customerId: SensitiveCustomerId? = null
     ): CartSessionResolution = lock.withLock {
+        if ((buyerAccessToken == null) != (customerId == null)) {
+            return@withLock CartSessionResolution.Restricted(CartOwnership.QUARANTINED)
+        }
         when (val result = gateway.createCart(lines, buyerAccessToken)) {
             is StorefrontResult.Failure -> CartSessionResolution.Failed(result.error, false)
 
@@ -87,7 +97,7 @@ class CartCoordinator(
                     } else {
                         CartOwnership.CUSTOMER_ASSOCIATED
                     }
-                persistence.persistNew(result.value, expected)
+                persistence.persistNew(result.value, expected, customerId)
             }
         }
     }
@@ -101,7 +111,7 @@ class CartCoordinator(
             ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
 
             ActiveCartRead.Failed ->
-                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
+                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
         }
         if (persisted.ownership != CartOwnership.ANONYMOUS) {
             return@withLock CartSessionResolution.Restricted(persisted.ownership)
@@ -109,34 +119,29 @@ class CartCoordinator(
         resolveAnonymousRemoteCart(gateway, persistence, persisted)
     }
 
-    suspend fun restoreAuthenticated(buyerAccessToken: SensitiveBuyerAccessToken): CartSessionResolution =
-        lock.withLock {
-            val persisted = when (val read = persistence.readActive()) {
-                is ActiveCartRead.Present -> read.cart
+    suspend fun restoreAuthenticated(
+        buyerAccessToken: SensitiveBuyerAccessToken,
+        customerId: SensitiveCustomerId
+    ): CartSessionResolution = lock.withLock {
+        val persisted = when (val read = persistence.readActive()) {
+            is ActiveCartRead.Present -> read.cart
 
-                ActiveCartRead.Empty -> return@withLock CartSessionResolution.Empty
+            ActiveCartRead.Empty -> return@withLock CartSessionResolution.Empty
 
-                ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
+            ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
 
-                ActiveCartRead.Failed ->
-                    return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
-            }
-            when (persisted.ownership) {
-                CartOwnership.ANONYMOUS ->
-                    when (val result = gateway.updateBuyerIdentity(persisted.id, buyerAccessToken)) {
-                        is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
-
-                        is StorefrontResult.Success ->
-                            persistence.persistResult(persisted, result.value, CartOwnership.CUSTOMER_ASSOCIATED)
-                    }
-
-                CartOwnership.CUSTOMER_ASSOCIATED ->
-                    resolveCustomerRemoteCart(gateway, persistence, persisted)
-
-                CartOwnership.DETACH_PENDING,
-                CartOwnership.QUARANTINED -> CartSessionResolution.Restricted(persisted.ownership)
-            }
+            ActiveCartRead.Failed ->
+                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
         }
+        when (persisted.ownership) {
+            CartOwnership.ANONYMOUS,
+            CartOwnership.CUSTOMER_ASSOCIATED,
+            CartOwnership.VERIFY_PENDING -> verifyCustomerCart(persisted, buyerAccessToken, customerId)
+
+            CartOwnership.DETACH_PENDING,
+            CartOwnership.QUARANTINED -> CartSessionResolution.Restricted(persisted.ownership)
+        }
+    }
 
     suspend fun add(lines: List<CartLineInput>): CartSessionResolution = mutateAnonymous { persisted ->
         gateway.addCartLines(persisted.id, lines)
@@ -150,38 +155,25 @@ class CartCoordinator(
         gateway.removeCartLines(persisted.id, lineIds)
     }
 
-    suspend fun addAuthenticated(lines: List<CartLineInput>): CartSessionResolution =
-        mutateCustomerAssociated { persisted -> gateway.addCartLines(persisted.id, lines) }
+    suspend fun addAuthenticated(lines: List<CartLineInput>, customerId: SensitiveCustomerId): CartSessionResolution =
+        mutateCustomerAssociated(customerId) { persisted -> gateway.addCartLines(persisted.id, lines) }
 
-    suspend fun updateAuthenticated(lines: List<CartLineUpdate>): CartSessionResolution =
-        mutateCustomerAssociated { persisted -> gateway.updateCartLines(persisted.id, lines) }
+    suspend fun updateAuthenticated(
+        lines: List<CartLineUpdate>,
+        customerId: SensitiveCustomerId
+    ): CartSessionResolution =
+        mutateCustomerAssociated(customerId) { persisted -> gateway.updateCartLines(persisted.id, lines) }
 
-    suspend fun removeAuthenticated(lineIds: List<SensitiveCartLineId>): CartSessionResolution =
-        mutateCustomerAssociated { persisted -> gateway.removeCartLines(persisted.id, lineIds) }
+    suspend fun removeAuthenticated(
+        lineIds: List<SensitiveCartLineId>,
+        customerId: SensitiveCustomerId
+    ): CartSessionResolution =
+        mutateCustomerAssociated(customerId) { persisted -> gateway.removeCartLines(persisted.id, lineIds) }
 
-    suspend fun authenticate(buyerAccessToken: SensitiveBuyerAccessToken): CartSessionResolution = lock.withLock {
-        val persisted = when (val read = persistence.readActive()) {
-            is ActiveCartRead.Present -> read.cart
-
-            ActiveCartRead.Empty -> return@withLock CartSessionResolution.Empty
-
-            ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
-
-            ActiveCartRead.Failed ->
-                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
-        }
-        if (persisted.ownership == CartOwnership.DETACH_PENDING ||
-            persisted.ownership == CartOwnership.QUARANTINED
-        ) {
-            return@withLock CartSessionResolution.Restricted(persisted.ownership)
-        }
-        when (val result = gateway.updateBuyerIdentity(persisted.id, buyerAccessToken)) {
-            is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
-
-            is StorefrontResult.Success ->
-                persistence.persistResult(persisted, result.value, CartOwnership.CUSTOMER_ASSOCIATED)
-        }
-    }
+    suspend fun authenticate(
+        buyerAccessToken: SensitiveBuyerAccessToken,
+        customerId: SensitiveCustomerId
+    ): CartSessionResolution = restoreAuthenticated(buyerAccessToken, customerId)
 
     suspend fun detach(): CartSessionResolution = lock.withLock {
         val persisted = when (val read = persistence.readActive()) {
@@ -192,7 +184,7 @@ class CartCoordinator(
             ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
 
             ActiveCartRead.Failed ->
-                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
+                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
         }
         when (persisted.ownership) {
             CartOwnership.ANONYMOUS -> resolveAnonymousRemoteCart(gateway, persistence, persisted)
@@ -200,6 +192,7 @@ class CartCoordinator(
             CartOwnership.QUARANTINED -> CartSessionResolution.Restricted(CartOwnership.QUARANTINED)
 
             CartOwnership.CUSTOMER_ASSOCIATED,
+            CartOwnership.VERIFY_PENDING,
             CartOwnership.DETACH_PENDING -> detachCustomerCart(persisted)
         }
     }
@@ -211,12 +204,14 @@ class CartCoordinator(
     ): CartSessionResolution = mutateExpected(CartOwnership.ANONYMOUS, operation)
 
     private suspend fun mutateCustomerAssociated(
+        customerId: SensitiveCustomerId,
         operation: suspend (PersistedCart) -> StorefrontResult<CartReference>
-    ): CartSessionResolution = mutateExpected(CartOwnership.CUSTOMER_ASSOCIATED, operation)
+    ): CartSessionResolution = mutateExpected(CartOwnership.CUSTOMER_ASSOCIATED, operation, customerId)
 
     private suspend fun mutateExpected(
         expectedOwnership: CartOwnership,
-        operation: suspend (PersistedCart) -> StorefrontResult<CartReference>
+        operation: suspend (PersistedCart) -> StorefrontResult<CartReference>,
+        expectedCustomer: SensitiveCustomerId? = null
     ): CartSessionResolution = lock.withLock {
         val persisted = when (val read = persistence.readActive()) {
             is ActiveCartRead.Present -> read.cart
@@ -226,16 +221,18 @@ class CartCoordinator(
             ActiveCartRead.Expired -> return@withLock CartSessionResolution.Expired
 
             ActiveCartRead.Failed ->
-                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
+                return@withLock CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
         }
-        if (persisted.ownership != expectedOwnership) {
+        if (persisted.ownership != expectedOwnership ||
+            persisted.customerId != expectedCustomer
+        ) {
             return@withLock CartSessionResolution.Restricted(persisted.ownership)
         }
         when (val result = operation(persisted)) {
             is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
 
             is StorefrontResult.Success ->
-                persistence.persistResult(persisted, result.value, expectedOwnership)
+                persistence.persistResult(persisted, result.value, expectedOwnership, persisted.customerId)
         }
     }
 
@@ -267,6 +264,60 @@ class CartCoordinator(
             }
         }
     }
+
+    private suspend fun verifyCustomerCart(
+        persisted: PersistedCart,
+        token: SensitiveBuyerAccessToken,
+        expectedCustomer: SensitiveCustomerId
+    ): CartSessionResolution = if (persisted.customerId != null && persisted.customerId != expectedCustomer) {
+        persistence.restrict(persisted, CartOwnership.QUARANTINED)
+    } else {
+        // Inspect remote ownership before writing even a legacy cart whose encrypted payload has no exact owner.
+        when (val result = gateway.loadCart(persisted.id)) {
+            is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
+            is StorefrontResult.Success -> rebindVerifiedCustomerCart(persisted, result.value, token, expectedCustomer)
+        }
+    }
+
+    private suspend fun rebindVerifiedCustomerCart(
+        persisted: PersistedCart,
+        remote: CartReference,
+        token: SensitiveBuyerAccessToken,
+        expectedCustomer: SensitiveCustomerId
+    ): CartSessionResolution {
+        val remoteMatches = when (persisted.ownership) {
+            CartOwnership.ANONYMOUS -> remote.customerId == null
+
+            CartOwnership.VERIFY_PENDING ->
+                remote.customerId == null || remote.customerId == expectedCustomer
+
+            else -> remote.customerId == expectedCustomer
+        }
+        if (remote.id != persisted.id || !remoteMatches) {
+            return persistence.restrict(persisted, CartOwnership.QUARANTINED)
+        }
+        val pending = persisted.copy(ownership = CartOwnership.VERIFY_PENDING, customerId = expectedCustomer)
+        return if (!persistence.write(pending)) {
+            CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
+        } else {
+            when (val result = gateway.updateBuyerIdentity(persisted.id, token)) {
+                is StorefrontResult.Failure ->
+                    if (result.error is StorefrontFailure.InvalidCart) {
+                        persistence.handleRemoteFailure(result.error)
+                    } else {
+                        CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING)
+                    }
+
+                is StorefrontResult.Success ->
+                    persistence.persistResult(
+                        pending,
+                        result.value,
+                        CartOwnership.CUSTOMER_ASSOCIATED,
+                        expectedCustomer
+                    )
+            }
+        }
+    }
 }
 
 private suspend fun resolveAnonymousRemoteCart(
@@ -278,17 +329,6 @@ private suspend fun resolveAnonymousRemoteCart(
 
     is StorefrontResult.Success ->
         persistence.persistResult(persisted, result.value, CartOwnership.ANONYMOUS)
-}
-
-private suspend fun resolveCustomerRemoteCart(
-    gateway: StorefrontGateway,
-    persistence: CartPersistence,
-    persisted: PersistedCart
-): CartSessionResolution = when (val result = gateway.loadCart(persisted.id)) {
-    is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
-
-    is StorefrontResult.Success ->
-        persistence.persistResult(persisted, result.value, CartOwnership.CUSTOMER_ASSOCIATED)
 }
 
 private class CartPersistence(store: CartSessionStore, private val clock: Clock, private val cartLifetime: Duration) {
@@ -309,15 +349,19 @@ private class CartPersistence(store: CartSessionStore, private val clock: Clock,
         }
     }
 
-    suspend fun persistNew(cart: CartReference, expectedOwnership: CartOwnership): CartSessionResolution {
-        val ownershipMatches =
-            cart.customerAssociated == (expectedOwnership == CartOwnership.CUSTOMER_ASSOCIATED)
+    suspend fun persistNew(
+        cart: CartReference,
+        expectedOwnership: CartOwnership,
+        expectedCustomer: SensitiveCustomerId?
+    ): CartSessionResolution {
+        val ownershipMatches = cart.customerId == expectedCustomer
         val persistedOwnership = if (ownershipMatches) expectedOwnership else CartOwnership.QUARANTINED
         val persisted =
             PersistedCart(
                 id = cart.id,
                 expiresAt = clock.instant().plus(cartLifetime),
-                ownership = persistedOwnership
+                ownership = persistedOwnership,
+                customerId = expectedCustomer
             )
         return if (safeStore.write(persisted)) {
             if (ownershipMatches) {
@@ -326,25 +370,21 @@ private class CartPersistence(store: CartSessionStore, private val clock: Clock,
                 CartSessionResolution.Restricted(CartOwnership.QUARANTINED)
             }
         } else {
-            safeStore.clear()
-            CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, false)
+            CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, !safeStore.clear())
         }
     }
 
     suspend fun persistResult(
         persisted: PersistedCart,
         cart: CartReference,
-        expectedOwnership: CartOwnership
+        expectedOwnership: CartOwnership,
+        expectedCustomer: SensitiveCustomerId? = null
     ): CartSessionResolution {
         val result =
             if (cart.id != persisted.id) {
-                safeStore.clear()
-                CartSessionResolution.Failed(
-                    StorefrontFailure.GraphQl(setOf("CART_ID_CHANGED")),
-                    persistedCartRetained = false
-                )
+                restrict(persisted, CartOwnership.QUARANTINED)
             } else {
-                persistMatchingCart(persisted, cart, expectedOwnership)
+                persistMatchingCart(persisted, cart, expectedOwnership, expectedCustomer)
             }
         return result
     }
@@ -358,6 +398,13 @@ private class CartPersistence(store: CartSessionStore, private val clock: Clock,
         }
 
     suspend fun write(cart: PersistedCart): Boolean = safeStore.write(cart)
+
+    suspend fun restrict(cart: PersistedCart, ownership: CartOwnership): CartSessionResolution =
+        if (write(cart.copy(ownership = ownership))) {
+            CartSessionResolution.Restricted(ownership)
+        } else {
+            CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
+        }
 
     suspend fun clear(): Boolean = safeStore.clear()
 
@@ -378,12 +425,12 @@ private class CartPersistence(store: CartSessionStore, private val clock: Clock,
     private suspend fun persistMatchingCart(
         persisted: PersistedCart,
         cart: CartReference,
-        expectedOwnership: CartOwnership
+        expectedOwnership: CartOwnership,
+        expectedCustomer: SensitiveCustomerId?
     ): CartSessionResolution {
-        val associationMatches =
-            cart.customerAssociated == (expectedOwnership == CartOwnership.CUSTOMER_ASSOCIATED)
+        val associationMatches = cart.customerId == expectedCustomer
         val ownership = if (associationMatches) expectedOwnership else CartOwnership.QUARANTINED
-        return if (!safeStore.write(persisted.copy(ownership = ownership))) {
+        return if (!safeStore.write(persisted.copy(ownership = ownership, customerId = expectedCustomer))) {
             CartSessionResolution.Failed(StorefrontFailure.SecurePersistence, true)
         } else if (associationMatches) {
             CartSessionResolution.Active(cart, ownership)
@@ -399,7 +446,6 @@ private class SafeCartSessionStore(private val store: CartSessionStore) {
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (_: Exception) {
-        clear()
         StoredCartRead.Failed
     }
 

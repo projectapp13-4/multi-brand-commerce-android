@@ -107,7 +107,7 @@ data class CartReference(
     val warningCodes: Set<String>,
     val subtotal: StorefrontMoney? = null,
     val total: StorefrontMoney? = null,
-    val customerAssociated: Boolean = false
+    val customerId: SensitiveCustomerId? = null
 ) {
     override fun toString(): String =
         "CartReference(id=<redacted>, checkoutUrl=<redacted>, totalQuantity=$totalQuantity, " +

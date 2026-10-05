@@ -35,6 +35,7 @@ import com.gurbakir.storefront.SensitiveBuyerAccessToken
 import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCartLineId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
+import com.gurbakir.storefront.SensitiveCustomerId
 import com.gurbakir.storefront.StorefrontFailure
 import com.gurbakir.storefront.StorefrontGateway
 import com.gurbakir.storefront.StorefrontMoney
@@ -45,6 +46,7 @@ import java.net.URI
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import javax.inject.Provider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -183,7 +185,21 @@ class CartReconciliationFailureTest {
         )
         val gateway = FaultGateway()
         val coordinator = CartCoordinator(gateway, cartStore, clock)
-        val repository = DefaultCartRepository(CoordinatedCartOperations(coordinator, sessionCoordinator))
+        val identityGateway = object : CustomerAccountGateway {
+            override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> = error("must use lease")
+            override suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> =
+                CustomerAccountResult.Success(CustomerIdentity("synthetic-customer", "Synthetic"))
+        }
+        val repository =
+            DefaultCartRepository(
+                CoordinatedCartOperations(
+                    coordinator,
+                    sessionCoordinator,
+                    Provider {
+                        identityGateway
+                    }
+                )
+            )
         val controller = DefaultAccountController(
             authorizationCoordinator = CustomerAccountAuthorizationCoordinator(
                 configuration,
@@ -300,7 +316,7 @@ class CartReconciliationFailureTest {
                 warningCodes = emptySet(),
                 subtotal = money,
                 total = money,
-                customerAssociated = customerAssociated
+                customerId = if (customerAssociated) SensitiveCustomerId.from("synthetic-customer") else null
             )
         }
     }

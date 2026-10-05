@@ -27,6 +27,19 @@ import org.junit.jupiter.api.Test
 
 class CustomerAccountSessionCoordinatorTest {
     @Test
+    fun `authorization exchange cannot replace an existing protected customer session`() = runTest {
+        val original = session("customer-A", now.plusSeconds(3600))
+        val store = FakeSessionStore(original)
+        val client = FakeTokenClient(exchangeResult = successPayload("customer-B", now.plusSeconds(3600)))
+
+        val result = coordinator(client, store).exchange(grant())
+
+        assertEquals(original, store.session)
+        assertTrue(result is CustomerSessionResolution.Failed)
+        assertTrue((result as CustomerSessionResolution.Failed).encryptedSessionRetained)
+    }
+
+    @Test
     fun `disabled account never constructs or touches secure storage token or logout clients`() = runTest {
         val coordinator = CustomerAccountSessionCoordinator(
             capability = CustomerAccountCapability.Disabled,
@@ -97,7 +110,7 @@ class CustomerAccountSessionCoordinatorTest {
     }
 
     @Test
-    fun `failed authorization exchange clears any superseded encrypted session`() = runTest {
+    fun `authorization rejection cannot clear an existing protected session`() = runTest {
         val store = FakeSessionStore(session("access-old", now.plusSeconds(3600)))
         val client = FakeTokenClient(
             exchangeResult = CustomerTokenResult.Failure(CustomerTokenFailure.Rejected)
@@ -105,8 +118,8 @@ class CustomerAccountSessionCoordinatorTest {
 
         val result = coordinator(client, store).exchange(grant())
 
-        assertEquals(CustomerSessionResolution.Failed(CustomerTokenFailure.Rejected, false), result)
-        assertNull(store.session)
+        assertEquals(CustomerSessionResolution.Failed(CustomerTokenFailure.Rejected, true), result)
+        assertEquals("access-old", store.session?.accessToken?.use { it })
     }
 
     @Test

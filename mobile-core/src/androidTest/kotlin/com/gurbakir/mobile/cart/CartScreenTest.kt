@@ -39,6 +39,22 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class CartScreenTest {
+    @Test
+    fun pendingOwnershipOffersRetryWithoutDiscardingTheRetainedCart() {
+        var retried = 0
+        var discarded = 0
+        setCartContent {
+            CartScreen(
+                state = CartState(status = CartStatus.RESTRICTED, ownership = CartOwnership.VERIFY_PENDING),
+                actions = actions(retry = { retried++ }, discard = { discarded++ })
+            )
+        }
+        composeRule.onNodeWithTag(CartTestTags.RETRY).assertIsDisplayed().performDeterministicClick()
+        composeRule.waitForIdle()
+        assertEquals(1, retried)
+        assertEquals(0, discarded)
+    }
+
     @get:Rule
     val composeRule = createComposeRule()
 

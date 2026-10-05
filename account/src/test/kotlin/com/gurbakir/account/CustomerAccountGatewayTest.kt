@@ -16,6 +16,26 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class CustomerAccountGatewayTest {
+    @Test
+    fun `explicit leased session identity query does not resolve another session`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setHeader("Content-Type", "application/json").setBody(
+                """{"data":{"customer":{"id":"gid://shopify/Customer/1","displayName":"Synthetic Customer"}}}"""
+            )
+        )
+        val client = ApolloClient.Builder().serverUrl(server.url("graphql").toString()).build()
+        val gateway =
+            ApolloCustomerAccountGateway(client, CustomerSessionResolver { error("lease must not reenter resolver") })
+
+        assertEquals(
+            CustomerAccountResult.Success(CustomerIdentity("gid://shopify/Customer/1", "Synthetic Customer")),
+            gateway.loadIdentity(session())
+        )
+        assertEquals("synthetic-access-token", server.takeRequest(2, TimeUnit.SECONDS)?.getHeader("Authorization"))
+        assertEquals(1, server.requestCount)
+        client.close()
+    }
+
     private lateinit var server: MockWebServer
 
     @BeforeEach

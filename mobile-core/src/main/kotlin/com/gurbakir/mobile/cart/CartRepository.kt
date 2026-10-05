@@ -1,7 +1,10 @@
 package com.gurbakir.mobile.cart
 
+import com.gurbakir.account.CustomerAccountGateway
+import com.gurbakir.account.CustomerAccountResult
 import com.gurbakir.account.session.CustomerAccountSessionCoordinator
 import com.gurbakir.account.session.CustomerSessionResolution
+import com.gurbakir.account.session.CustomerSessionStorageException
 import com.gurbakir.storefront.CartCoordinator
 import com.gurbakir.storefront.CartLineInput
 import com.gurbakir.storefront.CartLineSummary
@@ -14,10 +17,12 @@ import com.gurbakir.storefront.SensitiveBuyerAccessToken
 import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCartLineId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
+import com.gurbakir.storefront.SensitiveCustomerId
 import com.gurbakir.storefront.StorefrontFailure
 import com.gurbakir.storefront.StorefrontMedia
 import com.gurbakir.storefront.StorefrontMoney
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -141,10 +146,14 @@ interface CartRepository {
     suspend fun discard(): CartActionResult
 
     suspend fun prepareCheckout(): CartCheckoutResolution
+
+    suspend fun <T> withPreparedCheckout(action: suspend (CartCheckoutResolution) -> T): T = action(prepareCheckout())
 }
 
 interface CartOperations {
     suspend fun restore(): CartSessionResolution
+
+    suspend fun <T> withRestoredCart(action: suspend (CartSessionResolution) -> T): T = action(restore())
 
     suspend fun mutate(plan: (CartSessionResolution) -> CartMutationPlan): CartMutationAttempt
 
@@ -175,30 +184,29 @@ class CoordinatedCartOperations
 @Inject
 constructor(
     private val coordinator: CartCoordinator,
-    private val sessionCoordinator: CustomerAccountSessionCoordinator
+    private val sessionCoordinator: CustomerAccountSessionCoordinator,
+    private val identityGateway: Provider<CustomerAccountGateway>
 ) : CartOperations {
-    override suspend fun restore(): CartSessionResolution = withCustomerSession(
-        authenticated = coordinator::restoreAuthenticated,
-        signedOut = coordinator::detach
-    )
+    override suspend fun restore(): CartSessionResolution = withRestoredCart { it }
+
+    override suspend fun <T> withRestoredCart(action: suspend (CartSessionResolution) -> T): T =
+        withCustomerSession(restricted = action) { token, customerId ->
+            val resolution = when (token) {
+                null -> coordinator.detach()
+                else -> coordinator.restoreAuthenticated(token, requireNotNull(customerId))
+            }
+            action(resolution)
+        }
 
     override suspend fun mutate(plan: (CartSessionResolution) -> CartMutationPlan): CartMutationAttempt =
-        when (val session = sessionCoordinator.restore()) {
-            is CustomerSessionResolution.Authenticated ->
-                session.session.accessToken.useSuspending { rawToken ->
-                    val token = SensitiveBuyerAccessToken.from(rawToken)
-                    executeMutation(coordinator.restoreAuthenticated(token), plan, token)
-                }
-
-            CustomerSessionResolution.SignedOut -> executeMutation(coordinator.detach(), plan, null)
-
-            is CustomerSessionResolution.Failed ->
-                if (session.encryptedSessionRetained) {
-                    val current = coordinator.restore()
-                    CartMutationAttempt(current, CartMutationPlan.None, null)
-                } else {
-                    executeMutation(coordinator.detach(), plan, null)
-                }
+        withCustomerSession(
+            restricted = { CartMutationAttempt(it, CartMutationPlan.None, null) }
+        ) { token, customerId ->
+            val current = when (token) {
+                null -> coordinator.detach()
+                else -> coordinator.restoreAuthenticated(token, requireNotNull(customerId))
+            }
+            executeMutation(current, plan, token, customerId)
         }
 
     override suspend fun clear(): Boolean = coordinator.clear()
@@ -206,48 +214,74 @@ constructor(
     private suspend fun executeMutation(
         current: CartSessionResolution,
         planner: (CartSessionResolution) -> CartMutationPlan,
-        token: SensitiveBuyerAccessToken?
+        token: SensitiveBuyerAccessToken?,
+        customerId: SensitiveCustomerId?
     ): CartMutationAttempt {
         val plan = planner(current)
         val result = when (plan) {
             CartMutationPlan.None,
             CartMutationPlan.Invalid -> null
 
-            is CartMutationPlan.Create -> coordinator.create(plan.lines, token)
+            is CartMutationPlan.Create -> coordinator.create(plan.lines, token, customerId)
 
-            is CartMutationPlan.Add ->
-                if (token == null) coordinator.add(plan.lines) else coordinator.addAuthenticated(plan.lines)
+            is CartMutationPlan.Add -> when (token) {
+                null -> coordinator.add(plan.lines)
+                else -> coordinator.addAuthenticated(plan.lines, requireNotNull(customerId))
+            }
 
-            is CartMutationPlan.Update ->
-                if (token == null) coordinator.update(plan.lines) else coordinator.updateAuthenticated(plan.lines)
+            is CartMutationPlan.Update -> when (token) {
+                null -> coordinator.update(plan.lines)
+                else -> coordinator.updateAuthenticated(plan.lines, requireNotNull(customerId))
+            }
 
-            is CartMutationPlan.Remove ->
-                if (token == null) coordinator.remove(plan.lineIds) else coordinator.removeAuthenticated(plan.lineIds)
+            is CartMutationPlan.Remove -> when (token) {
+                null -> coordinator.remove(plan.lineIds)
+                else -> coordinator.removeAuthenticated(plan.lineIds, requireNotNull(customerId))
+            }
         }
         return CartMutationAttempt(current, plan, result)
     }
 
-    private suspend fun withCustomerSession(
-        authenticated: suspend (SensitiveBuyerAccessToken) -> CartSessionResolution,
-        signedOut: suspend () -> CartSessionResolution
-    ): CartSessionResolution = when (val session = sessionCoordinator.restore()) {
-        is CustomerSessionResolution.Authenticated ->
-            session.session.accessToken.useSuspending { rawToken ->
-                authenticated(SensitiveBuyerAccessToken.from(rawToken))
-            }
+    private suspend fun <T> withCustomerSession(
+        restricted: suspend (CartSessionResolution) -> T,
+        action: suspend (SensitiveBuyerAccessToken?, SensitiveCustomerId?) -> T
+    ): T = try {
+        sessionCoordinator.withSession { session ->
+            when (session) {
+                is CustomerSessionResolution.Authenticated -> {
+                    val identity = identityGateway.get().loadIdentity(session.session)
+                    val rawId = (identity as? CustomerAccountResult.Success)?.value?.id
+                    val customerId = try {
+                        rawId?.let { SensitiveCustomerId.from(it) }
+                    } catch (_: IllegalArgumentException) {
+                        null
+                    }
+                    if (customerId == null) {
+                        restricted(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING))
+                    } else {
+                        session.session.accessToken.useSuspending { rawToken ->
+                            action(SensitiveBuyerAccessToken.from(rawToken), customerId)
+                        }
+                    }
+                }
 
-        CustomerSessionResolution.SignedOut -> signedOut()
+                CustomerSessionResolution.SignedOut -> action(null, null)
 
-        is CustomerSessionResolution.Failed ->
-            if (session.encryptedSessionRetained) {
-                coordinator.restore()
-            } else {
-                signedOut()
+                is CustomerSessionResolution.Failed ->
+                    if (session.encryptedSessionRetained) {
+                        restricted(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING))
+                    } else {
+                        action(null, null)
+                    }
             }
+        }
+    } catch (_: CustomerSessionStorageException) {
+        restricted(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING))
     }
 }
 
 @Singleton
+@Suppress("TooManyFunctions") // Cart actions and bounded checkout preparation share one mutex and published state.
 class DefaultCartRepository
 @Inject
 constructor(private val operations: CartOperations) : CartRepository {
@@ -341,16 +375,19 @@ constructor(private val operations: CartOperations) : CartRepository {
         }
     }
 
-    override suspend fun prepareCheckout(): CartCheckoutResolution = lock.withLock {
+    override suspend fun prepareCheckout(): CartCheckoutResolution = withPreparedCheckout { it }
+
+    override suspend fun <T> withPreparedCheckout(action: suspend (CartCheckoutResolution) -> T): T = lock.withLock {
         _state.value =
             _state.value.copy(
                 status = if (activeCart == null) CartStatus.LOADING else CartStatus.ACTIVE,
                 mutation = null,
                 failure = null
             )
-        val resolution = operations.restore()
-        val action = applyResolution(resolution)
-        resolution.toCheckoutResolution(action)
+        operations.withRestoredCart { resolution ->
+            val result = applyResolution(resolution)
+            action(resolution.toCheckoutResolution(result))
+        }
     }
 
     private suspend fun reconcileMutation(
@@ -426,7 +463,7 @@ constructor(private val operations: CartOperations) : CartRepository {
         val failure = resolution.error.toCartFailure(resolution.persistedCartRetained)
         val retainedOwnership = _state.value.ownership
             ?: activeCart?.let { cart ->
-                if (cart.customerAssociated) CartOwnership.CUSTOMER_ASSOCIATED else CartOwnership.ANONYMOUS
+                if (cart.customerId != null) CartOwnership.CUSTOMER_ASSOCIATED else CartOwnership.ANONYMOUS
             }
         val failedSecureWrite = resolution.error == StorefrontFailure.SecurePersistence &&
             resolution.persistedCartRetained
