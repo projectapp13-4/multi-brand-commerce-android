@@ -15,14 +15,14 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt")
-        targetExclude("**/build/**", "**/generated/**")
+        targetExclude("**/build/**", "**/generated/**", "out/**")
         ktlint(libs.versions.ktlint.get())
         trimTrailingWhitespace()
         endWithNewline()
     }
     kotlinGradle {
         target("**/*.gradle.kts")
-        targetExclude("**/build/**")
+        targetExclude("**/build/**", "out/**")
         ktlint(libs.versions.ktlint.get())
         trimTrailingWhitespace()
         endWithNewline()
