@@ -138,6 +138,21 @@ fun AccountScreen(state: AccountUiState, actions: AccountActions) {
                     }
                 }
 
+                state.sessionRetained -> {
+                    item {
+                        AccountSupportAndPrivacy(
+                            actions = actions,
+                            authenticated = false,
+                            sessionActionsEnabled = false,
+                            localDataExpanded = localDataExpanded,
+                            onLocalDataExpandedChanged = { localDataExpanded = it }
+                        )
+                    }
+                    item {
+                        AccountSignOutAction(enabled = state.canUseSessionActions, onLogout = actions.onLogout)
+                    }
+                }
+
                 state.phase != AccountPhase.RESTORING && state.phase != AccountPhase.LOGGING_OUT -> {
                     item {
                         AccountSignInCard(

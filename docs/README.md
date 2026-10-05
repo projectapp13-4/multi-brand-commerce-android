@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-09-26
+Status date: 2026-10-06
 
 Current release governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. The bounded Gürbakır [closed-test candidate preparation](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) is underway; public production release readiness is not established.
 
@@ -10,10 +10,12 @@ The second pull request's current implementation and visual evidence are in
 [Gür Bakır pre-tester UI refinement](product-quality/GURBAKIR-PRETESTER-UI-PR2.md).
 The shared commerce v3 refinement and its acceptance status are tracked in
 [Multi-Brand commerce UI v3](product-quality/MULTIBRAND-COMMERCE-UI-V3.md).
-Its exact merged 0.3.0 candidate is signed and locally verified, including a
-fresh Turkish runtime smoke. Closed Alpha upload is blocked by supported
-browser/tool access; no published v3 state is claimed.
-The pre-tester documents above retain their historical PR checkpoints.
+That workstream's dated 0.3.0 artifact and Turkish runtime smoke remain historical
+evidence. The current [shared commerce remediation program](remediation/PRODUCTION-DEFECT-REMEDIATION-PLAN.md)
+addresses the thirteen verified production defects through protected PRs before
+selecting a fresh final v3 source and replacement-key-signed artifact. Remediation
+is in progress; no final corrected source, new artifact acceptance or Play upload
+is claimed. The pre-tester documents above retain their historical PR checkpoints.
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 

@@ -12,6 +12,7 @@ import com.gurbakir.mobile.cart.CartRepository
 import com.gurbakir.storefront.CartCompletionResolution
 import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
+import java.net.URI
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ internal data class PreparedCheckout(val cartId: SensitiveCartId, val checkoutUr
     override fun toString(): String = "PreparedCheckout(cartId=<redacted>, checkoutUrl=<redacted>)"
 }
 
+@Suppress("TooManyFunctions") // Preparation, bounded launch and provider events share one checkout state and mutex.
 class CheckoutController
 @Inject
 constructor(
@@ -35,11 +37,20 @@ constructor(
     val state: StateFlow<CheckoutState> = _state.asStateFlow()
     private var activeCheckout: ActiveCheckout? = null
 
-    suspend fun start(activity: Activity) {
-        val prepared = prepare() ?: return
-        adapter.invalidate()
-        val result = prepared.checkoutUrl.useSuspending { url -> adapter.present(activity, url) }
-        acceptPresentation(prepared, result)
+    suspend fun start(activity: Activity) = startWithPresentation { url -> adapter.present(activity, url) }
+
+    /** The bounded presentation launch runs under the verified cart/session lease; event collection does not. */
+    internal suspend fun startWithPresentation(present: suspend (URI) -> CheckoutResult) {
+        val launched = lock.withLock {
+            if (_state.value.busy) return@withLock null
+            _state.value = CheckoutState(CheckoutStatus.PREPARING)
+            cartRepository.withPreparedCheckout { resolution ->
+                val prepared = applyPreparation(resolution) ?: return@withPreparedCheckout null
+                adapter.invalidate()
+                prepared to prepared.checkoutUrl.useSuspending(present)
+            }
+        } ?: return
+        acceptPresentation(launched.first, launched.second)
     }
 
     suspend fun acceptEvent(sessionEvent: CheckoutSessionEvent): Unit = lock.withLock {
@@ -59,26 +70,28 @@ constructor(
     internal suspend fun prepare(): PreparedCheckout? = lock.withLock {
         if (_state.value.busy) return@withLock null
         _state.value = CheckoutState(CheckoutStatus.PREPARING)
-        when (val resolution = cartRepository.prepareCheckout()) {
-            is CartCheckoutResolution.Eligible -> {
-                _state.value = CheckoutState(CheckoutStatus.PRESENTING)
-                PreparedCheckout(resolution.cartId, resolution.checkoutUrl)
-            }
+        applyPreparation(cartRepository.prepareCheckout())
+    }
 
-            CartCheckoutResolution.Empty -> failPreparation(CheckoutFailureCategory.CART_EMPTY, retained = false)
-
-            CartCheckoutResolution.Restricted -> failPreparation(
-                CheckoutFailureCategory.CART_RESTRICTED,
-                retained = true
-            )
-
-            CartCheckoutResolution.Unavailable -> failPreparation(
-                CheckoutFailureCategory.CART_UNAVAILABLE,
-                retained = true
-            )
-
-            is CartCheckoutResolution.Failed -> failPreparation(resolution.failure.toCheckoutFailure())
+    private fun applyPreparation(resolution: CartCheckoutResolution): PreparedCheckout? = when (resolution) {
+        is CartCheckoutResolution.Eligible -> {
+            _state.value = CheckoutState(CheckoutStatus.PRESENTING)
+            PreparedCheckout(resolution.cartId, resolution.checkoutUrl)
         }
+
+        CartCheckoutResolution.Empty -> failPreparation(CheckoutFailureCategory.CART_EMPTY, retained = false)
+
+        CartCheckoutResolution.Restricted -> failPreparation(
+            CheckoutFailureCategory.CART_RESTRICTED,
+            retained = true
+        )
+
+        CartCheckoutResolution.Unavailable -> failPreparation(
+            CheckoutFailureCategory.CART_UNAVAILABLE,
+            retained = true
+        )
+
+        is CartCheckoutResolution.Failed -> failPreparation(resolution.failure.toCheckoutFailure())
     }
 
     internal suspend fun acceptPresentation(prepared: PreparedCheckout, result: CheckoutResult) {

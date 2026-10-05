@@ -39,7 +39,7 @@ internal fun CartSnapshotFields.toMappedCart(
                             warningCodes = warningCodes,
                             subtotal = subtotal,
                             total = total,
-                            customerAssociated = buyerIdentity.customer != null
+                            customerId = buyerIdentity.customer?.id?.let(SensitiveCustomerId::from)
                         ),
                     endCursor = lines.pageInfo.endCursor?.let(::Cursor)
                 )

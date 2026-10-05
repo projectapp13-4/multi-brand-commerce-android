@@ -93,6 +93,9 @@ class CustomerAccountSessionCoordinator(
 
     suspend fun exchange(grant: CustomerAccountAuthorizationGrant): CustomerSessionResolution = lock.withLock {
         if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerSessionResolution.SignedOut
+        if (withSessionStore { read() } != null) {
+            return@withLock CustomerSessionResolution.Failed(CustomerTokenFailure.Rejected, true)
+        }
         when (val result = tokenClient.exchange(grant)) {
             is CustomerTokenResult.Failure -> {
                 withSessionStore { clear() }
@@ -115,13 +118,24 @@ class CustomerAccountSessionCoordinator(
         }
     }
 
-    suspend fun restore(): CustomerSessionResolution = lock.withLock {
-        if (capability == CustomerAccountCapability.Disabled) return@withLock CustomerSessionResolution.SignedOut
-        val stored = withSessionStore { read() } ?: return@withLock CustomerSessionResolution.SignedOut
-        if (stored.expiresAt.isAfter(clock.instant().plus(refreshLeadTime))) {
-            return@withLock CustomerSessionResolution.Authenticated(stored)
+    suspend fun restore(): CustomerSessionResolution = withSession { it }
+
+    /** The caller must use the supplied resolution, never reenter this coordinator while holding the lease. */
+    suspend fun <T> withSession(action: suspend (CustomerSessionResolution) -> T): T = lock.withLock {
+        val resolution = if (capability == CustomerAccountCapability.Disabled) {
+            CustomerSessionResolution.SignedOut
+        } else {
+            val stored = withSessionStore { read() }
+            when {
+                stored == null -> CustomerSessionResolution.SignedOut
+
+                stored.expiresAt.isAfter(clock.instant().plus(refreshLeadTime)) ->
+                    CustomerSessionResolution.Authenticated(stored)
+
+                else -> refreshLocked(stored)
+            }
         }
-        refreshLocked(stored)
+        action(resolution)
     }
 
     suspend fun refresh(): CustomerSessionResolution = lock.withLock {

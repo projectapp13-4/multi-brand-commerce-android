@@ -4,6 +4,20 @@ import java.net.URI
 
 private const val MAXIMUM_OPAQUE_VALUE_LENGTH = 64 * 1024
 
+class SensitiveCustomerId private constructor(private val rawValue: String) {
+    fun <T> use(block: (String) -> T): T = block(rawValue)
+    override fun toString(): String = "<redacted-customer-id>"
+    override fun equals(other: Any?): Boolean = other is SensitiveCustomerId && rawValue == other.rawValue
+    override fun hashCode(): Int = rawValue.hashCode()
+
+    companion object {
+        fun from(rawValue: String): SensitiveCustomerId {
+            require(rawValue.isNotBlank() && rawValue.length <= MAXIMUM_OPAQUE_VALUE_LENGTH)
+            return SensitiveCustomerId(rawValue)
+        }
+    }
+}
+
 class SensitiveCartId private constructor(private val rawValue: String) {
     fun <T> use(block: (String) -> T): T = block(rawValue)
 

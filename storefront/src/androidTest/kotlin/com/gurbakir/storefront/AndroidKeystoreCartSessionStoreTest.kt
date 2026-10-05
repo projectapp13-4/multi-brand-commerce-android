@@ -19,6 +19,26 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AndroidKeystoreCartSessionStoreTest {
+    @Test
+    fun exactCustomerAndPendingVerificationRestoreFromEncryptedStorage() = runBlocking {
+        val exactOwner = SensitiveCustomerId.from("gid://shopify/Customer/synthetic-process-owner")
+        val persisted = PersistedCart(
+            SensitiveCartId.from("synthetic-process-cart"),
+            Instant.ofEpochSecond(2_000_000_000L),
+            CartOwnership.VERIFY_PENDING,
+            exactOwner
+        )
+        store.write(persisted)
+
+        val restored = AndroidKeystoreCartSessionStore(context, identity).read()
+
+        assertEquals(persisted, restored)
+        assertEquals(exactOwner, restored?.customerId)
+        assertFalse(restored.toString().contains("synthetic-process-owner"))
+        val preferences = context.getSharedPreferences(identity.preferencesName, Context.MODE_PRIVATE)
+        assertFalse(preferences.all.toString().contains("synthetic-process-owner"))
+    }
+
     private val identity = ProtectedStoreIdentity("gate3_test_secure_cart", "gate3.test.cart.v1")
     private lateinit var context: Context
     private lateinit var store: AndroidKeystoreCartSessionStore

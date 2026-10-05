@@ -30,6 +30,29 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AccountScreenTest {
+    @Test
+    fun retainedSessionWithoutSummaryOffersLogoutAndRetryWithoutPrivateCustomerTasks() {
+        var logout = 0
+        var retry = 0
+        setAccountContent(
+            AccountUiState(
+                phase = AccountPhase.FAILED,
+                sessionRetained = true,
+                failure = AccountFailure.SECURE_STORAGE,
+                retryable = true
+            ),
+            actions().copy(onLogout = { logout++ }, onRetry = { retry++ })
+        )
+
+        composeRule.onNodeWithTag(AccountTestTags.LOGOUT).performScrollTo().performDeterministicClick()
+        assertEquals(1, logout)
+        composeRule.onNodeWithTag(AccountTestTags.RETRY).performScrollTo().performDeterministicClick()
+        assertEquals(1, retry)
+        composeRule.onNodeWithTag(AccountTestTags.SIGN_IN).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountTestTags.DISPLAY_NAME).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountTestTags.PROFILE).assertDoesNotExist()
+    }
+
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -136,7 +159,8 @@ class AccountScreenTest {
         setAccountContent(
             AccountUiState(
                 phase = AccountPhase.AUTHENTICATED,
-                summary = AccountSummary("Test Customer")
+                summary = AccountSummary("Test Customer"),
+                sessionRetained = true
             ),
             actions =
                 actions(
@@ -237,6 +261,7 @@ class AccountScreenTest {
             AccountUiState(
                 phase = AccountPhase.AUTHENTICATED,
                 summary = AccountSummary("Test Customer"),
+                sessionRetained = true,
                 failure = AccountFailure.IDENTITY_TRANSPORT,
                 retryable = true
             ),
@@ -286,7 +311,8 @@ class AccountScreenTest {
             state =
                 AccountUiState(
                     phase = AccountPhase.AUTHENTICATED,
-                    summary = AccountSummary("Test Customer")
+                    summary = AccountSummary("Test Customer"),
+                    sessionRetained = true
                 ),
             fontScale = 2f
         )

@@ -64,7 +64,7 @@ internal fun LazyListScope.cartStatusContent(
         CartStatus.EXPIRED -> item { ExpiredCart(actions.onBrowse) }
 
         CartStatus.RESTRICTED ->
-            item { RestrictedCart(state.ownership, actions.onBrowse, onRequestDiscard) }
+            item { RestrictedCart(state.ownership, actions.onBrowse, actions.onRetry, onRequestDiscard) }
 
         CartStatus.ACTIVE -> activeCartContent(state, checkoutState, actions, onRequestDiscard)
     }
@@ -160,7 +160,13 @@ private fun ExpiredCart(onBrowse: () -> Unit) {
 }
 
 @Composable
-private fun RestrictedCart(ownership: CartOwnership?, onBrowse: () -> Unit, onRequestDiscard: () -> Unit) {
+private fun RestrictedCart(
+    ownership: CartOwnership?,
+    onBrowse: () -> Unit,
+    onRetry: () -> Unit,
+    onRequestDiscard: () -> Unit
+) {
+    val verificationPending = ownership == CartOwnership.VERIFY_PENDING
     CommerceStatePanel(
         title =
             stringResource(
@@ -178,9 +184,11 @@ private fun RestrictedCart(ownership: CartOwnership?, onBrowse: () -> Unit, onRe
                     R.string.cart_restricted
                 }
             ),
-        primaryActionLabel = stringResource(R.string.cart_continue_shopping),
-        onPrimaryAction = onBrowse,
-        primaryActionTestTag = CartTestTags.BROWSE,
+        primaryActionLabel = stringResource(
+            if (verificationPending) R.string.retry else R.string.cart_continue_shopping
+        ),
+        onPrimaryAction = if (verificationPending) onRetry else onBrowse,
+        primaryActionTestTag = if (verificationPending) CartTestTags.RETRY else CartTestTags.BROWSE,
         secondaryActionLabel = stringResource(R.string.cart_discard),
         onSecondaryAction = onRequestDiscard,
         secondaryActionTestTag = CartTestTags.DISCARD,

@@ -1,5 +1,8 @@
 package com.gurbakir.mobile.cart
 
+import com.gurbakir.account.CustomerAccountGateway
+import com.gurbakir.account.CustomerAccountResult
+import com.gurbakir.account.CustomerIdentity
 import com.gurbakir.account.oauth.CustomerAccountAuthorizationGrant
 import com.gurbakir.account.oauth.CustomerAccountTokenClient
 import com.gurbakir.account.oauth.CustomerTokenFailure
@@ -25,6 +28,7 @@ import com.gurbakir.storefront.SensitiveBuyerAccessToken
 import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCartLineId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
+import com.gurbakir.storefront.SensitiveCustomerId
 import com.gurbakir.storefront.ShopSummary
 import com.gurbakir.storefront.StorefrontFailure
 import com.gurbakir.storefront.StorefrontGateway
@@ -33,6 +37,7 @@ import java.net.URI
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import javax.inject.Provider
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -83,11 +88,12 @@ class CoordinatedCartOperationsTest {
             capability = CustomerAccountCapability.Disabled,
             tokenClient = { error("disabled client requested") },
             sessionStore = { error("disabled encrypted store requested") }
-        )
+        ),
+        Provider { error("disabled identity gateway requested") }
     )
 
     @Test
-    fun `authenticated restore associates an anonymous cart exactly once`() = runTest {
+    fun `authenticated restore verifies ownership before each buyer token refresh`() = runTest {
         val cartStore = InMemoryCartStore(persisted(CartOwnership.ANONYMOUS))
         val gateway = SessionAwareGateway(attachResult = StorefrontResult.Success(cart(customerAssociated = true)))
         val operations = operations(activeSession(), StableTokenClient, cartStore, gateway)
@@ -98,8 +104,8 @@ class CoordinatedCartOperationsTest {
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, assertActive(first).ownership)
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, assertActive(second).ownership)
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, cartStore.cart?.ownership)
-        assertEquals(1, gateway.attachCalls)
-        assertEquals(1, gateway.loadCalls)
+        assertEquals(2, gateway.attachCalls)
+        assertEquals(2, gateway.loadCalls)
     }
 
     @Test
@@ -135,7 +141,7 @@ class CoordinatedCartOperationsTest {
         val result = operations.restore()
 
         assertEquals(
-            CartSessionResolution.Restricted(CartOwnership.CUSTOMER_ASSOCIATED),
+            CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING),
             result
         )
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, cartStore.cart?.ownership)
@@ -159,7 +165,7 @@ class CoordinatedCartOperationsTest {
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, assertActive(requireNotNull(attempt.result)).ownership)
         assertEquals(1, gateway.attachCalls)
         assertEquals(1, gateway.addCalls)
-        assertEquals(0, gateway.loadCalls)
+        assertEquals(1, gateway.loadCalls)
     }
 
     @Test
@@ -195,7 +201,7 @@ class CoordinatedCartOperationsTest {
             CartMutationPlan.Add(listOf(CartLineInput("gid://shopify/ProductVariant/1", 1)))
         }
 
-        assertEquals(CartSessionResolution.Restricted(CartOwnership.CUSTOMER_ASSOCIATED), attempt.before)
+        assertEquals(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING), attempt.before)
         assertEquals(CartMutationPlan.None, attempt.plan)
         assertEquals(null, attempt.result)
         assertEquals(0, plannerCalls)
@@ -215,7 +221,14 @@ class CoordinatedCartOperationsTest {
                 tokenClient = tokenClient,
                 sessionStore = InMemoryCustomerSessionStore(session),
                 clock = FIXED_CLOCK
-            )
+            ),
+        identityGateway = Provider {
+            object : CustomerAccountGateway {
+                override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> = error("must use lease")
+                override suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> =
+                    CustomerAccountResult.Success(CustomerIdentity("synthetic-customer", "Synthetic"))
+            }
+        }
     )
 
     private fun assertActive(result: CartSessionResolution): CartSessionResolution.Active =
@@ -231,7 +244,7 @@ class CoordinatedCartOperationsTest {
         lines = emptyList(),
         hasMoreLines = false,
         warningCodes = emptySet(),
-        customerAssociated = customerAssociated
+        customerId = if (customerAssociated) SensitiveCustomerId.from("synthetic-customer") else null
     )
 
     private fun activeSession(): CustomerSession = CustomerSession(
@@ -289,13 +302,17 @@ class CoordinatedCartOperationsTest {
             StorefrontResult.Failure(StorefrontFailure.Transport(retryable = false)),
         private val detachResult: StorefrontResult<CartReference> =
             StorefrontResult.Failure(StorefrontFailure.Transport(retryable = false)),
-        private val loadResult: StorefrontResult<CartReference> = attachResult,
+        private val loadResult: StorefrontResult<CartReference> = when (attachResult) {
+            is StorefrontResult.Success -> StorefrontResult.Success(attachResult.value.copy(customerId = null))
+            is StorefrontResult.Failure -> attachResult
+        },
         private val addResult: StorefrontResult<CartReference> = attachResult
     ) : StorefrontGateway {
         var attachCalls = 0
         var detachCalls = 0
         var loadCalls = 0
         var addCalls = 0
+        private var current: StorefrontResult<CartReference>? = null
 
         override suspend fun updateBuyerIdentity(
             cartId: SensitiveCartId,
@@ -305,12 +322,12 @@ class CoordinatedCartOperationsTest {
             detachResult
         } else {
             attachCalls += 1
-            attachResult
+            attachResult.also { current = it }
         }
 
         override suspend fun loadCart(cartId: SensitiveCartId): StorefrontResult<CartReference> {
             loadCalls += 1
-            return loadResult
+            return current ?: loadResult
         }
 
         override suspend fun loadShopSummary(): StorefrontResult<ShopSummary> = unused()

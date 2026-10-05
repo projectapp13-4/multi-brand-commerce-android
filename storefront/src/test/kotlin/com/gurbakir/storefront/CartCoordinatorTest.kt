@@ -22,6 +22,20 @@ import org.junit.jupiter.api.Test
 
 class CartCoordinatorTest {
     @Test
+    fun `exact owner and verification pending state roundtrip without rendering identity`() {
+        val cart = persisted(CartOwnership.CUSTOMER_ASSOCIATED).copy(ownership = CartOwnership.VERIFY_PENDING)
+
+        val encoded = CartSessionPayloadCodec.encode(cart)
+        val decoded = CartSessionPayloadCodec.decode(encoded)
+
+        assertEquals(cart, decoded)
+        assertEquals(3, java.nio.ByteBuffer.wrap(encoded).int)
+        assertFalse(decoded.toString().contains("synthetic-customer"))
+        assertFalse(requireNotNull(decoded.customerId).toString().contains("synthetic-customer"))
+        assertThrows(IllegalArgumentException::class.java) { CartSessionPayloadCodec.decode(encoded + byteArrayOf(1)) }
+    }
+
+    @Test
     fun `create persists only the redacted cart id with a bounded lifetime`() = runTest {
         val store = RecordingCartStore()
         val gateway = FakeStorefrontGateway(createResult = StorefrontResult.Success(cart()))
@@ -175,12 +189,13 @@ class CartCoordinatorTest {
         val store = RecordingCartStore(persisted(CartOwnership.ANONYMOUS))
         val gateway =
             FakeStorefrontGateway(
+                loadResult = StorefrontResult.Success(cart(customerAssociated = false)),
                 identityResult = StorefrontResult.Success(cart(customerAssociated = true)),
                 clearIdentityResult = StorefrontResult.Success(cart(customerAssociated = false))
             )
         val coordinator = CartCoordinator(gateway, store, fixedClock())
 
-        val attached = coordinator.authenticate(SensitiveBuyerAccessToken.from("synthetic-token"))
+        val attached = coordinator.authenticate(SensitiveBuyerAccessToken.from("synthetic-token"), CUSTOMER_ID)
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, (attached as CartSessionResolution.Active).ownership)
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, store.cart?.ownership)
 
@@ -190,11 +205,11 @@ class CartCoordinatorTest {
     }
 
     @Test
-    fun `authenticated restore attaches once then verifies the associated cart`() = runTest {
+    fun `authenticated restore verifies prior ownership before refreshing the buyer token`() = runTest {
         val store = RecordingCartStore(persisted(CartOwnership.ANONYMOUS))
         val gateway =
             FakeStorefrontGateway(
-                loadResult = StorefrontResult.Success(cart(customerAssociated = true)),
+                loadResult = StorefrontResult.Success(cart(customerAssociated = false)),
                 identityResult = StorefrontResult.Success(cart(customerAssociated = true))
             )
         val coordinator = CartCoordinator(gateway, store, fixedClock())
@@ -202,17 +217,17 @@ class CartCoordinatorTest {
 
         assertEquals(
             CartOwnership.CUSTOMER_ASSOCIATED,
-            (coordinator.restoreAuthenticated(token) as CartSessionResolution.Active).ownership
-        )
-        assertEquals(1, gateway.identityCount)
-        assertEquals(0, gateway.loadCount)
-
-        assertEquals(
-            CartOwnership.CUSTOMER_ASSOCIATED,
-            (coordinator.restoreAuthenticated(token) as CartSessionResolution.Active).ownership
+            (coordinator.restoreAuthenticated(token, CUSTOMER_ID) as CartSessionResolution.Active).ownership
         )
         assertEquals(1, gateway.identityCount)
         assertEquals(1, gateway.loadCount)
+
+        assertEquals(
+            CartOwnership.CUSTOMER_ASSOCIATED,
+            (coordinator.restoreAuthenticated(token, CUSTOMER_ID) as CartSessionResolution.Active).ownership
+        )
+        assertEquals(2, gateway.identityCount)
+        assertEquals(2, gateway.loadCount)
     }
 
     @Test
@@ -223,7 +238,7 @@ class CartCoordinatorTest {
                 FakeStorefrontGateway(loadResult = StorefrontResult.Success(cart(customerAssociated = true))),
                 successfulStore,
                 fixedClock()
-            ).addAuthenticated(listOf(CartLineInput(VARIANT_ID, 1)))
+            ).addAuthenticated(listOf(CartLineInput(VARIANT_ID, 1)), CUSTOMER_ID)
 
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, (successful as CartSessionResolution.Active).ownership)
         assertEquals(CartOwnership.CUSTOMER_ASSOCIATED, successfulStore.cart?.ownership)
@@ -234,7 +249,7 @@ class CartCoordinatorTest {
                 FakeStorefrontGateway(loadResult = StorefrontResult.Success(cart(customerAssociated = false))),
                 mismatchedStore,
                 fixedClock()
-            ).addAuthenticated(listOf(CartLineInput(VARIANT_ID, 1)))
+            ).addAuthenticated(listOf(CartLineInput(VARIANT_ID, 1)), CUSTOMER_ID)
 
         assertEquals(CartSessionResolution.Restricted(CartOwnership.QUARANTINED), mismatched)
         assertEquals(CartOwnership.QUARANTINED, mismatchedStore.cart?.ownership)
@@ -318,13 +333,14 @@ class CartCoordinatorTest {
             ),
         hasMoreLines = false,
         warningCodes = emptySet(),
-        customerAssociated = customerAssociated
+        customerId = if (customerAssociated) SensitiveCustomerId.from("synthetic-customer") else null
     )
 
     private fun persisted(ownership: CartOwnership): PersistedCart = PersistedCart(
         SensitiveCartId.from("gid://shopify/Cart/test?key=$CART_SECRET"),
         CLOCK_INSTANT.plusSeconds(3600),
-        ownership
+        ownership,
+        customerId = if (ownership == CartOwnership.CUSTOMER_ASSOCIATED) CUSTOMER_ID else null
     )
 
     private fun fixedClock(): Clock = Clock.fixed(CLOCK_INSTANT, ZoneOffset.UTC)
@@ -354,6 +370,7 @@ class CartCoordinatorTest {
     ) : StorefrontGateway {
         var loadCount = 0
         var identityCount = 0
+        private var latestIdentity: StorefrontResult<CartReference>? = null
 
         override suspend fun loadShopSummary(): StorefrontResult<ShopSummary> =
             StorefrontResult.Failure(StorefrontFailure.Transport(false))
@@ -368,7 +385,7 @@ class CartCoordinatorTest {
 
         override suspend fun loadCart(cartId: SensitiveCartId): StorefrontResult<CartReference> {
             loadCount += 1
-            return loadResult
+            return latestIdentity ?: loadResult
         }
 
         override suspend fun addCartLines(
@@ -393,7 +410,7 @@ class CartCoordinatorTest {
             clearIdentityResult
         } else {
             identityCount += 1
-            identityResult
+            identityResult.also { latestIdentity = it }
         }
     }
 
@@ -436,6 +453,7 @@ class CartCoordinatorTest {
     }
 
     private companion object {
+        val CUSTOMER_ID = SensitiveCustomerId.from("synthetic-customer")
         const val CART_SECRET = "synthetic-secret-never-render"
         const val VARIANT_ID = "gid://shopify/ProductVariant/synthetic"
         val CLOCK_INSTANT: Instant = Instant.parse("2026-08-06T10:00:00Z")

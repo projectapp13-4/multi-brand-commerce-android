@@ -22,11 +22,13 @@ private const val CIPHER_TRANSFORMATION = "AES/GCM/NoPadding"
 private const val GCM_TAG_LENGTH_BITS = 128
 private const val LEGACY_CART_PAYLOAD_VERSION = 1
 private const val CART_PAYLOAD_VERSION = 2
+private const val EXACT_CUSTOMER_CART_PAYLOAD_VERSION = 3
 private const val MAXIMUM_CART_ID_BYTE_COUNT = 64 * 1024
 private const val ANONYMOUS_OWNERSHIP_CODE = 1
 private const val CUSTOMER_ASSOCIATED_OWNERSHIP_CODE = 2
 private const val DETACH_PENDING_OWNERSHIP_CODE = 3
 private const val QUARANTINED_OWNERSHIP_CODE = 4
+private const val VERIFY_PENDING_OWNERSHIP_CODE = 5
 
 class AndroidKeystoreCartSessionStore(context: Context, identity: ProtectedStoreIdentity) : CartSessionStore {
     private val applicationContext = context.applicationContext
@@ -130,7 +132,7 @@ internal object CartSessionPayloadCodec {
     fun encode(cart: PersistedCart): ByteArray {
         val output = ByteArrayOutputStream()
         DataOutputStream(output).use { stream ->
-            stream.writeInt(CART_PAYLOAD_VERSION)
+            stream.writeInt(if (cart.customerId == null) CART_PAYLOAD_VERSION else EXACT_CUSTOMER_CART_PAYLOAD_VERSION)
             cart.id.use { rawCartId ->
                 val bytes = rawCartId.toByteArray(Charsets.UTF_8)
                 try {
@@ -144,13 +146,23 @@ internal object CartSessionPayloadCodec {
             stream.writeLong(cart.expiresAt.epochSecond)
             stream.writeInt(cart.expiresAt.nano)
             stream.writeInt(cart.ownership.persistedCode)
+            cart.customerId?.use { customerId ->
+                val bytes = customerId.toByteArray(Charsets.UTF_8)
+                try {
+                    require(bytes.size in 1..MAXIMUM_CART_ID_BYTE_COUNT)
+                    stream.writeInt(bytes.size)
+                    stream.write(bytes)
+                } finally {
+                    bytes.fill(0)
+                }
+            }
         }
         return output.toByteArray()
     }
 
     fun decode(payload: ByteArray): PersistedCart = DataInputStream(ByteArrayInputStream(payload)).use { stream ->
         val version = stream.readInt()
-        require(version == LEGACY_CART_PAYLOAD_VERSION || version == CART_PAYLOAD_VERSION)
+        require(version in LEGACY_CART_PAYLOAD_VERSION..EXACT_CUSTOMER_CART_PAYLOAD_VERSION)
         val length = stream.readInt()
         require(length in 1..MAXIMUM_CART_ID_BYTE_COUNT)
         val bytes = ByteArray(length)
@@ -168,8 +180,21 @@ internal object CartSessionPayloadCodec {
             } else {
                 stream.readInt().toCartOwnership()
             }
+        val customerId = if (version == EXACT_CUSTOMER_CART_PAYLOAD_VERSION) {
+            val customerLength = stream.readInt()
+            require(customerLength in 1..MAXIMUM_CART_ID_BYTE_COUNT)
+            val customerBytes = ByteArray(customerLength)
+            stream.readFully(customerBytes)
+            try {
+                SensitiveCustomerId.from(customerBytes.toString(Charsets.UTF_8))
+            } finally {
+                customerBytes.fill(0)
+            }
+        } else {
+            null
+        }
         require(stream.available() == 0)
-        PersistedCart(cartId, expiresAt, ownership)
+        PersistedCart(cartId, expiresAt, ownership, customerId)
     }
 }
 
@@ -177,6 +202,7 @@ private val CartOwnership.persistedCode: Int
     get() = when (this) {
         CartOwnership.ANONYMOUS -> ANONYMOUS_OWNERSHIP_CODE
         CartOwnership.CUSTOMER_ASSOCIATED -> CUSTOMER_ASSOCIATED_OWNERSHIP_CODE
+        CartOwnership.VERIFY_PENDING -> VERIFY_PENDING_OWNERSHIP_CODE
         CartOwnership.DETACH_PENDING -> DETACH_PENDING_OWNERSHIP_CODE
         CartOwnership.QUARANTINED -> QUARANTINED_OWNERSHIP_CODE
     }
@@ -184,6 +210,7 @@ private val CartOwnership.persistedCode: Int
 private fun Int.toCartOwnership(): CartOwnership = when (this) {
     ANONYMOUS_OWNERSHIP_CODE -> CartOwnership.ANONYMOUS
     CUSTOMER_ASSOCIATED_OWNERSHIP_CODE -> CartOwnership.CUSTOMER_ASSOCIATED
+    VERIFY_PENDING_OWNERSHIP_CODE -> CartOwnership.VERIFY_PENDING
     DETACH_PENDING_OWNERSHIP_CODE -> CartOwnership.DETACH_PENDING
     QUARANTINED_OWNERSHIP_CODE -> CartOwnership.QUARANTINED
     else -> throw IllegalArgumentException("Unsupported cart ownership state.")

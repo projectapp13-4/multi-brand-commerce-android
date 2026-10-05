@@ -12,6 +12,7 @@ import com.gurbakir.account.oauth.CustomerAccountDiscoveryClient
 import com.gurbakir.account.oauth.CustomerAccountDiscoveryFailure
 import com.gurbakir.account.oauth.CustomerAccountDiscoveryResult
 import com.gurbakir.account.oauth.CustomerTokenFailure
+import com.gurbakir.account.session.CustomerSession
 import com.gurbakir.account.session.CustomerSessionResolution
 import com.gurbakir.foundation.config.CustomerAccountConfiguration
 import java.util.concurrent.CancellationException
@@ -52,6 +53,10 @@ fun interface CustomerSessionResolver {
 
 interface CustomerAccountGateway {
     suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity>
+
+    /** Resolves identity with the leased session without acquiring the session coordinator again. */
+    suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> =
+        CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(CustomerTokenFailure.InvalidResponse))
 }
 
 class UnconfiguredCustomerAccountGateway : CustomerAccountGateway {
@@ -84,7 +89,14 @@ private class DiscoveringCustomerAccountGateway(
     private val lock = Mutex()
     private var delegate: CustomerAccountGateway? = null
 
-    override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> {
+    override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> = withGateway { it.loadIdentity() }
+
+    override suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> =
+        withGateway { it.loadIdentity(session) }
+
+    private suspend fun withGateway(
+        action: suspend (CustomerAccountGateway) -> CustomerAccountResult<CustomerIdentity>
+    ): CustomerAccountResult<CustomerIdentity> {
         val gateway = lock.withLock {
             delegate?.let { return@withLock it }
             when (val discovery = discoveryClient.discover()) {
@@ -102,7 +114,7 @@ private class DiscoveringCustomerAccountGateway(
                     ).also { delegate = it }
             }
         }
-        return gateway.loadIdentity()
+        return action(gateway)
     }
 }
 
@@ -121,21 +133,23 @@ class ApolloCustomerAccountGateway(
         is CustomerSessionResolution.Failed ->
             CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(session.reason))
 
-        is CustomerSessionResolution.Authenticated -> {
-            val call = session.session.accessToken.use { token ->
-                client.query(CustomerIdentityQuery()).addHttpHeader("Authorization", token)
-            }
-            when (val result = callExecutor.execute(call)) {
-                is CustomerAccountResult.Failure -> result
+        is CustomerSessionResolution.Authenticated -> loadIdentity(session.session)
+    }
 
-                is CustomerAccountResult.Success ->
-                    CustomerAccountResult.Success(
-                        CustomerIdentity(
-                            id = result.value.customer.id,
-                            displayName = result.value.customer.displayName
-                        )
+    override suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> {
+        val call = session.accessToken.use { token ->
+            client.query(CustomerIdentityQuery()).addHttpHeader("Authorization", token)
+        }
+        return when (val result = callExecutor.execute(call)) {
+            is CustomerAccountResult.Failure -> result
+
+            is CustomerAccountResult.Success ->
+                CustomerAccountResult.Success(
+                    CustomerIdentity(
+                        id = result.value.customer.id,
+                        displayName = result.value.customer.displayName
                     )
-            }
+                )
         }
     }
 }
