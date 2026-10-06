@@ -204,7 +204,9 @@ private fun CartInlineFailureBanner(failure: CartFailure, onRetry: () -> Unit) {
     ) {
         Text(stringResource(failure.messageResource()), color = MaterialTheme.colorScheme.error)
         if (failure.retryable) {
-            TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+            TextButton(onClick = onRetry, modifier = Modifier.testTag(CartTestTags.RETRY)) {
+                Text(stringResource(R.string.retry))
+            }
         }
     }
 }

@@ -504,9 +504,7 @@ class CartMutationOutcomeTest {
         runBlocking {
             withFixture { f ->
                 f.reply(read(snapshot(1)))
-                f.server.enqueue(
-                    MockResponse().setBody(mutation("cartLinesAdd", snapshot(2))).setBodyDelay(2, TimeUnit.SECONDS)
-                )
+                f.server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
                 val action = launch { f.repository.add(VARIANT, 1) }
                 withContext(Dispatchers.IO) {
                     assertNotNull(f.server.takeRequest(2, TimeUnit.SECONDS))
@@ -515,8 +513,9 @@ class CartMutationOutcomeTest {
                 action.cancelAndJoin()
                 assertNotNull(f.store.cart)
                 assertEquals(2, f.server.requestCount)
-                // Characterization: progress is left set until the normal refresh path recovers it.
-                assertEquals(CartMutation.ADDING, f.repository.state.value.mutation)
+                assertNull(f.repository.state.value.mutation)
+                assertEquals(CartFailureCategory.AMBIGUOUS_MUTATION, f.repository.state.value.failure?.category)
+                assertEquals(true, f.repository.state.value.failure?.retryable)
                 f.reply(read(snapshot(2)))
                 f.repository.refresh()
                 assertEquals(2, f.repository.state.value.badgeQuantity)
