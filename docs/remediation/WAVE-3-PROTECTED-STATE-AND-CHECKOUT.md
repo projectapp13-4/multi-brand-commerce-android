@@ -174,5 +174,40 @@ registry validation passed with the intentional UNCONFIGURED default projections
 Its inputs remain unchanged by the later three debug-host adaptations.
 Clean-worktree variants follow the documentation-bearing commit.
 
-Final independent review and normal protected PR/main CI remain required. No real
-customer/provider/order/payment, Play or signing operation occurred in this wave.
+## Protected CI fixture correction
+
+The first documentation-bearing head `a6d570842bb9ebfc623de52e2a44540bb8300cb6`
+on [PR #42](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/42)
+passed validation and native-16k in
+[run 37420830415](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37420830415),
+but both Android lanes failed new lazy-target lookup preparations. API 23's
+202 unique core cases contained 189 passes, three lookup failures and ten existing
+ignored controls; API 30's 204 contained 192 passes, two lookup failures and ten
+existing ignored controls. These results are failed acceptance, not a passing wave.
+
+The same immutable APK reproduced all three lookup failures among eight cases
+in a shorter owned API 36 viewport. State/ownership/disposal guards passed before
+the absent-target lookup. Node-level `performScrollTo()` fetches an already
+attached target; the terminal feedback changed the lazy-list scroll anchor.
+Independent exact-source/API review classified the failure and authorized only
+the two new screen test classes to traverse actual cart CONTENT first.
+Nine container searches were added; removing only those calls/imports reconstructs
+both original tests exactly. Every assertion, native click, counter and time bound
+remains unchanged. All 672 other implementation files, including production,
+resources, manifest, dependencies and JVM tests, remain byte identical.
+
+The focused correction lane passed Spotless, core detekt/Lint, unchanged-input
+523 core JVM cases and fresh core test APK compilation/packaging. Actual execution
+then passed **19/19 controls in the compact viewport** and **8/8 affected screen
+cases after restoring the original viewport**, with zero errors or skips.
+Both use APK SHA-256
+`FBA74D330B073B3E32BB954BB54C8D7EB899F5D72F88016D5231FFB5565D2813`.
+The final local implementation/test tree contains 674 files with SHA-256
+`c617a44b29a3dee22a59cb50e489f2157ccb013465a27207bd5b81249c11488e`.
+Earlier broad/release/projection and unchanged affected-screen evidence retain
+their explicitly compared input provenance. The display-size override was
+removed; original size/density, font and accessibility state are preserved.
+
+Final independent receipt review, clean-worktree checks and corrected exact-head
+and merged-main protected CI remain required. No real customer/provider/order/payment,
+Play or signing operation occurred in this wave.

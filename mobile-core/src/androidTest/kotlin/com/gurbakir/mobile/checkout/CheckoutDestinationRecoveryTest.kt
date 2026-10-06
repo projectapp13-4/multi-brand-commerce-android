@@ -9,6 +9,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation.compose.rememberNavController
@@ -118,6 +119,8 @@ class CheckoutDestinationRecoveryTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             fixture.checkout.state.value.status == CheckoutStatus.COMPLETED
         }
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK).assertIsDisplayed()
         composeRule.runOnIdle {
             assertEquals(listOf(fixture.cartA), fixture.completionAttempts)
@@ -151,6 +154,7 @@ class CheckoutDestinationRecoveryTest {
     }
 
     private fun launchCheckout() {
+        composeRule.onNodeWithTag(CartTestTags.CONTENT).performScrollToNode(hasTestTag(CartTestTags.CHECKOUT))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT).performScrollTo()
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT).performDeterministicClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -171,10 +175,13 @@ class CheckoutDestinationRecoveryTest {
             fixture.checkout.state.value.status == CheckoutStatus.CLEANUP_REQUIRED
         }
         composeRule.runOnIdle { assertEquals(listOf(fixture.cartA), fixture.completionAttempts) }
+        composeRule.onNodeWithTag(CartTestTags.CONTENT).performScrollToNode(hasTestTag(CartTestTags.CHECKOUT))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT).performScrollTo().assertIsNotEnabled()
     }
 
     private fun clickCleanupFeedback() {
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION).performScrollTo()
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION).performDeterministicClick()
         composeRule.waitForIdle()
@@ -199,6 +206,8 @@ class CheckoutDestinationRecoveryTest {
             if (replaceCart) fixture.installReplacement()
         }
         val expectedCurrent = fixture.cartStore.cart.takeIf { replaceCart }
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION).performScrollTo().assertIsDisplayed()
         clickCleanupFeedback()
         composeRule.runOnIdle {

@@ -2,9 +2,11 @@ package com.gurbakir.mobile.checkout
 
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -57,7 +59,11 @@ class CheckoutOwnerLifecycleScreenTest {
             assertEquals(CheckoutStatus.INTERRUPTED, checkout.state.value.status)
         }
         composeRule.onNodeWithTag(CartTestTags.LOADING).assertDoesNotExist()
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK_ACTION).performDeterministicClick()
         composeRule.waitForIdle()
         composeRule.runOnIdle {
@@ -83,6 +89,8 @@ class CheckoutOwnerLifecycleScreenTest {
             assertEquals(1, fixture.sdk.disposals)
             assertEquals(1, fixture.sdk.presentations)
         }
+        composeRule.onNodeWithTag(CartTestTags.CONTENT)
+            .performScrollToNode(hasTestTag(CartTestTags.CHECKOUT_FEEDBACK))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT_FEEDBACK).assertIsDisplayed()
     }
 
@@ -108,6 +116,7 @@ class CheckoutOwnerLifecycleScreenTest {
     }
 
     private fun launchCheckout() {
+        composeRule.onNodeWithTag(CartTestTags.CONTENT).performScrollToNode(hasTestTag(CartTestTags.CHECKOUT))
         composeRule.onNodeWithTag(CartTestTags.CHECKOUT).performScrollTo().performDeterministicClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { checkout.state.value.status == CheckoutStatus.IN_PROGRESS }
         composeRule.runOnIdle { assertEquals(1, fixture.sdk.presentations) }
