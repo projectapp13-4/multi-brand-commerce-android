@@ -57,13 +57,17 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
+import org.junit.rules.TestRule
 import org.junit.runner.RunWith
 
 /** Real address validation recovery across offscreen, fixed-header and IME boundaries. */
 @RunWith(AndroidJUnit4::class)
 class AddressValidationRecoveryTest {
-    @get:Rule
     val composeRule = createComposeRule()
+
+    @get:Rule
+    val rules: TestRule = RuleChain.outerRule(AddressVisibleImeEnvironmentRule()).around(composeRule)
     private lateinit var fixture: AddressValidationRecoveryFixture
 
     @After

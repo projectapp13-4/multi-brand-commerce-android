@@ -3,6 +3,9 @@
 package com.gurbakir.mobile.accessibility
 
 import android.content.res.Configuration
+import android.os.SystemClock
+import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.runtime.Composable
@@ -282,35 +285,175 @@ internal class ControlSemanticsHarness(private val case: ControlSemanticCase) {
     fun assertKeyboardTraversal() {
         if (enabled) {
             val previousMode = rule.runOnIdle { inputModeManager.inputMode }
+            val previousNativeTouch = rule.runOnIdle { hostView.isInTouchMode }
             val instrumentation = InstrumentationRegistry.getInstrumentation()
+            var stage = "initial"
+            var primaryFailure: Throwable? = null
+            fun observeStage() {
+                runCatching {
+                    instrumentation.runOnMainSync {
+                        Log.i(
+                            "ControlKeyboardMode",
+                            "case=$case tag=$tag stage=$stage sdk=${android.os.Build.VERSION.SDK_INT} " +
+                                "previousMode=$previousMode previousNativeTouch=$previousNativeTouch " +
+                                "mode=${inputModeManager.inputMode} nativeTouch=${hostView.isInTouchMode} " +
+                                "attached=${hostView.isAttachedToWindow} windowFocus=${hostView.hasWindowFocus()} " +
+                                "viewFocus=${hostView.hasFocus()}"
+                        )
+                    }
+                }.onFailure {
+                    Log.i("ControlKeyboardMode", "stage=$stage observationFailure=${it.javaClass.simpleName}")
+                }
+            }
+            observeStage()
             try {
+                stage = "request-keyboard"
+                observeStage()
                 rule.runOnIdle {
                     assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard))
                 }
+                stage = "await-keyboard"
+                observeStage()
                 rule.waitUntil(timeoutMillis = 5_000) {
                     rule.runOnIdle { inputModeManager.inputMode == InputMode.Keyboard }
                 }
+                stage = "assert-keyboard-native"
+                observeStage()
                 rule.runOnIdle {
                     assertEquals(InputMode.Keyboard, inputModeManager.inputMode)
                     assertFalse(hostView.isInTouchMode)
                 }
+                stage = "request-control-focus"
+                observeStage()
                 actionable.performSemanticsAction(SemanticsActions.RequestFocus) { assertTrue(it()) }
+                stage = "assert-focused-and-tab"
+                observeStage()
                 actionable.assertIsFocused().performKeyInput { pressKey(Key.Tab) }
+                stage = "assert-control-not-focused"
+                observeStage()
                 actionable.assertIsNotFocused()
+                stage = "assert-children-not-focused"
+                observeStage()
                 assertFalse(
                     rule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
                         .let(::controlSubtree).drop(1)
                         .any { it.config.getOrNull(SemanticsProperties.Focused) == true }
                 )
+                stage = "traversal-complete"
+                observeStage()
+            } catch (failure: Throwable) {
+                primaryFailure = failure
+                Log.i("ControlKeyboardMode", "stage=$stage primaryFailure=${failure.javaClass.simpleName}")
+                observeStage()
+                throw failure
             } finally {
-                // Android's Compose Touch request only checks state; restore the native test input mode.
-                instrumentation.setInTouchMode(previousMode == InputMode.Touch)
-                rule.waitUntil(timeoutMillis = 5_000) {
-                    rule.runOnIdle { inputModeManager.inputMode == previousMode }
-                }
-                rule.runOnIdle {
-                    assertEquals(previousMode, inputModeManager.inputMode)
-                    assertEquals(previousMode == InputMode.Touch, hostView.isInTouchMode)
+                try {
+                    stage = "restore-native"
+                    observeStage()
+                    // Android's Compose Touch request only checks state; restore the native test input mode.
+                    instrumentation.setInTouchMode(previousMode == InputMode.Touch)
+                    if (previousMode == InputMode.Touch) {
+                        stage = "restore-touch-native-down-cancel"
+                        observeStage()
+                        val stateBeforeTouch = rule.runOnIdle {
+                            Triple(changes.toList(), unrelatedActions.toList(), checked.value)
+                        }
+                        val owner = actionable.assertIsDisplayed().fetchSemanticsNode()
+                        val ownerBounds = owner.fullBoundsInRoot()
+                        assertEquals("The cleanup target must be fully unclipped", ownerBounds, owner.boundsInRoot)
+                        assertTrue(ownerBounds.width > 0f && ownerBounds.height > 0f)
+                        assertFalse(owner.config.getOrNull(SemanticsProperties.Disabled) != null)
+                        val location = IntArray(2)
+                        val visibleWindow = android.graphics.Rect()
+                        val hostBounds = rule.runOnIdle {
+                            assertTrue(hostView.isAttachedToWindow)
+                            assertTrue(hostView.isShown)
+                            assertTrue(hostView.hasWindowFocus())
+                            assertNotNull(hostView.windowToken)
+                            hostView.getLocationOnScreen(location)
+                            hostView.getWindowVisibleDisplayFrame(visibleWindow)
+                            Rect(
+                                location[0].toFloat(),
+                                location[1].toFloat(),
+                                location[0] + hostView.width.toFloat(),
+                                location[1] + hostView.height.toFloat()
+                            )
+                        }
+                        val screenBounds = Rect(
+                            location[0] + ownerBounds.left,
+                            location[1] + ownerBounds.top,
+                            location[0] + ownerBounds.right,
+                            location[1] + ownerBounds.bottom
+                        )
+                        assertTrue(screenBounds.left >= hostBounds.left && screenBounds.right <= hostBounds.right)
+                        assertTrue(screenBounds.top >= hostBounds.top && screenBounds.bottom <= hostBounds.bottom)
+                        assertTrue(screenBounds.left >= visibleWindow.left && screenBounds.right <= visibleWindow.right)
+                        assertTrue(screenBounds.top >= visibleWindow.top && screenBounds.bottom <= visibleWindow.bottom)
+                        val point = screenBounds.center
+                        val downTime = SystemClock.uptimeMillis()
+                        val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, point.x, point.y, 0)
+                        var downFailure: Throwable? = null
+                        try {
+                            instrumentation.sendPointerSync(down)
+                        } catch (failure: Throwable) {
+                            downFailure = failure
+                            throw failure
+                        } finally {
+                            down.recycle()
+                            try {
+                                val cancel = MotionEvent.obtain(
+                                    downTime,
+                                    SystemClock.uptimeMillis(),
+                                    MotionEvent.ACTION_CANCEL,
+                                    point.x,
+                                    point.y,
+                                    0
+                                )
+                                try {
+                                    instrumentation.sendPointerSync(cancel)
+                                } finally {
+                                    cancel.recycle()
+                                }
+                            } catch (cancellationFailure: Throwable) {
+                                val originalDownFailure = downFailure
+                                if (originalDownFailure != null) {
+                                    originalDownFailure.addSuppressed(cancellationFailure)
+                                } else {
+                                    throw cancellationFailure
+                                }
+                            }
+                        }
+                        stage = "assert-touch-cancellation-ledger"
+                        observeStage()
+                        rule.runOnIdle {
+                            assertEquals(stateBeforeTouch.first, changes.toList())
+                            assertEquals(stateBeforeTouch.second, unrelatedActions.toList())
+                            assertEquals(stateBeforeTouch.third, checked.value)
+                        }
+                        assertEquals(owner.id, actionable.fetchSemanticsNode().id)
+                    }
+                    stage = "await-restoration"
+                    observeStage()
+                    rule.waitUntil(timeoutMillis = 5_000) {
+                        rule.runOnIdle { inputModeManager.inputMode == previousMode }
+                    }
+                    stage = "assert-restoration"
+                    observeStage()
+                    rule.runOnIdle {
+                        assertEquals(previousMode, inputModeManager.inputMode)
+                        assertEquals(previousMode == InputMode.Touch, hostView.isInTouchMode)
+                    }
+                    stage = "restoration-complete"
+                    observeStage()
+                } catch (cleanupFailure: Throwable) {
+                    Log.i("ControlKeyboardMode", "stage=$stage cleanupFailure=${cleanupFailure.javaClass.simpleName}")
+                    observeStage()
+                    val originalFailure = primaryFailure
+                    if (originalFailure != null) {
+                        originalFailure.addSuppressed(cleanupFailure)
+                    } else {
+                        throw cleanupFailure
+                    }
                 }
             }
         }
