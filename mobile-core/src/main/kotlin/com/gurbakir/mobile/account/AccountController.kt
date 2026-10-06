@@ -246,6 +246,8 @@ private fun CustomerTokenFailure.toAccountResult(sessionRetained: Boolean): Acco
 )
 
 private fun CustomerAccountFailure.toAccountFailure(): AccountFailure = when (this) {
+    CustomerAccountFailure.SecureStorage -> AccountFailure.SECURE_STORAGE
+
     CustomerAccountFailure.SignedOut,
     is CustomerAccountFailure.Authentication -> AccountFailure.IDENTITY_AUTHENTICATION
 
@@ -260,7 +262,8 @@ private fun CustomerAccountFailure.toAccountResult(sessionRetained: Boolean): Ac
     AccountResult.Failed(
         reason = toAccountFailure(),
         retryable =
-            (this is CustomerAccountFailure.Transport && retryable) ||
+            this == CustomerAccountFailure.SecureStorage ||
+                (this is CustomerAccountFailure.Transport && retryable) ||
                 this is CustomerAccountFailure.Discovery,
         sessionRetained = sessionRetained
     )

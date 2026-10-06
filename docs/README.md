@@ -20,7 +20,8 @@ is claimed. The pre-tester documents above retain their historical PR checkpoint
 The remediation contracts and dated pre-merge evidence are recorded in
 [Wave 1: identity isolation](remediation/WAVE-1-IDENTITY-ISOLATION.md) and
 [Wave 2A: mutation outcomes](remediation/WAVE-2A-MUTATION-OUTCOMES.md), and
-[Wave 2B: cancellation and feedback](remediation/WAVE-2B-CANCELLATION-AND-FEEDBACK.md).
+[Wave 2B: cancellation and feedback](remediation/WAVE-2B-CANCELLATION-AND-FEEDBACK.md), and
+[Wave 3: protected state and checkout](remediation/WAVE-3-PROTECTED-STATE-AND-CHECKOUT.md).
 The program plan records later protected wave acceptance; the individual
 handoffs retain their scoped checkpoints.
 

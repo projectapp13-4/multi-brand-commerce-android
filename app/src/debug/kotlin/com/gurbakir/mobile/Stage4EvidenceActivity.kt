@@ -192,7 +192,8 @@ private fun evidenceCartActions(navController: NavHostController) = CartActions(
     onDecrease = {},
     onRemove = {},
     onDiscard = {},
-    onCheckout = {}
+    onCheckout = {},
+    onRetryCheckoutCleanup = {}
 )
 
 private fun evidenceProduct(): StorefrontProductDetail = StorefrontProductDetail(

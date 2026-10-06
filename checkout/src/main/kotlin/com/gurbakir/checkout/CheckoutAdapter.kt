@@ -3,6 +3,7 @@ package com.gurbakir.checkout
 import android.app.Activity
 import java.net.URI
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -21,7 +22,11 @@ interface CheckoutAdapter {
 sealed interface CheckoutResult {
     data object Preloaded : CheckoutResult
 
-    data class Presented(val sessionId: CheckoutSessionId, val events: Flow<CheckoutEvent>) : CheckoutResult
+    data class Presented(
+        val sessionId: CheckoutSessionId,
+        val events: Flow<CheckoutEvent>,
+        val owner: CheckoutPresentationOwner
+    ) : CheckoutResult
 
     data class Rejected(val reason: CheckoutFailure) : CheckoutResult
 }
@@ -41,6 +46,8 @@ sealed interface CheckoutEvent {
     data object Cancelled : CheckoutEvent
 
     data class Failed(val failure: CheckoutFailure) : CheckoutEvent
+
+    data class RecoveryStarted(val failure: CheckoutFailure) : CheckoutEvent
 
     data class ExternalLinkRequested(val uri: URI) : CheckoutEvent {
         override fun toString(): String = "ExternalLinkRequested(uri=<redacted>)"
@@ -78,47 +85,30 @@ class ShopifyCheckoutAdapter(
 
     internal fun presentWithOperation(
         checkoutUrl: URI,
-        operation: ((CheckoutEvent) -> Unit) -> Boolean
+        operation: ((CheckoutEvent) -> Unit) -> CheckoutPresentationOwner?
     ): CheckoutResult {
         if (!checkoutUrlPolicy.validate(checkoutUrl)) {
             return CheckoutResult.Rejected(CheckoutFailure.INVALID_CHECKOUT_URL)
         }
         val sessionId = CheckoutSessionId(sessionSequence.incrementAndGet())
         val eventChannel = Channel<CheckoutEvent>(capacity = Channel.UNLIMITED)
-        val eventLock = Any()
-        var terminated = false
-        return runCatching {
-            operation { event ->
-                synchronized(eventLock) {
-                    if (!terminated) {
-                        check(eventChannel.trySend(event).isSuccess)
-                        if (event.isTerminal()) {
-                            terminated = true
-                            eventChannel.close()
-                        }
-                    }
-                }
+        val lifetime = CheckoutPresentationLifetime(eventChannel)
+        return try {
+            val owner = operation(lifetime::send)
+            if (owner == null) {
+                lifetime.dispose()
+                CheckoutResult.Rejected(CheckoutFailure.SDK_UNAVAILABLE)
+            } else {
+                lifetime.adopt(owner)
+                CheckoutResult.Presented(sessionId, eventChannel.consumeAsFlow(), lifetime)
             }
-        }.fold(
-            onSuccess = { started ->
-                if (started) {
-                    CheckoutResult.Presented(sessionId, eventChannel.consumeAsFlow())
-                } else {
-                    synchronized(eventLock) {
-                        terminated = true
-                        eventChannel.close()
-                    }
-                    CheckoutResult.Rejected(CheckoutFailure.SDK_UNAVAILABLE)
-                }
-            },
-            onFailure = {
-                synchronized(eventLock) {
-                    terminated = true
-                    eventChannel.close()
-                }
-                CheckoutResult.Rejected(CheckoutFailure.FATAL)
-            }
-        )
+        } catch (cancelled: CancellationException) {
+            lifetime.dispose()
+            throw cancelled
+        } catch (_: Exception) {
+            lifetime.dispose()
+            CheckoutResult.Rejected(CheckoutFailure.FATAL)
+        }
     }
 
     private inline fun executePreload(checkoutUrl: URI, operation: () -> Boolean): CheckoutResult {
@@ -134,15 +124,19 @@ class ShopifyCheckoutAdapter(
     }
 }
 
-private fun CheckoutEvent.isTerminal(): Boolean =
+internal fun CheckoutEvent.isTerminal(): Boolean =
     this is CheckoutEvent.Completed || this is CheckoutEvent.Cancelled || this is CheckoutEvent.Failed
 
 interface CheckoutKitClient {
     fun preload(activity: Activity, checkoutUrl: URI, eventSink: (CheckoutEvent) -> Unit): Boolean
 
-    fun present(activity: Activity, checkoutUrl: URI, eventSink: (CheckoutEvent) -> Unit): Boolean
+    fun present(activity: Activity, checkoutUrl: URI, eventSink: (CheckoutEvent) -> Unit): CheckoutPresentationOwner?
 
     fun invalidate()
+}
+
+fun interface CheckoutPresentationOwner {
+    fun dispose()
 }
 
 class CheckoutUrlPolicy(allowedHosts: Set<String>) {

@@ -662,6 +662,7 @@ internal fun formatOrderMoney(value: CustomerOrderMoney, locale: Locale): String
 private fun OrderFailure.messageResource(): Int = when (this) {
     OrderFailure.CONNECTION -> R.string.order_failure_connection
     OrderFailure.SERVICE -> R.string.order_failure_service
+    OrderFailure.SECURE_STORAGE -> R.string.account_failure_secure_storage
 }
 
 private fun TrackingFeedback.messageResource(): Int = when (this) {

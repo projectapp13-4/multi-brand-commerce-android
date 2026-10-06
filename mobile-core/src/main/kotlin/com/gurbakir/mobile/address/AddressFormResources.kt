@@ -14,6 +14,7 @@ internal fun AddressFieldError.messageResource(): Int = when (this) {
 internal fun AddressFormFailure.messageResource(): Int = when (this) {
     AddressFormFailure.CONNECTION -> R.string.address_failure_connection
     AddressFormFailure.SERVICE -> R.string.address_failure_service
+    AddressFormFailure.SECURE_STORAGE -> R.string.account_failure_secure_storage
     AddressFormFailure.NOT_FOUND -> R.string.address_failure_not_found
     AddressFormFailure.UNSUPPORTED_COUNTRY -> R.string.address_failure_unsupported_country
     AddressFormFailure.CONFLICT -> R.string.address_failure_conflict

@@ -14,6 +14,7 @@ import com.gurbakir.account.oauth.CustomerAccountDiscoveryResult
 import com.gurbakir.account.oauth.CustomerTokenFailure
 import com.gurbakir.account.session.CustomerSession
 import com.gurbakir.account.session.CustomerSessionResolution
+import com.gurbakir.account.session.CustomerSessionStorageException
 import com.gurbakir.foundation.config.CustomerAccountConfiguration
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -31,6 +32,8 @@ data class CustomerIdentity(val id: String, val displayName: String)
 
 sealed interface CustomerAccountFailure {
     data object SignedOut : CustomerAccountFailure
+
+    data object SecureStorage : CustomerAccountFailure
 
     data class Authentication(val reason: CustomerTokenFailure) : CustomerAccountFailure
 
@@ -50,6 +53,13 @@ sealed interface CustomerAccountResult<out T> {
 fun interface CustomerSessionResolver {
     suspend fun resolve(): CustomerSessionResolution
 }
+
+internal suspend fun CustomerSessionResolver.resolveForAccount(): CustomerAccountResult<CustomerSessionResolution> =
+    try {
+        CustomerAccountResult.Success(resolve())
+    } catch (_: CustomerSessionStorageException) {
+        CustomerAccountResult.Failure(CustomerAccountFailure.SecureStorage)
+    }
 
 interface CustomerAccountGateway {
     suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity>
@@ -125,16 +135,19 @@ class ApolloCustomerAccountGateway(
 ) : CustomerAccountGateway {
     private val callExecutor = CustomerApolloCallExecutor(requestTimeoutMillis)
 
-    override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> = when (
-        val session = sessionResolver.resolve()
-    ) {
-        CustomerSessionResolution.SignedOut -> CustomerAccountResult.Failure(CustomerAccountFailure.SignedOut)
+    override suspend fun loadIdentity(): CustomerAccountResult<CustomerIdentity> =
+        when (val result = sessionResolver.resolveForAccount()) {
+            is CustomerAccountResult.Failure -> result
 
-        is CustomerSessionResolution.Failed ->
-            CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(session.reason))
+            is CustomerAccountResult.Success -> when (val session = result.value) {
+                CustomerSessionResolution.SignedOut -> CustomerAccountResult.Failure(CustomerAccountFailure.SignedOut)
 
-        is CustomerSessionResolution.Authenticated -> loadIdentity(session.session)
-    }
+                is CustomerSessionResolution.Failed ->
+                    CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(session.reason))
+
+                is CustomerSessionResolution.Authenticated -> loadIdentity(session.session)
+            }
+        }
 
     override suspend fun loadIdentity(session: CustomerSession): CustomerAccountResult<CustomerIdentity> {
         val call = session.accessToken.use { token ->

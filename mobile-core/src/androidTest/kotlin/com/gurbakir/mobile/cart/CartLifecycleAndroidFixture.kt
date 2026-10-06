@@ -68,7 +68,8 @@ internal class CartLifecycleAndroidFixture(ownership: CartOwnership = CartOwners
         onDecrease = cart::decrease,
         onRemove = cart::remove,
         onDiscard = cart::discard,
-        onCheckout = {}
+        onCheckout = {},
+        onRetryCheckoutCleanup = {}
     )
 
     fun productActions() = ProductDetailActions(

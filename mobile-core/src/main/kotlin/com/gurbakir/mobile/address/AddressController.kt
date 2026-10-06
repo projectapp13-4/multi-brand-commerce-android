@@ -11,6 +11,7 @@ import com.gurbakir.account.CustomerAddressMutationResult
 import com.gurbakir.account.oauth.CustomerAccountDiscoveryFailure
 import com.gurbakir.account.oauth.CustomerTokenFailure
 import com.gurbakir.account.session.CustomerAccountSessionCoordinator
+import com.gurbakir.account.session.CustomerSessionStorageException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,6 +51,7 @@ data class AddressInput(
 }
 
 enum class AddressFailure {
+    SECURE_STORAGE,
     CONNECTION,
     SERVICE,
     NOT_FOUND,
@@ -91,6 +93,9 @@ interface AddressController {
 
     suspend fun loadForm(addressId: String?): AddressFormLoadResult
 
+    /** Recovery must reverify authorization even for a new form whose initial load is local. */
+    suspend fun recoverForm(addressId: String?): AddressFormLoadResult = loadForm(addressId)
+
     suspend fun saveAddress(
         addressId: String?,
         input: AddressInput,
@@ -124,12 +129,20 @@ constructor(
     override suspend fun loadForm(addressId: String?): AddressFormLoadResult = if (addressId == null) {
         AddressFormLoadResult.Ready(null)
     } else {
+        loadVerifiedForm(addressId)
+    }
+
+    override suspend fun recoverForm(addressId: String?): AddressFormLoadResult = loadVerifiedForm(addressId)
+
+    private suspend fun loadVerifiedForm(addressId: String?): AddressFormLoadResult =
         when (val result = reader.loadAll()) {
             is CustomerAccountResult.Failure -> resolveFormFailure(result.reason)
 
             is CustomerAccountResult.Success -> {
                 val address = result.value.firstOrNull { it.id == addressId }
                 when {
+                    addressId == null -> AddressFormLoadResult.Ready(null)
+
                     address == null -> AddressFormLoadResult.Failed(AddressFailure.NOT_FOUND)
 
                     !territoryPolicy.supports(address.territoryCode) ->
@@ -139,7 +152,6 @@ constructor(
                 }
             }
         }
-    }
 
     override suspend fun saveAddress(
         addressId: String?,
@@ -154,9 +166,13 @@ constructor(
         mutations.deleteAddress(addressId, expected)
 
     private suspend fun resolveLoadFailure(failure: CustomerAccountFailure): AddressLoadResult = when {
-        failure.isTerminalAddressFailure() -> {
+        failure == CustomerAccountFailure.SecureStorage -> AddressLoadResult.Failed(AddressFailure.SECURE_STORAGE)
+
+        failure.isTerminalAddressFailure() -> try {
             sessionCoordinator.clearForLogout()
             AddressLoadResult.SignedOut
+        } catch (_: CustomerSessionStorageException) {
+            AddressLoadResult.Failed(AddressFailure.SECURE_STORAGE)
         }
 
         failure.isAddressConnectionFailure() -> AddressLoadResult.Failed(AddressFailure.CONNECTION)
@@ -165,9 +181,13 @@ constructor(
     }
 
     private suspend fun resolveFormFailure(failure: CustomerAccountFailure): AddressFormLoadResult = when {
-        failure.isTerminalAddressFailure() -> {
+        failure == CustomerAccountFailure.SecureStorage -> AddressFormLoadResult.Failed(AddressFailure.SECURE_STORAGE)
+
+        failure.isTerminalAddressFailure() -> try {
             sessionCoordinator.clearForLogout()
             AddressFormLoadResult.SignedOut
+        } catch (_: CustomerSessionStorageException) {
+            AddressFormLoadResult.Failed(AddressFailure.SECURE_STORAGE)
         }
 
         failure.isAddressConnectionFailure() -> AddressFormLoadResult.Failed(AddressFailure.CONNECTION)
@@ -369,7 +389,7 @@ private class AddressMutationVerifier(
                 if (reread.value) AddressActionResult.Confirmed(addressId) else unconfirmed()
 
             is CustomerAccountResult.Failure ->
-                if (reread.reason.isTerminalAddressFailure()) {
+                if (reread.reason == CustomerAccountFailure.SecureStorage || reread.reason.isTerminalAddressFailure()) {
                     failureResolver.resolve(reread.reason, outcomeMayBeUnknown = false)
                 } else {
                     unconfirmed()
@@ -381,9 +401,13 @@ private class AddressMutationVerifier(
 
 private class AddressActionFailureResolver(private val sessionCoordinator: CustomerAccountSessionCoordinator) {
     suspend fun resolve(failure: CustomerAccountFailure, outcomeMayBeUnknown: Boolean): AddressActionResult = when {
-        failure.isTerminalAddressFailure() -> {
+        failure == CustomerAccountFailure.SecureStorage -> AddressActionResult.Failed(AddressFailure.SECURE_STORAGE)
+
+        failure.isTerminalAddressFailure() -> try {
             sessionCoordinator.clearForLogout()
             AddressActionResult.SignedOut
+        } catch (_: CustomerSessionStorageException) {
+            AddressActionResult.Failed(AddressFailure.SECURE_STORAGE)
         }
 
         outcomeMayBeUnknown -> AddressActionResult.Failed(AddressFailure.SAVE_UNCONFIRMED)
@@ -469,6 +493,7 @@ private fun CustomerAccountFailure.isTerminalAddressFailure(): Boolean = when (t
     is CustomerAccountFailure.GraphQl -> errorCodes.any(TERMINAL_ADDRESS_ERROR_CODES::contains)
 
     is CustomerAccountFailure.Discovery,
+    CustomerAccountFailure.SecureStorage,
     is CustomerAccountFailure.Transport -> false
 }
 
@@ -480,6 +505,7 @@ private fun CustomerAccountFailure.isAddressConnectionFailure(): Boolean = when 
     is CustomerAccountFailure.Transport -> retryable
 
     is CustomerAccountFailure.GraphQl,
+    CustomerAccountFailure.SecureStorage,
     CustomerAccountFailure.SignedOut -> false
 }
 

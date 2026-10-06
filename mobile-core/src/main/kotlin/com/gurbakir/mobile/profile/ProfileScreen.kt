@@ -272,6 +272,7 @@ private fun ProfileFieldError.messageResourceId(): Int = when (this) {
 private fun ProfileFailure.messageResourceId(): Int = when (this) {
     ProfileFailure.CONNECTION -> R.string.profile_failure_connection
     ProfileFailure.SERVICE -> R.string.profile_failure_service
+    ProfileFailure.SECURE_STORAGE -> R.string.account_failure_secure_storage
     ProfileFailure.CONFLICT -> R.string.profile_failure_conflict
     ProfileFailure.SAVE_UNCONFIRMED -> R.string.profile_failure_save_unconfirmed
 }

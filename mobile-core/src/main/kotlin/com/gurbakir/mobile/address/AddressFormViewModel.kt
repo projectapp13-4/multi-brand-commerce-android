@@ -35,6 +35,7 @@ enum class AddressFieldError {
 enum class AddressFormFailure {
     CONNECTION,
     SERVICE,
+    SECURE_STORAGE,
     NOT_FOUND,
     UNSUPPORTED_COUNTRY,
     CONFLICT,
@@ -92,18 +93,20 @@ constructor(
     private val effectsChannel = Channel<AddressFormEffect>(Channel.BUFFERED)
     val effects: Flow<AddressFormEffect> = effectsChannel.receiveAsFlow()
 
-    private var started = false
+    private var initialTarget: AddressFormTarget? = null
+    private var storageRecoveryTarget: AddressFormTarget? = null
 
     fun start(addressId: String?) {
-        if (started) return
-        started = true
-        load(addressId)
+        if (initialTarget != null) return
+        val target = AddressFormTarget(addressId)
+        initialTarget = target
+        load(target)
     }
 
     fun reload() {
-        val current = _state.value
-        if (current.busy || !started) return
-        load(current.addressId)
+        val target = initialTarget ?: return
+        if (_state.value.busy) return
+        load(target)
     }
 
     fun update(field: CustomerAddressField, value: String) {
@@ -166,19 +169,28 @@ constructor(
         }
     }
 
-    private fun load(addressId: String?) {
+    private fun load(target: AddressFormTarget) {
+        val recoveryTarget = storageRecoveryTarget
         _state.value =
             AddressFormUiState(
                 postalCodeInputMode = territoryPolicy.postalCodeInputMode,
                 phase = AddressFormPhase.LOADING,
-                addressId = addressId
+                addressId = target.addressId.takeIf { recoveryTarget == null }
             )
-        viewModelScope.launch { handleLoadResult(addressId, controller.loadForm(addressId)) }
+        viewModelScope.launch {
+            val result = if (recoveryTarget == null) {
+                controller.loadForm(target.addressId)
+            } else {
+                controller.recoverForm(recoveryTarget.addressId)
+            }
+            handleLoadResult(target.addressId, result)
+        }
     }
 
     private suspend fun handleLoadResult(addressId: String?, result: AddressFormLoadResult) {
         when (result) {
             is AddressFormLoadResult.Ready -> {
+                storageRecoveryTarget = null
                 val input = result.address?.toInput() ?: EMPTY_ADDRESS_INPUT
                 _state.value =
                     AddressFormUiState(
@@ -193,8 +205,13 @@ constructor(
 
             AddressFormLoadResult.SignedOut -> returnToAccount()
 
-            is AddressFormLoadResult.Failed ->
-                _state.value = _state.value.failed(result.reason.toFormFailure())
+            is AddressFormLoadResult.Failed -> {
+                val formFailure = result.reason.toFormFailure()
+                if (formFailure == AddressFormFailure.SECURE_STORAGE) {
+                    storageRecoveryTarget = initialTarget
+                }
+                _state.value = _state.value.failed(formFailure)
+            }
         }
     }
 
@@ -218,12 +235,18 @@ constructor(
 
             AddressActionResult.SignedOut -> returnToAccount()
 
-            is AddressActionResult.Failed ->
-                _state.value = _state.value.failed(result.reason.toFormFailure())
+            is AddressActionResult.Failed -> {
+                val formFailure = result.reason.toFormFailure()
+                if (formFailure == AddressFormFailure.SECURE_STORAGE) {
+                    storageRecoveryTarget = initialTarget
+                }
+                _state.value = _state.value.failed(formFailure)
+            }
         }
     }
 
     private suspend fun returnToAccount() {
+        storageRecoveryTarget = null
         _state.value =
             AddressFormUiState(
                 postalCodeInputMode = territoryPolicy.postalCodeInputMode,
@@ -233,12 +256,24 @@ constructor(
     }
 }
 
-private fun AddressFormUiState.failed(failure: AddressFormFailure): AddressFormUiState = copy(
-    phase = AddressFormPhase.FAILED,
-    fieldErrors = emptyMap(),
-    failure = failure,
-    focusRequest = null
-)
+/** Route intent stays private while storage recovery removes the visible address identifier. */
+private class AddressFormTarget(val addressId: String?)
+
+private fun AddressFormUiState.failed(failure: AddressFormFailure): AddressFormUiState =
+    if (failure == AddressFormFailure.SECURE_STORAGE) {
+        AddressFormUiState(
+            postalCodeInputMode = postalCodeInputMode,
+            phase = AddressFormPhase.FAILED,
+            failure = failure
+        )
+    } else {
+        copy(
+            phase = AddressFormPhase.FAILED,
+            fieldErrors = emptyMap(),
+            failure = failure,
+            focusRequest = null
+        )
+    }
 
 private val EMPTY_ADDRESS_INPUT = AddressInput("", "", "", "", "", "", "", "")
 
@@ -334,6 +369,7 @@ private val ADDRESS_FIELD_ORDER =
 private fun AddressFailure.toFormFailure(): AddressFormFailure = when (this) {
     AddressFailure.CONNECTION -> AddressFormFailure.CONNECTION
     AddressFailure.SERVICE -> AddressFormFailure.SERVICE
+    AddressFailure.SECURE_STORAGE -> AddressFormFailure.SECURE_STORAGE
     AddressFailure.NOT_FOUND -> AddressFormFailure.NOT_FOUND
     AddressFailure.UNSUPPORTED_COUNTRY -> AddressFormFailure.UNSUPPORTED_COUNTRY
     AddressFailure.SAVE_UNCONFIRMED -> AddressFormFailure.SAVE_UNCONFIRMED

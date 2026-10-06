@@ -504,7 +504,8 @@ class CustomerCartOwnershipTest {
                         } finally {
                             collectionFinished.complete(Unit)
                         }
-                    }
+                    },
+                    com.gurbakir.checkout.CheckoutPresentationOwner {}
                 )
             }
         }

@@ -51,11 +51,12 @@ internal fun CheckoutFeedback(
     state: CheckoutState,
     onContinue: () -> Unit,
     onRetryCheckout: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onCleanup: () -> Unit
 ) {
     val message = state.messageResource()
     if (message != null) {
-        val action = state.feedbackAction(onContinue, onRetryCheckout, onRefresh)
+        val action = state.feedbackAction(onContinue, onRetryCheckout, onRefresh, onCleanup)
         CommerceStatePanel(
             title = stringResource(state.titleResource()),
             body = stringResource(message),
@@ -80,6 +81,8 @@ private fun CheckoutState.messageResource(): Int? = when (status) {
     CheckoutStatus.IN_PROGRESS -> R.string.checkout_in_progress
 
     CheckoutStatus.CANCELLED -> R.string.checkout_cancelled
+
+    CheckoutStatus.INTERRUPTED -> R.string.checkout_interrupted
 
     CheckoutStatus.COMPLETED -> R.string.checkout_completed
 
@@ -114,6 +117,8 @@ private fun CheckoutState.titleResource(): Int = when (status) {
 
     CheckoutStatus.CANCELLED -> R.string.checkout_cancelled_title
 
+    CheckoutStatus.INTERRUPTED -> R.string.checkout_interrupted_title
+
     CheckoutStatus.CLEANUP_REQUIRED,
     CheckoutStatus.EXTERNAL_LINK_BLOCKED -> R.string.checkout_attention_title
 
@@ -128,7 +133,8 @@ private fun CheckoutState.titleResource(): Int = when (status) {
 private fun CheckoutState.feedbackAction(
     onContinue: () -> Unit,
     onRetryCheckout: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onCleanup: () -> Unit
 ): CheckoutFeedbackAction? = when (status) {
     CheckoutStatus.COMPLETED,
     CheckoutStatus.COMPLETED_CURRENT_CART_PRESERVED ->
@@ -136,7 +142,9 @@ private fun CheckoutState.feedbackAction(
 
     CheckoutStatus.CANCELLED -> CheckoutFeedbackAction(R.string.checkout_retry, onRetryCheckout)
 
-    CheckoutStatus.CLEANUP_REQUIRED -> CheckoutFeedbackAction(R.string.cart_refresh, onRefresh)
+    CheckoutStatus.CLEANUP_REQUIRED -> CheckoutFeedbackAction(R.string.checkout_retry_cleanup, onCleanup)
+
+    CheckoutStatus.INTERRUPTED -> CheckoutFeedbackAction(R.string.cart_refresh, onRefresh)
 
     CheckoutStatus.FAILED ->
         if (failure?.retryable == true) {

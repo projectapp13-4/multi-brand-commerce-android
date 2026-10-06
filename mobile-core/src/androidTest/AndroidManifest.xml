@@ -9,6 +9,17 @@
         <activity
             android:name="com.gurbakir.mobile.home.OwnedHomeVideoRotationActivity"
             android:exported="false" />
+        <activity
+            android:name="com.gurbakir.mobile.checkout.CheckoutOwnerProbeActivity"
+            android:exported="false" />
+        <service
+            android:name="com.gurbakir.mobile.account.ProtectedStateBeforeClearService"
+            android:exported="false"
+            android:process=":protectedStateBeforeClear" />
+        <service
+            android:name="com.gurbakir.mobile.account.ProtectedStateAfterClearService"
+            android:exported="false"
+            android:process=":protectedStateAfterClear" />
         <!-- OAuth callbacks belong to the app; this standalone harness uses inert content. -->
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"

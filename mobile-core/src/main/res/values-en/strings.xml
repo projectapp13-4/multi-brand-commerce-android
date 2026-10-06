@@ -184,10 +184,13 @@
     <string name="checkout_external_context">Payment, delivery, and order confirmation take place on the secure checkout page.</string>
     <string name="checkout_preparing">The cart is refreshing for current eligibility and totals.</string>
     <string name="checkout_in_progress">Secure checkout is opening. Success is accepted only from Shopify\'s completion callback.</string>
-    <string name="checkout_cancelled">Checkout was closed. The cart was retained and refreshed from Shopify.</string>
+    <string name="checkout_cancelled">Checkout was cancelled. Your cart is retained.</string>
+    <string name="checkout_interrupted">The checkout screen closed. Its outcome was not confirmed; review your cart before trying again.</string>
+    <string name="checkout_interrupted_title">Checkout outcome unconfirmed</string>
+    <string name="checkout_retry_cleanup">Retry cart cleanup</string>
     <string name="checkout_completed">Checkout completed. The completed cart was cleared from this device.</string>
     <string name="checkout_completed_cart_preserved">Checkout completed. A different current cart created in the meantime was preserved.</string>
-    <string name="checkout_cleanup_required">Checkout completed, but the protected local cart record could not be cleared. Do not submit the same cart again; refresh when the connection recovers.</string>
+    <string name="checkout_cleanup_required">Checkout completed. Local cart cleanup is not yet confirmed. Do not submit the same cart again; retry local cleanup.</string>
     <string name="checkout_external_link_blocked">An external checkout link was not opened under the security policy. Checkout remains available.</string>
     <string name="checkout_error_empty">No current non-empty cart is available for checkout.</string>
     <string name="checkout_error_restricted">This cart has an unverified customer association and cannot be sent to checkout.</string>
@@ -199,7 +202,7 @@
     <string name="checkout_error_invalid_url">The checkout address did not match the store\'s allowed secure address.</string>
     <string name="checkout_error_sdk">Checkout could not open right now. Try again.</string>
     <string name="checkout_error_network">Checkout closed because of a network or server error. The cart is retained.</string>
-    <string name="checkout_error_expired">The checkout session expired. The cart was revalidated and can be tried again.</string>
+    <string name="checkout_error_expired">This checkout link is no longer available. Review your cart before trying again.</string>
     <string name="checkout_error_recoverable">Checkout closed after a temporary error. The cart is retained.</string>
     <string name="checkout_error_fatal">Checkout could not start safely. The cart is retained.</string>
     <string name="account_title">Account</string>

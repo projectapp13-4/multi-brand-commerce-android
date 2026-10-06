@@ -22,7 +22,7 @@ class CheckoutAdapterSessionTest {
         val result =
             adapter.presentWithOperation(target) { eventSink ->
                 eventSink(CheckoutEvent.Cancelled)
-                true
+                CheckoutPresentationOwner {}
             }
         val presented = assertInstanceOf(CheckoutResult.Presented::class.java, result)
         assertEquals(listOf(CheckoutEvent.Cancelled), presented.events.toList())
@@ -32,8 +32,8 @@ class CheckoutAdapterSessionTest {
     fun `sequential presentations cannot share a callback session identity`() = runTest {
         val adapter = ShopifyCheckoutAdapter(checkoutUrlPolicy = CheckoutUrlPolicy(setOf("gurbakir.com")))
 
-        val first = adapter.presentWithOperation(target) { true } as CheckoutResult.Presented
-        val second = adapter.presentWithOperation(target) { true } as CheckoutResult.Presented
+        val first = adapter.presentWithOperation(target) { CheckoutPresentationOwner {} } as CheckoutResult.Presented
+        val second = adapter.presentWithOperation(target) { CheckoutPresentationOwner {} } as CheckoutResult.Presented
 
         assertNotEquals(first.sessionId, second.sessionId)
     }
@@ -45,11 +45,11 @@ class CheckoutAdapterSessionTest {
         lateinit var secondSink: (CheckoutEvent) -> Unit
         val first = adapter.presentWithOperation(target) {
             firstSink = it
-            true
+            CheckoutPresentationOwner {}
         } as CheckoutResult.Presented
         val second = adapter.presentWithOperation(target) {
             secondSink = it
-            true
+            CheckoutPresentationOwner {}
         } as CheckoutResult.Presented
         val firstEvents = async { first.events.toList() }
         val secondEvents = async { second.events.toList() }
@@ -71,7 +71,7 @@ class CheckoutAdapterSessionTest {
         val first =
             adapter.presentWithOperation(target) { sink ->
                 sink(CheckoutEvent.Completed)
-                true
+                CheckoutPresentationOwner {}
             } as CheckoutResult.Presented
         assertEquals(listOf(CheckoutEvent.Completed), first.events.toList())
 
@@ -79,7 +79,7 @@ class CheckoutAdapterSessionTest {
         val later =
             adapter.presentWithOperation(target) { sink ->
                 laterSink = sink
-                true
+                CheckoutPresentationOwner {}
             } as CheckoutResult.Presented
         val laterEvents = async { later.events.toList() }
         runCurrent()
@@ -96,7 +96,7 @@ class CheckoutAdapterSessionTest {
         val result =
             adapter.presentWithOperation(URI("https://attacker.example/checkout")) {
                 invoked = true
-                true
+                CheckoutPresentationOwner {}
             }
 
         assertEquals(CheckoutResult.Rejected(CheckoutFailure.INVALID_CHECKOUT_URL), result)
