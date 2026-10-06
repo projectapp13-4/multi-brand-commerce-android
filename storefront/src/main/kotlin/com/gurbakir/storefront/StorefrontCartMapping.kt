@@ -99,20 +99,6 @@ internal fun String.toSafeHttpsUri(): URI? = runCatching {
 internal fun String.toApprovedMediaUri(mediaPolicy: StorefrontMediaPolicy): URI? =
     runCatching { URI(this) }.getOrNull()?.takeIf(mediaPolicy::accepts)
 
-internal fun List<ShopifyUserError>.toCartFailure(): StorefrontResult.Failure {
-    val reason = when {
-        any { it.code == "INVALID_MERCHANDISE_LINE" || it.code == "MERCHANDISE_NOT_APPLICABLE" } ->
-            InvalidCartReason.MERCHANDISE_UNAVAILABLE
-
-        else -> null
-    }
-    return if (reason == null) {
-        StorefrontResult.Failure(StorefrontFailure.UserErrors(this))
-    } else {
-        StorefrontResult.Failure(StorefrontFailure.InvalidCart(reason))
-    }
-}
-
 internal fun <T> graphQlFailure(code: String): StorefrontResult<T> =
     StorefrontResult.Failure(StorefrontFailure.GraphQl(setOf(code)))
 

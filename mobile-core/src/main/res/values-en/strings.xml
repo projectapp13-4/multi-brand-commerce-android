@@ -129,8 +129,10 @@
     <string name="product_adding_to_cart">Adding to cart&#8230;</string>
     <string name="product_added_to_cart">Your selected product was added to the cart.</string>
     <string name="product_cart_restricted">A protected customer cart cannot be shown in this session. Open the cart to clear it safely.</string>
-    <string name="product_cart_quantity_error">This option or quantity could not be added. Check current availability.</string>
+    <string name="product_cart_quantity_error">The requested option or quantity was not accepted. Review the current cart and availability.</string>
     <string name="product_cart_error">The cart could not be updated. If a cart exists, its reference remains protected.</string>
+    <string name="product_cart_adjusted">The cart quantity was adjusted. Open the cart to review it.</string>
+    <string name="product_cart_unavailable">The cart is no longer available. Review the cart before adding again.</string>
     <string name="cart_title">Cart</string>
     <string name="cart_title_with_quantity">Cart (%1$d)</string>
     <string name="cart_open">Open cart</string>

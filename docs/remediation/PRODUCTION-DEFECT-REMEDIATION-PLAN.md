@@ -12,6 +12,19 @@ For each wave: latest protected main → isolated branch → permanent behaviora
 
 Test-only controlled external boundaries may use synthetic IDs/stores/HTTP/SDK callbacks. Real coordinators/repositories/ViewModels/parser/transport/Compose are exercised when material. No real customer data, orders or payments. Passing characterizations of bad behavior do not close findings. Do not add production test switches or weaken old healthy controls to obtain green output.
 
+## Protected wave acceptance
+
+| Wave | Protected PR / merged main | Exact merged-main verification | Status |
+|---|---|---|---|
+| 1 — SP-01 | [PR #39](https://github.com/projectapp13-4/multi-brand-commerce-android/pull/39), `12ead74b7045147ad237ef46b7ae2a71f9a7ad54` | [Run 37389377378](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/37389377378): validate, API 30, API 23 and native-16k passed | Accepted for the wave; final-source reassessment remains required. |
+| 2A — C-07/C-01/C-02 | Branch starts from accepted Wave 1 main | Pending | Implementation in progress. |
+| 2B — C-05/C-04 | Pending accepted Wave 2A main | Pending | Not implemented. |
+| 3 — SP-02/C-03/C-06 | Pending accepted Wave 2B main | Pending | Not implemented. |
+| 4 — P-A1/P-A2 | Pending accepted Wave 3 main | Pending | Not implemented. |
+| 5 — P-A3/P-A4 | Pending accepted Wave 4 main | Pending | Not implemented. |
+
+The Wave 1 handoff preserves its pre-merge checkpoint. This table records later protected acceptance without rewriting that historical evidence. Wave acceptance does not select the final v3 source or authorize an upload.
+
 ## Wave 1: exact identity isolation — SP-01
 
 Owners: `:account` session lease/replacement truth, `:storefront` exact buyer mapping and cart ownership protocol, `:mobile-core` session/cart bridge and Account presentation. Determine current customer identity from a supported authenticated provider contract, before assigning/verifying an existing associated cart. Preserve exact returned customer identity; a Boolean never proves same-customer ownership. Persistent ownership format changes must retain supported old payloads and quarantine unverified association without discarding customer work.

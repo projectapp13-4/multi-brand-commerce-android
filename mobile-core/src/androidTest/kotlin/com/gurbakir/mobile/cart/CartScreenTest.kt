@@ -18,12 +18,14 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.waitUntilExactlyOneExists
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.captureReviewScreenshot
 import com.gurbakir.mobile.checkout.CheckoutFailure
 import com.gurbakir.mobile.checkout.CheckoutFailureCategory
 import com.gurbakir.mobile.checkout.CheckoutState
 import com.gurbakir.mobile.checkout.CheckoutStatus
+import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.performDeterministicClick
 import com.gurbakir.storefront.CartOwnership
 import com.gurbakir.storefront.CartQuantityRule
@@ -57,6 +59,51 @@ class CartScreenTest {
 
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun providerAdjustmentRemainsVisibleForAVerifiedEmptyCart() {
+        val zero = StorefrontMoney(BigDecimal.ZERO, "TRY")
+        setCartContent {
+            CartScreen(
+                state = CartState(
+                    status = CartStatus.ACTIVE,
+                    cart = CartSummary(0, emptyList(), zero, zero, hasWarnings = true),
+                    ownership = CartOwnership.ANONYMOUS
+                ),
+                actions = actions()
+            )
+        }
+
+        val notice = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.cart_server_adjustment
+        )
+        composeRule.onNodeWithText(notice).assertIsDisplayed()
+        composeRule.onNodeWithTag(CartTestTags.EMPTY).assertIsDisplayed()
+        composeRule.onAllNodesWithTag(CartTestTags.CHECKOUT).assertCountEquals(0)
+    }
+
+    @Test
+    fun correctedQuantityRemainsVisibleWithoutAProviderWarningOrRemainingLines() {
+        val zero = StorefrontMoney(BigDecimal.ZERO, "TRY")
+        setCartContent {
+            CartScreen(
+                state = CartState(
+                    status = CartStatus.ACTIVE,
+                    cart = CartSummary(0, emptyList(), zero, zero, hasWarnings = false),
+                    ownership = CartOwnership.ANONYMOUS,
+                    adjustment = CartActionAdjustment(CartActionKind.UPDATE, 2L, 4L, 0L)
+                ),
+                actions = actions()
+            )
+        }
+
+        val notice = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.cart_server_adjustment
+        )
+        composeRule.onNodeWithText(notice).assertIsDisplayed()
+        composeRule.onNodeWithTag(CartTestTags.EMPTY).assertIsDisplayed()
+        composeRule.onAllNodesWithTag(CartTestTags.CHECKOUT).assertCountEquals(0)
+    }
 
     @Test
     fun trueEmptyCartRemainsReadableAtTwoHundredPercentText() {

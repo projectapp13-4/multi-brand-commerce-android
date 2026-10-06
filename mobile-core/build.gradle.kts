@@ -134,6 +134,9 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
+    // Exercise the generated Storefront parser and transport through the real cart repository.
+    testImplementation(libs.apollo.runtime)
+    testImplementation(libs.mockwebserver)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

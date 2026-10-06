@@ -22,7 +22,7 @@ internal fun validateCreateLines(lines: List<CartLineInput>): StorefrontFailure.
             }
         }
     }
-    return errors.takeIf { it.isNotEmpty() }?.let(StorefrontFailure::UserErrors)
+    return errors.takeIf { it.isNotEmpty() }?.let { StorefrontFailure.UserErrors(it, isClientValidation = true) }
 }
 
 internal fun validateUpdateLines(lines: List<CartLineUpdate>): StorefrontFailure.UserErrors? {
@@ -36,13 +36,14 @@ internal fun validateUpdateLines(lines: List<CartLineUpdate>): StorefrontFailure
             }
         }
     }
-    return errors.takeIf { it.isNotEmpty() }?.let(StorefrontFailure::UserErrors)
+    return errors.takeIf { it.isNotEmpty() }?.let { StorefrontFailure.UserErrors(it, isClientValidation = true) }
 }
 
 internal fun validateRemoveLines(lineIds: List<SensitiveCartLineId>): StorefrontFailure.UserErrors? =
     if (lineIds.isEmpty() || lineIds.size > MAX_CART_LINES || lineIds.distinct().size != lineIds.size) {
         StorefrontFailure.UserErrors(
-            listOf(ShopifyUserError("CLIENT_INVALID_LINE_IDS", listOf("lineIds")))
+            listOf(ShopifyUserError("CLIENT_INVALID_LINE_IDS", listOf("lineIds"))),
+            isClientValidation = true
         )
     } else {
         null

@@ -35,7 +35,7 @@ internal class StorefrontCartPager(
             is StorefrontResult.Success -> {
                 val snapshot = mapped.value
                 if (!snapshot.cart.hasMoreLines) {
-                    StorefrontResult.Success(snapshot.cart)
+                    snapshot.cart.completePageResult()
                 } else {
                     when (val complete = loadCart(snapshot.cart.id)) {
                         is StorefrontResult.Failure -> complete
@@ -148,7 +148,7 @@ private fun CartReference.merge(page: CartLinePage): StorefrontResult<CartPagePr
 }
 
 private fun CartReference.completePageResult(): StorefrontResult<CartReference> =
-    if (lines.sumOf(CartLineSummary::quantity) == totalQuantity) {
+    if (lines.sumOf { it.quantity.toLong() } == totalQuantity.toLong()) {
         StorefrontResult.Success(this)
     } else {
         graphQlFailure("CART_CHANGED_DURING_PAGING")

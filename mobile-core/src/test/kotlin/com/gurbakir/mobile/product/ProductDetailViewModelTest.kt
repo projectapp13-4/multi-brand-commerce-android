@@ -3,8 +3,12 @@
 package com.gurbakir.mobile.product
 
 import androidx.lifecycle.SavedStateHandle
+import com.gurbakir.mobile.cart.CartActionAdjustment
+import com.gurbakir.mobile.cart.CartActionKind
 import com.gurbakir.mobile.cart.CartActionResult
 import com.gurbakir.mobile.cart.CartCheckoutResolution
+import com.gurbakir.mobile.cart.CartFailure
+import com.gurbakir.mobile.cart.CartFailureCategory
 import com.gurbakir.mobile.cart.CartRepository
 import com.gurbakir.mobile.cart.CartState
 import com.gurbakir.storefront.SensitiveCartLineId
@@ -38,6 +42,51 @@ class ProductDetailViewModelTest {
     @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `partial authoritative add offers distinct review feedback and clears adjustment on the next action`() =
+        runTest(dispatcher) {
+            val adjustment = CartActionAdjustment(CartActionKind.ADD, 1, 3, 2)
+            val results = ArrayDeque(listOf(CartActionResult.Adjusted(adjustment), CartActionResult.Completed))
+            val cart = object : NoOpCartRepository() {
+                override suspend fun add(merchandiseId: String, quantity: Int): CartActionResult = results.removeFirst()
+            }
+            val model = viewModel(cartRepository = cart)
+            model.start(productFixture().id, "gid://shopify/ProductVariant/13")
+            advanceUntilIdle()
+
+            model.addToCart()
+            advanceUntilIdle()
+            assertEquals(ProductCartFeedback.ADJUSTED, model.state.value.cartFeedback)
+            assertEquals(adjustment, model.state.value.cartAdjustment)
+            assertNull(model.state.value.cartFailure)
+            assertFalse(model.state.value.addingToCart)
+
+            model.addToCart()
+            advanceUntilIdle()
+            assertEquals(ProductCartFeedback.ADDED, model.state.value.cartFeedback)
+            assertNull(model.state.value.cartAdjustment)
+        }
+
+    @Test
+    fun `rejected and expired actions never become added product feedback`() = runTest(dispatcher) {
+        for (category in listOf(CartFailureCategory.QUANTITY_OR_AVAILABILITY, CartFailureCategory.UNAVAILABLE)) {
+            val failure = CartFailure(category, retryable = false, cartRetained = false)
+            val cart = object : NoOpCartRepository() {
+                override suspend fun add(merchandiseId: String, quantity: Int): CartActionResult =
+                    CartActionResult.Failed(failure)
+            }
+            val model = viewModel(cartRepository = cart)
+            model.start(productFixture().id, "gid://shopify/ProductVariant/13")
+            advanceUntilIdle()
+            model.addToCart()
+            advanceUntilIdle()
+            assertNull(model.state.value.cartFeedback)
+            assertEquals(failure, model.state.value.cartFailure)
+            assertNull(model.state.value.cartAdjustment)
+            assertFalse(model.state.value.addingToCart)
+        }
     }
 
     @Test

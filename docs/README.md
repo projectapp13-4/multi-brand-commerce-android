@@ -17,6 +17,12 @@ selecting a fresh final v3 source and replacement-key-signed artifact. Remediati
 is in progress; no final corrected source, new artifact acceptance or Play upload
 is claimed. The pre-tester documents above retain their historical PR checkpoints.
 
+The remediation contracts and dated pre-merge evidence are recorded in
+[Wave 1: identity isolation](remediation/WAVE-1-IDENTITY-ISOLATION.md) and
+[Wave 2A: mutation outcomes](remediation/WAVE-2A-MUTATION-OUTCOMES.md).
+The program plan records later protected wave acceptance; the individual
+handoffs retain their scoped checkpoints.
+
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 
 This is the repository documentation entry point. It distinguishes current

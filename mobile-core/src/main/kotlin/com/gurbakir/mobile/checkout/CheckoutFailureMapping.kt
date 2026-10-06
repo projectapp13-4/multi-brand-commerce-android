@@ -22,6 +22,7 @@ internal fun CartFailure.toCheckoutFailure(): CheckoutFailure = CheckoutFailure(
             CartFailureCategory.SECURE_STORAGE -> CheckoutFailureCategory.SECURE_STORAGE
 
             CartFailureCategory.QUANTITY_OR_AVAILABILITY,
+            CartFailureCategory.UNAVAILABLE,
             CartFailureCategory.AMBIGUOUS_MUTATION -> CheckoutFailureCategory.CART_UNAVAILABLE
         },
     retryable = retryable,
