@@ -24,6 +24,7 @@ import com.gurbakir.storefront.StorefrontMoney
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -294,7 +295,7 @@ constructor(private val operations: CartOperations) : CartRepository {
     override val state: StateFlow<CartState> = _state.asStateFlow()
     private var activeCart: CartReference? = null
 
-    override suspend fun refresh(): Unit = lock.withLock {
+    override suspend fun refresh(): Unit = withOwnedOperation(CartFailureCategory.SERVICE) { operation ->
         _state.value =
             _state.value.copy(
                 status = if (activeCart == null) CartStatus.LOADING else CartStatus.ACTIVE,
@@ -302,74 +303,83 @@ constructor(private val operations: CartOperations) : CartRepository {
                 failure = null,
                 adjustment = null
             )
-        applyResolution(operations.restore())
+        applyResolution(operation.restore())
     }
 
-    override suspend fun add(merchandiseId: String, quantity: Int): CartActionResult = lock.withLock {
-        if (merchandiseId.isBlank() || quantity <= 0) return@withLock invalidAction()
-        _state.value = _state.value.copy(mutation = CartMutation.ADDING, failure = null, adjustment = null)
-        val lines = listOf(CartLineInput(merchandiseId, quantity))
-        val attempt = operations.mutate { current ->
-            when (current) {
-                CartSessionResolution.Empty,
-                CartSessionResolution.Expired -> CartMutationPlan.Create(lines)
+    override suspend fun add(merchandiseId: String, quantity: Int): CartActionResult =
+        withOwnedOperation(CartFailureCategory.AMBIGUOUS_MUTATION) { operation ->
+            if (merchandiseId.isBlank() || quantity <= 0) return@withOwnedOperation invalidAction()
+            _state.value = _state.value.copy(mutation = CartMutation.ADDING, failure = null, adjustment = null)
+            val lines = listOf(CartLineInput(merchandiseId, quantity))
+            val attempt = operations.mutate { current ->
+                operation.record(current)
+                when (current) {
+                    CartSessionResolution.Empty,
+                    CartSessionResolution.Expired -> CartMutationPlan.Create(lines)
 
-                is CartSessionResolution.Active -> CartMutationPlan.Add(lines)
+                    is CartSessionResolution.Active -> CartMutationPlan.Add(lines)
 
-                is CartSessionResolution.Failed,
-                is CartSessionResolution.Restricted -> CartMutationPlan.None
+                    is CartSessionResolution.Failed,
+                    is CartSessionResolution.Restricted -> CartMutationPlan.None
+                }
             }
-        }
-        val before = (attempt.before as? CartSessionResolution.Active)?.cart
-        val previous = before?.quantityOf(merchandiseId) ?: 0L
-        finishMutation(
-            attempt,
-            CartMutationIntent(
-                CartActionKind.ADD,
-                CartMutationTarget.Merchandise(merchandiseId),
-                previous,
-                previous + quantity.toLong()
+            val before = (attempt.before as? CartSessionResolution.Active)?.cart
+            val previous = before?.quantityOf(merchandiseId) ?: 0L
+            finishMutation(
+                attempt,
+                CartMutationIntent(
+                    CartActionKind.ADD,
+                    CartMutationTarget.Merchandise(merchandiseId),
+                    previous,
+                    previous + quantity.toLong()
+                ),
+                operation
             )
-        )
-    }
-
-    override suspend fun update(lineId: SensitiveCartLineId, quantity: Int): CartActionResult = lock.withLock {
-        _state.value = _state.value.copy(mutation = CartMutation.UPDATING, failure = null, adjustment = null)
-        val attempt = operations.mutate { current ->
-            val cart = (current as? CartSessionResolution.Active)?.cart
-                ?: return@mutate CartMutationPlan.None
-            val line = cart.lines.firstOrNull { it.id == lineId }
-                ?: return@mutate CartMutationPlan.Invalid
-            if (!line.accepts(quantity)) return@mutate CartMutationPlan.Invalid
-            CartMutationPlan.Update(listOf(CartLineUpdate(lineId, quantity)))
         }
-        val before = (attempt.before as? CartSessionResolution.Active)?.cart
-        val previous = before?.lines?.firstOrNull { it.id == lineId }?.quantity?.toLong() ?: 0L
-        finishMutation(
-            attempt,
-            CartMutationIntent(CartActionKind.UPDATE, CartMutationTarget.Line(lineId), previous, quantity.toLong())
-        )
-    }
 
-    override suspend fun remove(lineId: SensitiveCartLineId): CartActionResult = lock.withLock {
-        _state.value = _state.value.copy(mutation = CartMutation.REMOVING, failure = null, adjustment = null)
-        val attempt = operations.mutate { current ->
-            val cart = (current as? CartSessionResolution.Active)?.cart
-                ?: return@mutate CartMutationPlan.None
-            val line = cart.lines.firstOrNull { it.id == lineId }
-                ?: return@mutate CartMutationPlan.Invalid
-            if (!line.canRemove) return@mutate CartMutationPlan.Invalid
-            CartMutationPlan.Remove(listOf(lineId))
+    override suspend fun update(lineId: SensitiveCartLineId, quantity: Int): CartActionResult =
+        withOwnedOperation(CartFailureCategory.AMBIGUOUS_MUTATION) { operation ->
+            _state.value = _state.value.copy(mutation = CartMutation.UPDATING, failure = null, adjustment = null)
+            val attempt = operations.mutate { current ->
+                operation.record(current)
+                val cart = (current as? CartSessionResolution.Active)?.cart
+                    ?: return@mutate CartMutationPlan.None
+                val line = cart.lines.firstOrNull { it.id == lineId }
+                    ?: return@mutate CartMutationPlan.Invalid
+                if (!line.accepts(quantity)) return@mutate CartMutationPlan.Invalid
+                CartMutationPlan.Update(listOf(CartLineUpdate(lineId, quantity)))
+            }
+            val before = (attempt.before as? CartSessionResolution.Active)?.cart
+            val previous = before?.lines?.firstOrNull { it.id == lineId }?.quantity?.toLong() ?: 0L
+            finishMutation(
+                attempt,
+                CartMutationIntent(CartActionKind.UPDATE, CartMutationTarget.Line(lineId), previous, quantity.toLong()),
+                operation
+            )
         }
-        val before = (attempt.before as? CartSessionResolution.Active)?.cart
-        val previous = before?.lines?.firstOrNull { it.id == lineId }?.quantity?.toLong() ?: 0L
-        finishMutation(
-            attempt,
-            CartMutationIntent(CartActionKind.REMOVE, CartMutationTarget.Line(lineId), previous, 0L)
-        )
-    }
 
-    override suspend fun discard(): CartActionResult = lock.withLock {
+    override suspend fun remove(lineId: SensitiveCartLineId): CartActionResult =
+        withOwnedOperation(CartFailureCategory.AMBIGUOUS_MUTATION) { operation ->
+            _state.value = _state.value.copy(mutation = CartMutation.REMOVING, failure = null, adjustment = null)
+            val attempt = operations.mutate { current ->
+                operation.record(current)
+                val cart = (current as? CartSessionResolution.Active)?.cart
+                    ?: return@mutate CartMutationPlan.None
+                val line = cart.lines.firstOrNull { it.id == lineId }
+                    ?: return@mutate CartMutationPlan.Invalid
+                if (!line.canRemove) return@mutate CartMutationPlan.Invalid
+                CartMutationPlan.Remove(listOf(lineId))
+            }
+            val before = (attempt.before as? CartSessionResolution.Active)?.cart
+            val previous = before?.lines?.firstOrNull { it.id == lineId }?.quantity?.toLong() ?: 0L
+            finishMutation(
+                attempt,
+                CartMutationIntent(CartActionKind.REMOVE, CartMutationTarget.Line(lineId), previous, 0L),
+                operation
+            )
+        }
+
+    override suspend fun discard(): CartActionResult = withOwnedOperation(CartFailureCategory.SECURE_STORAGE) {
         _state.value = _state.value.copy(mutation = CartMutation.DISCARDING, failure = null, adjustment = null)
         if (operations.clear()) {
             activeCart = null
@@ -384,42 +394,99 @@ constructor(private val operations: CartOperations) : CartRepository {
 
     override suspend fun prepareCheckout(): CartCheckoutResolution = withPreparedCheckout { it }
 
-    override suspend fun <T> withPreparedCheckout(action: suspend (CartCheckoutResolution) -> T): T = lock.withLock {
-        _state.value =
-            _state.value.copy(
-                status = if (activeCart == null) CartStatus.LOADING else CartStatus.ACTIVE,
-                mutation = null,
-                failure = null,
-                adjustment = null
-            )
-        operations.withRestoredCart { resolution ->
-            val result = applyResolution(resolution)
-            action(resolution.toCheckoutResolution(result))
+    override suspend fun <T> withPreparedCheckout(action: suspend (CartCheckoutResolution) -> T): T =
+        withOwnedOperation(CartFailureCategory.SERVICE) { operation ->
+            _state.value =
+                _state.value.copy(
+                    status = if (activeCart == null) CartStatus.LOADING else CartStatus.ACTIVE,
+                    mutation = null,
+                    failure = null,
+                    adjustment = null
+                )
+            operation.withRestoredCart { resolution ->
+                val result = applyResolution(resolution)
+                action(resolution.toCheckoutResolution(result))
+            }
+        }
+
+    private suspend fun <T> withOwnedOperation(
+        cancelledCategory: CartFailureCategory,
+        action: suspend (CartOperationObservation) -> T
+    ): T = lock.withLock {
+        val previous = _state.value
+        val operation = CartOperationObservation(operations)
+        if (cancelledCategory == CartFailureCategory.SECURE_STORAGE) {
+            activeCart?.let { cart ->
+                previous.ownership?.let { ownership ->
+                    operation.record(CartSessionResolution.Active(cart, ownership))
+                }
+            }
+        }
+        try {
+            action(operation)
+        } catch (cancelled: CancellationException) {
+            _state.value = cancelledState(operation.resolution, previous, cancelledCategory)
+            throw cancelled
+        } finally {
+            // This owner still holds the mutex; a cancelled waiter or an old finalizer cannot clear a newer action.
+            _state.value = _state.value.copy(mutation = null)
         }
     }
 
-    private suspend fun finishMutation(attempt: CartMutationAttempt, intent: CartMutationIntent): CartActionResult =
-        when {
-            attempt.plan == CartMutationPlan.Invalid -> {
-                applyResolution(attempt.before)
-                invalidAction()
+    private fun cancelledState(
+        observed: CartSessionResolution?,
+        previous: CartState,
+        category: CartFailureCategory
+    ): CartState {
+        val verified = observed as? CartSessionResolution.Active
+        val restricted = observed as? CartSessionResolution.Restricted
+        val priorRestriction = previous.ownership.takeIf { previous.status == CartStatus.RESTRICTED }
+        val ownership = verified?.ownership ?: restricted?.ownership ?: priorRestriction
+            ?: previous.ownership?.takeUnless { it == CartOwnership.ANONYMOUS } ?: CartOwnership.VERIFY_PENDING
+        val retained = activeCart != null || previous.ownership != null || verified != null ||
+            (observed is CartSessionResolution.Failed && observed.persistedCartRetained)
+        val failure = CartFailure(category, retryable = true, cartRetained = retained)
+        return when {
+            restricted != null || (observed == null && priorRestriction != null) -> {
+                activeCart = null
+                CartState(status = CartStatus.RESTRICTED, ownership = ownership)
             }
 
-            attempt.result == null -> unavailableAction(attempt.before)
+            verified?.ownership == CartOwnership.ANONYMOUS -> {
+                activeCart = verified.cart
+                verified.cart.toState(ownership = CartOwnership.ANONYMOUS, failure = failure)
+            }
 
-            else -> reconcileMutation(requireNotNull(attempt.result), intent, attempt.before)
+            else -> CartState(status = CartStatus.ERROR, ownership = ownership, failure = failure)
         }
+    }
+
+    private suspend fun finishMutation(
+        attempt: CartMutationAttempt,
+        intent: CartMutationIntent,
+        operation: CartOperationObservation
+    ): CartActionResult = when {
+        attempt.plan == CartMutationPlan.Invalid -> {
+            applyResolution(attempt.before)
+            invalidAction()
+        }
+
+        attempt.result == null -> unavailableAction(attempt.before)
+
+        else -> reconcileMutation(requireNotNull(attempt.result), intent, attempt.before, operation)
+    }
 
     private suspend fun reconcileMutation(
         result: CartSessionResolution,
         intent: CartMutationIntent,
-        before: CartSessionResolution
+        before: CartSessionResolution,
+        operation: CartOperationObservation
     ): CartActionResult = when (result) {
         is CartSessionResolution.Active -> directOutcome(result, intent)
 
         is CartSessionResolution.Failed -> when {
-            result.error is StorefrontFailure.UserErrors -> reconcileRejection(result, before)
-            result.error.isAmbiguousMutation() -> reconcileAmbiguous(result, intent)
+            result.error is StorefrontFailure.UserErrors -> reconcileRejection(result, before, operation)
+            result.error.isAmbiguousMutation() -> reconcileAmbiguous(result, intent, operation)
             else -> applyResolution(result)
         }
 
@@ -443,10 +510,12 @@ constructor(private val operations: CartOperations) : CartRepository {
 
     private suspend fun reconcileRejection(
         result: CartSessionResolution.Failed,
-        before: CartSessionResolution
+        before: CartSessionResolution,
+        operation: CartOperationObservation
     ): CartActionResult {
         val error = result.error as StorefrontFailure.UserErrors
-        val current = result.authoritativeCart ?: if (error.isClientValidation) before else operations.restore()
+        val current = result.authoritativeCart ?: if (error.isClientValidation) before else operation.restore()
+        operation.record(current)
         val publication = applyResolution(current)
         return when {
             publication == CartActionResult.Restricted -> publication
@@ -466,9 +535,10 @@ constructor(private val operations: CartOperations) : CartRepository {
 
     private suspend fun reconcileAmbiguous(
         result: CartSessionResolution.Failed,
-        intent: CartMutationIntent
+        intent: CartMutationIntent,
+        operation: CartOperationObservation
     ): CartActionResult {
-        val current = operations.restore()
+        val current = operation.restore()
         val publication = applyResolution(current)
         return when {
             publication == CartActionResult.Restricted -> publication
@@ -564,6 +634,29 @@ constructor(private val operations: CartOperations) : CartRepository {
             )
         _state.value = _state.value.copy(mutation = null, failure = failure)
         return CartActionResult.Failed(failure)
+    }
+}
+
+private class CartOperationObservation(private val operations: CartOperations) {
+    var resolution: CartSessionResolution? = null
+        private set
+
+    fun record(resolution: CartSessionResolution) {
+        this.resolution = resolution
+    }
+
+    suspend fun restore(): CartSessionResolution {
+        // A newly acquired lease can belong to a different customer; older anonymous proof cannot survive it.
+        resolution = null
+        return operations.restore().also(::record)
+    }
+
+    suspend fun <T> withRestoredCart(action: suspend (CartSessionResolution) -> T): T {
+        resolution = null
+        return operations.withRestoredCart { observed ->
+            record(observed)
+            action(observed)
+        }
     }
 }
 

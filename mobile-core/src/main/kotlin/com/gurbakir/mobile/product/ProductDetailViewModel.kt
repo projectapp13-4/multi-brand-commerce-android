@@ -34,7 +34,8 @@ constructor(
     private var loadJob: Job? = null
     private var productId: String? = null
     private var requestedVariantId: String? = null
-    private var cartJob: Job? = null
+    private var selectionRevision = 0L
+    private var activeSubmission: CartSubmission? = null
 
     fun start(productId: String, requestedVariantId: String?) {
         if (this.productId == productId && this.requestedVariantId == requestedVariantId) return
@@ -48,15 +49,19 @@ constructor(
     fun selectOption(optionName: String, value: String) {
         val product = _state.value.product ?: return
         val selection = _state.value.selectedOptions
-        if (!VariantSelectionResolver.canSelect(product, optionName, value, selection)) return
         val updated = (selection - optionName) + (optionName to value)
+        if (updated == selection || !VariantSelectionResolver.canSelect(product, optionName, value, selection)) return
+        selectionRevision++
         saveSelection(product.id, updated, userChoice = true)
         savedStateHandle[KEY_MEDIA_INDEX] = 0
         _state.value =
             _state.value.copy(
                 selectedOptions = updated,
                 invalidRequestedVariant = false,
-                mediaIndex = 0
+                mediaIndex = 0,
+                cartFeedback = null,
+                cartFailure = null,
+                cartAdjustment = null
             )
     }
 
@@ -71,6 +76,7 @@ constructor(
         val state = _state.value
         val product = state.product ?: return
         if (state.addingToCart || state.displayOptions.isEmpty() || state.selectedOptions.isEmpty()) return
+        selectionRevision++
         saveSelection(product.id, emptyMap(), userChoice = true)
         savedStateHandle[KEY_MEDIA_INDEX] = 0
         _state.value = state.copy(
@@ -90,51 +96,65 @@ constructor(
     }
 
     fun addToCart() {
-        val intent = _state.value.purchaseIntent ?: return
-        if (cartJob?.isActive == true) return
+        val state = _state.value
+        val currentProductId = state.product?.id ?: return
+        val intent = state.purchaseIntent?.takeIf { activeSubmission == null } ?: return
+        val submission = CartSubmission(currentProductId, intent, selectionRevision)
+        activeSubmission = submission
         _state.value =
-            _state.value.copy(
+            state.copy(
                 addingToCart = true,
                 cartFeedback = null,
                 cartFailure = null,
                 cartAdjustment = null
             )
-        cartJob =
-            viewModelScope.launch {
+        viewModelScope.launch {
+            try {
+                val result = cartRepository.add(submission.intent.merchandiseId, submission.intent.quantity)
+                val current = _state.value
+                if (
+                    activeSubmission !== submission || selectionRevision != submission.selectionRevision ||
+                    !submission.matches(current)
+                ) {
+                    return@launch
+                }
                 _state.value =
-                    when (val result = cartRepository.add(intent.merchandiseId, intent.quantity)) {
+                    when (result) {
                         CartActionResult.Completed ->
-                            _state.value.copy(
-                                addingToCart = false,
+                            current.copy(
                                 cartFeedback = ProductCartFeedback.ADDED
                             )
 
                         is CartActionResult.Adjusted ->
-                            _state.value.copy(
-                                addingToCart = false,
+                            current.copy(
                                 cartFeedback = ProductCartFeedback.ADJUSTED,
                                 cartAdjustment = result.adjustment
                             )
 
                         is CartActionResult.Failed ->
-                            _state.value.copy(
-                                addingToCart = false,
+                            current.copy(
                                 cartFailure = result.failure
                             )
 
                         CartActionResult.Restricted ->
-                            _state.value.copy(
-                                addingToCart = false,
+                            current.copy(
                                 cartFeedback = ProductCartFeedback.RESTRICTED
                             )
                     }
+            } finally {
+                if (activeSubmission === submission) {
+                    activeSubmission = null
+                    _state.value = _state.value.copy(addingToCart = false)
+                }
             }
+        }
     }
 
     private fun reload() {
         val currentProductId = productId ?: return
         loadJob?.cancel()
-        _state.value = ProductDetailUiState(loading = true)
+        selectionRevision++
+        _state.value = ProductDetailUiState(loading = true, addingToCart = activeSubmission != null)
         loadJob =
             viewModelScope.launch {
                 _state.value =
@@ -142,7 +162,7 @@ constructor(
                         is ProductDetailLoad.Content -> result.product.toInitialState(requestedVariantId)
                         is ProductDetailLoad.Error -> ProductDetailUiState(failure = result.failure)
                         ProductDetailLoad.NotFound -> ProductDetailUiState(notFound = true)
-                    }
+                    }.copy(addingToCart = activeSubmission != null)
             }
     }
 
@@ -183,6 +203,15 @@ constructor(
         savedStateHandle[KEY_SELECTED_OPTIONS] =
             ArrayList(selection.toSortedMap().flatMap { (name, value) -> listOf(name, value) })
         if (userChoice) savedStateHandle[KEY_SELECTION_REQUEST] = requestedVariantId.orEmpty()
+    }
+
+    private class CartSubmission(
+        val productId: String,
+        val intent: ProductPurchaseIntent,
+        val selectionRevision: Long
+    ) {
+        fun matches(state: ProductDetailUiState): Boolean =
+            state.product?.id == productId && state.purchaseIntent == intent
     }
 
     private companion object {

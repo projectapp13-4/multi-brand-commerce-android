@@ -18,7 +18,10 @@ internal fun outcomeApolloClient(endpoint: String): ApolloClient {
         .invoke(factory.getField("INSTANCE").get(null), endpoint, "synthetic-only-token") as ApolloClient
 }
 
-internal fun authenticatedOutcomeSessions(clock: Clock): CustomerAccountSessionCoordinator {
+internal fun authenticatedOutcomeSessions(
+    clock: Clock,
+    sessionAvailable: () -> Boolean = { true }
+): CustomerAccountSessionCoordinator {
     val session = CustomerSession(
         SensitiveToken.from("synthetic-current-access"),
         SensitiveToken.from("synthetic-refresh"),
@@ -39,7 +42,7 @@ internal fun authenticatedOutcomeSessions(clock: Clock): CustomerAccountSessionC
             override suspend fun refresh(refreshToken: SensitiveToken): CustomerTokenResult = error("no refresh")
         },
         object : CustomerSessionStore {
-            override suspend fun read(): CustomerSession = session
+            override suspend fun read(): CustomerSession? = session.takeIf { sessionAvailable() }
             override suspend fun write(session: CustomerSession) = error("no replacement")
             override suspend fun clear() = error("no logout")
         },
