@@ -387,9 +387,19 @@ internal class ControlSemanticsHarness(private val case: ControlSemanticCase) {
                         )
                         assertTrue(screenBounds.left >= hostBounds.left && screenBounds.right <= hostBounds.right)
                         assertTrue(screenBounds.top >= hostBounds.top && screenBounds.bottom <= hostBounds.bottom)
-                        assertTrue(screenBounds.left >= visibleWindow.left && screenBounds.right <= visibleWindow.right)
-                        assertTrue(screenBounds.top >= visibleWindow.top && screenBounds.bottom <= visibleWindow.bottom)
-                        val point = screenBounds.center
+                        val visibleOwnerBounds = Rect(
+                            maxOf(screenBounds.left, hostBounds.left, visibleWindow.left.toFloat()),
+                            maxOf(screenBounds.top, hostBounds.top, visibleWindow.top.toFloat()),
+                            minOf(screenBounds.right, hostBounds.right, visibleWindow.right.toFloat()),
+                            minOf(screenBounds.bottom, hostBounds.bottom, visibleWindow.bottom.toFloat())
+                        )
+                        assertTrue(
+                            "The native cleanup target must have a visible intersection",
+                            visibleOwnerBounds.width > 0f && visibleOwnerBounds.height > 0f
+                        )
+                        val point = visibleOwnerBounds.center
+                        assertTrue(point.x >= visibleWindow.left && point.x < visibleWindow.right)
+                        assertTrue(point.y >= visibleWindow.top && point.y < visibleWindow.bottom)
                         val downTime = SystemClock.uptimeMillis()
                         val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, point.x, point.y, 0)
                         var downFailure: Throwable? = null

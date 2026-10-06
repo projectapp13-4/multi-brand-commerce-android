@@ -62,7 +62,7 @@ data class AddressFormActions(
     val onBack: () -> Unit,
     val onFieldChanged: (CustomerAddressField, String) -> Unit,
     val onMakeDefaultChanged: (Boolean) -> Unit,
-    val onSave: () -> Unit,
+    val onSave: (beforeSubmission: () -> Unit) -> Unit,
     val onReload: () -> Unit,
     val onFocusHandled: (Long) -> Unit
 )
@@ -176,8 +176,9 @@ private fun LazyListScope.addressFormBodyItems(
         }
         item { Text(stringResource(R.string.address_unsaved_explanation)) }
         item {
+            val focusManager = LocalFocusManager.current
             Button(
-                onClick = actions.onSave,
+                onClick = { actions.onSave { focusManager.clearFocus() } },
                 enabled = state.canSave,
                 modifier = Modifier.fillMaxWidth().testTag(AddressFormTestTags.SAVE)
             ) {
@@ -203,6 +204,7 @@ private fun AddressField(
         onDispose {
             focus.coordinates = null
             focus.focused = false
+            focus.keyboardRecovery.clearOwnership()
         }
     }
     LaunchedEffect(field, itemIndex, focus.focused, state.loaded, state.phase, state.focusRequest?.id) {
@@ -213,17 +215,26 @@ private fun AddressField(
             }
         }
     }
-    AddressTextField(
-        spec = field.spec(state, last),
-        onValueChanged = { value -> actions.onFieldChanged(field, value) },
-        modifier =
-            Modifier.focusRequester(focus.requester)
-                .onFocusChanged { focus.focused = it.isFocused }
-                .onGloballyPositioned { focus.coordinates = it },
-        onKeyboardAction = {
-            if (last) focusManager.clearFocus() else focusManager.moveFocus(FocusDirection.Down)
-        }
-    )
+    AddressRecoveryKeyboardEffect(state, field, focus)
+    AddressFieldInputSession(focus.keyboardRecovery) {
+        AddressTextField(
+            spec = field.spec(state, last),
+            onValueChanged = { value ->
+                focus.keyboardRecovery.cancel()
+                actions.onFieldChanged(field, value)
+            },
+            modifier =
+                Modifier.focusRequester(focus.requester)
+                    .onFocusChanged {
+                        focus.focused = it.isFocused
+                        if (!it.isFocused) focus.keyboardRecovery.clearOwnership()
+                    }
+                    .onGloballyPositioned { focus.coordinates = it },
+            onKeyboardAction = {
+                if (last) focusManager.clearFocus() else focusManager.moveFocus(FocusDirection.Down)
+            }
+        )
+    }
 }
 
 @Composable

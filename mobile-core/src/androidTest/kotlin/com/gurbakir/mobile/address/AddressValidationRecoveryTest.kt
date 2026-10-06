@@ -66,8 +66,14 @@ import org.junit.runner.RunWith
 class AddressValidationRecoveryTest {
     val composeRule = createComposeRule()
 
+    private val productionWindowHost = AddressProductionWindowHostRule()
+
     @get:Rule
-    val rules: TestRule = RuleChain.outerRule(AddressVisibleImeEnvironmentRule()).around(composeRule)
+    val rules: TestRule =
+        RuleChain.outerRule(AddressVisibleImeEnvironmentRule())
+            .around(productionWindowHost)
+            .around(composeRule)
+            .around(productionWindowHost.contentGuard)
     private lateinit var fixture: AddressValidationRecoveryFixture
 
     @After
@@ -321,7 +327,9 @@ class AddressValidationRecoveryTest {
         if (keyboard) {
             scrollTo(PHONE)
             composeRule.onNodeWithTag(PHONE).performClick().performTextReplacement("+905550000000")
-            composeRule.waitUntil(timeoutMillis = 5_000) { composeRule.runOnIdle { fixture.imeVisible() } }
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.runOnIdle { fixture.imeVisible() && fixture.imeOccludesContent() }
+            }
         }
         scrollTo(AddressFormTestTags.SAVE)
         composeRule.onNodeWithTag(AddressFormTestTags.SAVE).assertIsDisplayed()
@@ -353,6 +361,13 @@ class AddressValidationRecoveryTest {
             }
         }
         val field = composeRule.onNodeWithTag(FIRST_NAME).assertIsFocused().assertIsDisplayed()
+        if (keyboard) {
+            val nativeImeAtRecoveryFocus = composeRule.runOnIdle { fixture.imeVisible() }
+            android.util.Log.i("W4_RECOVERY_IME", "native_ime_at_recovery_focus=$nativeImeAtRecoveryFocus")
+            composeRule.waitUntil(timeoutMillis = 5_000) { composeRule.runOnIdle { fixture.imeVisible() } }
+            val nativeImeAfterRecoveryWait = composeRule.runOnIdle { fixture.imeVisible() }
+            android.util.Log.i("W4_RECOVERY_IME", "native_ime_after_recovery_wait=$nativeImeAfterRecoveryWait")
+        }
         val errorText = composeRule.runOnIdle {
             (fixture.recoveryResourceContext ?: fixture.hostView.context).getString(error.messageResource())
         }

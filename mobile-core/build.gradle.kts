@@ -44,7 +44,7 @@ android {
                 create("ciApi30") {
                     device = "Pixel 2"
                     apiLevel = 30
-                    systemImageSource = "aosp-atd"
+                    systemImageSource = "aosp"
                 }
                 create("ciApi23") {
                     device = "Pixel 2"

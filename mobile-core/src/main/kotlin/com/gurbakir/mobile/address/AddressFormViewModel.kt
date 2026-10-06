@@ -131,11 +131,18 @@ constructor(
         _state.value = current.copy(makeDefault = value, failure = null)
     }
 
-    fun save() {
-        val current = _state.value
+    fun save(beforeSubmission: () -> Unit = {}) {
+        var current = _state.value
         if (!current.canSave) return
-        val normalized = current.input.normalized()
-        val errors = normalized.validate(territoryPolicy)
+        var normalized = current.input.normalized()
+        var errors = normalized.validate(territoryPolicy)
+        if (errors.isEmpty()) {
+            beforeSubmission()
+            current = _state.value
+            if (!current.canSave) return
+            normalized = current.input.normalized()
+            errors = normalized.validate(territoryPolicy)
+        }
         if (errors.isNotEmpty()) {
             _state.value =
                 current.copy(
@@ -145,25 +152,25 @@ constructor(
                     focusRequest =
                         errors.keys.firstAddressField()?.let { AddressFocusRequest(++lastFocusRequestId, it) }
                 )
-            return
-        }
-        _state.value =
-            current.copy(
-                phase = AddressFormPhase.SAVING,
-                input = normalized,
-                fieldErrors = emptyMap(),
-                failure = null,
-                focusRequest = null
-            )
-        viewModelScope.launch {
-            handleActionResult(
-                controller.saveAddress(
-                    addressId = current.addressId,
+        } else {
+            _state.value =
+                current.copy(
+                    phase = AddressFormPhase.SAVING,
                     input = normalized,
-                    expected = current.original,
-                    makeDefault = current.makeDefault
+                    fieldErrors = emptyMap(),
+                    failure = null,
+                    focusRequest = null
                 )
-            )
+            viewModelScope.launch {
+                handleActionResult(
+                    controller.saveAddress(
+                        addressId = current.addressId,
+                        input = normalized,
+                        expected = current.original,
+                        makeDefault = current.makeDefault
+                    )
+                )
+            }
         }
     }
 

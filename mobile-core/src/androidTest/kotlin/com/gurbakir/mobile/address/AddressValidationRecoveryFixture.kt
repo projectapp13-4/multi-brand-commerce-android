@@ -48,6 +48,14 @@ internal class AddressValidationRecoveryFixture(serverRejection: Boolean = false
     fun imeVisible(): Boolean =
         ViewCompat.getRootWindowInsets(hostView)?.isVisible(WindowInsetsCompat.Type.ime()) == true
 
+    // The docked test keyboard must occupy content beyond the navigation bar.
+    fun imeOccludesContent(): Boolean {
+        val insets = ViewCompat.getRootWindowInsets(hostView) ?: return false
+        return insets.isVisible(WindowInsetsCompat.Type.ime()) &&
+            insets.getInsets(WindowInsetsCompat.Type.ime()).bottom >
+            insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+    }
+
     fun hideOwnedIme() {
         val input = hostView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         input.hideSoftInputFromWindow(hostView.windowToken, 0)

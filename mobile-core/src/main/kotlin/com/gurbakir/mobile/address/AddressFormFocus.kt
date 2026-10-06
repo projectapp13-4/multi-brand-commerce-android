@@ -42,11 +42,15 @@ internal fun AddressValidationFocusEffect(
         if (latestState.focusRequest != request) return@LaunchedEffect
         if (!field.requester.requestFocus(FocusDirection.Enter)) return@LaunchedEffect
         snapshotFlow { field.focused }.first { it }
-        if (latestState.focusRequest == request) latestActions.onFocusHandled(request.id)
+        if (latestState.focusRequest == request) {
+            field.keyboardRecovery.arm(request.id)
+            latestActions.onFocusHandled(request.id)
+        }
     }
 }
 
 internal class AddressFieldFocus {
+    val keyboardRecovery = AddressKeyboardRecoveryState()
     val requester = FocusRequester()
     var coordinates by mutableStateOf<LayoutCoordinates?>(null)
     var focused by mutableStateOf(false)

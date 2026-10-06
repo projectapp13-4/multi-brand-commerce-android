@@ -260,9 +260,9 @@ private class ProbeRuntime(
                 lastDefaultRequest = it
                 model.setMakeDefault(it)
             },
-            onSave = {
+            onSave = { beforeSubmission ->
                 counters.record(ProbeEvent.SAVE_ACTION)
-                model.save()
+                model.save(beforeSubmission)
             },
             onReload = {
                 counters.record(ProbeEvent.RELOAD)
