@@ -125,7 +125,7 @@ class AddressScreenTest {
         setFormContent(
             formState().copy(
                 fieldErrors = mapOf(CustomerAddressField.ADDRESS1 to AddressFieldError.SERVER_REJECTED),
-                focusRequest = CustomerAddressField.ADDRESS1
+                focusRequest = AddressFocusRequest(id = 1L, field = CustomerAddressField.ADDRESS1)
             ),
             formActions(onFocusHandled = { handled += 1 })
         )
@@ -239,7 +239,7 @@ class AddressScreenTest {
         onBack: () -> Unit = {},
         onFieldChanged: (CustomerAddressField, String) -> Unit = { _, _ -> },
         onReload: () -> Unit = {},
-        onFocusHandled: () -> Unit = {}
+        onFocusHandled: (Long) -> Unit = {}
     ) = AddressFormActions(
         onBack = onBack,
         onFieldChanged = onFieldChanged,

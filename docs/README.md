@@ -21,7 +21,8 @@ The remediation contracts and dated pre-merge evidence are recorded in
 [Wave 1: identity isolation](remediation/WAVE-1-IDENTITY-ISOLATION.md) and
 [Wave 2A: mutation outcomes](remediation/WAVE-2A-MUTATION-OUTCOMES.md), and
 [Wave 2B: cancellation and feedback](remediation/WAVE-2B-CANCELLATION-AND-FEEDBACK.md), and
-[Wave 3: protected state and checkout](remediation/WAVE-3-PROTECTED-STATE-AND-CHECKOUT.md).
+[Wave 3: protected state and checkout](remediation/WAVE-3-PROTECTED-STATE-AND-CHECKOUT.md), and
+[Wave 4: accessible forms and controls](remediation/WAVE-4-ACCESSIBLE-FORMS-AND-CONTROLS.md).
 The program plan records later protected wave acceptance; the individual
 handoffs retain their scoped checkpoints.
 
