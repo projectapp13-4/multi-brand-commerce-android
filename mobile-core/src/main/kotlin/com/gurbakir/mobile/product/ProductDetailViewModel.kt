@@ -3,6 +3,7 @@ package com.gurbakir.mobile.product
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gurbakir.mobile.cart.CartActionAdjustment
 import com.gurbakir.mobile.cart.CartActionResult
 import com.gurbakir.mobile.cart.CartFailure
 import com.gurbakir.mobile.cart.CartRepository
@@ -77,7 +78,8 @@ constructor(
             invalidRequestedVariant = false,
             mediaIndex = 0,
             cartFeedback = null,
-            cartFailure = null
+            cartFailure = null,
+            cartAdjustment = null
         )
     }
 
@@ -94,7 +96,8 @@ constructor(
             _state.value.copy(
                 addingToCart = true,
                 cartFeedback = null,
-                cartFailure = null
+                cartFailure = null,
+                cartAdjustment = null
             )
         cartJob =
             viewModelScope.launch {
@@ -104,6 +107,13 @@ constructor(
                             _state.value.copy(
                                 addingToCart = false,
                                 cartFeedback = ProductCartFeedback.ADDED
+                            )
+
+                        is CartActionResult.Adjusted ->
+                            _state.value.copy(
+                                addingToCart = false,
+                                cartFeedback = ProductCartFeedback.ADJUSTED,
+                                cartAdjustment = result.adjustment
                             )
 
                         is CartActionResult.Failed ->
@@ -194,7 +204,8 @@ data class ProductDetailUiState(
     val mediaViewerOpen: Boolean = false,
     val addingToCart: Boolean = false,
     val cartFeedback: ProductCartFeedback? = null,
-    val cartFailure: CartFailure? = null
+    val cartFailure: CartFailure? = null,
+    val cartAdjustment: CartActionAdjustment? = null
 ) {
     val selectedVariant: StorefrontProductVariant?
         get() = product?.let { VariantSelectionResolver.selectedVariant(it, selectedOptions) }
@@ -229,6 +240,7 @@ private fun decodeProductOptionSelection(values: List<String>): Map<String, Stri
 
 enum class ProductCartFeedback {
     ADDED,
+    ADJUSTED,
     RESTRICTED
 }
 

@@ -10,6 +10,7 @@ internal fun CartFailure.messageResource(): Int = if (!cartRetained && category.
         CartFailureCategory.CONFIGURATION -> R.string.cart_error_configuration
         CartFailureCategory.SERVICE -> R.string.cart_error_service
         CartFailureCategory.QUANTITY_OR_AVAILABILITY -> R.string.cart_error_quantity
+        CartFailureCategory.UNAVAILABLE -> R.string.cart_expired
         CartFailureCategory.SECURE_STORAGE -> R.string.cart_error_storage
         CartFailureCategory.AMBIGUOUS_MUTATION -> R.string.cart_error_ambiguous
     }

@@ -32,6 +32,14 @@ internal fun LazyListScope.cartMessages(state: CartState, checkoutState: Checkou
     state.failure?.takeIf { state.status != CartStatus.ERROR }?.let { failure ->
         item { CartInlineFailureBanner(failure, actions.onRetry) }
     }
+    if (state.cart?.hasWarnings == true || state.adjustment != null) {
+        item {
+            Text(
+                stringResource(R.string.cart_server_adjustment),
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
     if (checkoutState.status != CheckoutStatus.IDLE) {
         item {
             CheckoutFeedback(
@@ -95,14 +103,6 @@ private fun LazyListScope.activeCartContent(
                     enabled = state.mutation == null && !checkoutState.busy,
                     onCheckout = actions.onCheckout
                 )
-            }
-            if (cart.hasWarnings) {
-                item {
-                    Text(
-                        stringResource(R.string.cart_server_adjustment),
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
             }
             item {
                 TextButton(

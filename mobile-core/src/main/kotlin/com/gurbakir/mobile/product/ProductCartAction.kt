@@ -162,7 +162,7 @@ private fun ProductCartFeedback(state: ProductDetailUiState, actions: ProductDet
                     },
                 modifier = Modifier.testTag(ProductDetailTestTags.CART_FEEDBACK)
             )
-            if (state.cartFeedback == ProductCartFeedback.ADDED) {
+            if (state.cartFeedback == ProductCartFeedback.ADDED || state.cartFeedback == ProductCartFeedback.ADJUSTED) {
                 TextButton(
                     onClick = actions.onOpenCart,
                     modifier = Modifier.testTag(ProductDetailTestTags.OPEN_CART)
@@ -177,10 +177,14 @@ private fun ProductCartFeedback(state: ProductDetailUiState, actions: ProductDet
 private fun ProductDetailUiState.cartFeedbackResource(): Int? = when {
     cartFeedback == ProductCartFeedback.ADDED -> R.string.product_added_to_cart
 
+    cartFeedback == ProductCartFeedback.ADJUSTED -> R.string.product_cart_adjusted
+
     cartFeedback == ProductCartFeedback.RESTRICTED -> R.string.product_cart_restricted
 
     cartFailure?.category == CartFailureCategory.QUANTITY_OR_AVAILABILITY ->
         R.string.product_cart_quantity_error
+
+    cartFailure?.category == CartFailureCategory.UNAVAILABLE -> R.string.product_cart_unavailable
 
     cartFailure != null -> R.string.product_cart_error
 

@@ -46,8 +46,19 @@ sealed interface CartSessionResolution {
 
     data class Restricted(val ownership: CartOwnership) : CartSessionResolution
 
-    data class Failed(val error: StorefrontFailure, val persistedCartRetained: Boolean) : CartSessionResolution
+    data class Failed(
+        val error: StorefrontFailure,
+        val persistedCartRetained: Boolean,
+        val authoritativeCart: Active? = null
+    ) : CartSessionResolution
 }
+
+private fun CartSessionResolution.withRejection(error: StorefrontFailure.UserErrors): CartSessionResolution =
+    if (this is CartSessionResolution.Active) {
+        CartSessionResolution.Failed(error, persistedCartRetained = true, authoritativeCart = this)
+    } else {
+        this
+    }
 
 enum class CartCompletionResolution {
     CLEARED,
@@ -87,18 +98,19 @@ class CartCoordinator(
         if ((buyerAccessToken == null) != (customerId == null)) {
             return@withLock CartSessionResolution.Restricted(CartOwnership.QUARANTINED)
         }
+        val expected = if (buyerAccessToken == null) CartOwnership.ANONYMOUS else CartOwnership.CUSTOMER_ASSOCIATED
         when (val result = gateway.createCart(lines, buyerAccessToken)) {
-            is StorefrontResult.Failure -> CartSessionResolution.Failed(result.error, false)
-
-            is StorefrontResult.Success -> {
-                val expected =
-                    if (buyerAccessToken == null) {
-                        CartOwnership.ANONYMOUS
-                    } else {
-                        CartOwnership.CUSTOMER_ASSOCIATED
-                    }
-                persistence.persistNew(result.value, expected, customerId)
+            is StorefrontResult.Failure -> {
+                val rejection = result.error as? StorefrontFailure.UserErrors
+                val cart = rejection?.cart
+                if (cart != null) {
+                    persistence.persistNew(cart, expected, customerId).withRejection(requireNotNull(rejection))
+                } else {
+                    CartSessionResolution.Failed(result.error, false)
+                }
             }
+
+            is StorefrontResult.Success -> persistence.persistNew(result.value, expected, customerId)
         }
     }
 
@@ -229,7 +241,16 @@ class CartCoordinator(
             return@withLock CartSessionResolution.Restricted(persisted.ownership)
         }
         when (val result = operation(persisted)) {
-            is StorefrontResult.Failure -> persistence.handleRemoteFailure(result.error)
+            is StorefrontResult.Failure -> {
+                val rejection = result.error as? StorefrontFailure.UserErrors
+                val cart = rejection?.cart
+                if (cart != null) {
+                    persistence.persistResult(persisted, cart, expectedOwnership, expectedCustomer)
+                        .withRejection(requireNotNull(rejection))
+                } else {
+                    persistence.handleRemoteFailure(result.error)
+                }
+            }
 
             is StorefrontResult.Success ->
                 persistence.persistResult(persisted, result.value, expectedOwnership, persisted.customerId)

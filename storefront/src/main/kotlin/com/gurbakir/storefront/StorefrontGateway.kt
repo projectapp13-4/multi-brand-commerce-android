@@ -42,7 +42,11 @@ sealed interface StorefrontFailure {
 
     data class GraphQl(val errorCodes: Set<String>) : StorefrontFailure
 
-    data class UserErrors(val errors: List<ShopifyUserError>) : StorefrontFailure
+    data class UserErrors(
+        val errors: List<ShopifyUserError>,
+        val cart: CartReference? = null,
+        val isClientValidation: Boolean = false
+    ) : StorefrontFailure
 
     data class InvalidCart(val reason: InvalidCartReason) : StorefrontFailure
 
@@ -52,8 +56,7 @@ sealed interface StorefrontFailure {
 enum class InvalidCartReason {
     EXPIRED,
     COMPLETED,
-    NOT_FOUND,
-    MERCHANDISE_UNAVAILABLE
+    NOT_FOUND
 }
 
 data class ShopifyUserError(val code: String?, val fieldPath: List<String>)

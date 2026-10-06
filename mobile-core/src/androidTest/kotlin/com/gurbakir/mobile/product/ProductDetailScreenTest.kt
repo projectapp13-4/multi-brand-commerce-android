@@ -43,6 +43,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.CoreTestTheme
 import com.gurbakir.mobile.captureReviewScreenshot
+import com.gurbakir.mobile.cart.CartActionAdjustment
+import com.gurbakir.mobile.cart.CartActionKind
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.performDeterministicClick
 import com.gurbakir.mobile.wishlist.WishlistMembershipUiState
@@ -67,6 +69,53 @@ import org.junit.runner.RunWith
 class ProductDetailScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun correctedAddOffersCartReviewWithoutClaimingTheRequestedQuantityWasAdded() {
+        var opened = 0
+        setProductContent(fontScale = 2f) {
+            ProductDetailScreen(
+                ProductDetailUiState(
+                    product = product(),
+                    selectedOptions = mapOf("Size" to "Small", "Color" to "Red"),
+                    cartFeedback = ProductCartFeedback.ADJUSTED,
+                    cartAdjustment = CartActionAdjustment(CartActionKind.ADD, 1L, 3L, 2L)
+                ),
+                actions().copy(onOpenCart = { opened++ })
+            )
+        }
+
+        val notice = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.product_cart_adjusted
+        )
+        composeRule.onNodeWithTag(ProductDetailTestTags.CART_FEEDBACK).assertTextEquals(notice).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.OPEN_CART).assertIsDisplayed().performDeterministicClick()
+        composeRule.waitForIdle()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun exactAddRetainsSuccessfulFeedbackAndCartReview() {
+        var opened = 0
+        setProductContent {
+            ProductDetailScreen(
+                ProductDetailUiState(
+                    product = product(),
+                    selectedOptions = mapOf("Size" to "Small", "Color" to "Red"),
+                    cartFeedback = ProductCartFeedback.ADDED
+                ),
+                actions().copy(onOpenCart = { opened++ })
+            )
+        }
+
+        val notice = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.product_added_to_cart
+        )
+        composeRule.onNodeWithTag(ProductDetailTestTags.CART_FEEDBACK).assertTextEquals(notice).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProductDetailTestTags.OPEN_CART).assertIsDisplayed().performDeterministicClick()
+        composeRule.waitForIdle()
+        assertEquals(1, opened)
+    }
 
     @Test
     fun incompletePurchaseShowsOneInstructionWithoutRepeatingThePriceRange() {

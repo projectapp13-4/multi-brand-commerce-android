@@ -8,7 +8,6 @@ import com.apollographql.apollo.api.Optional
 import com.apollographql.apollo.exception.ApolloException
 import com.apollographql.apollo.exception.ApolloHttpException
 import com.apollographql.apollo.exception.ApolloNetworkException
-import com.gurbakir.foundation.config.StorefrontConfiguration
 import com.gurbakir.storefront.graphql.CartBuyerIdentityUpdateMutation
 import com.gurbakir.storefront.graphql.CartCreateMutation
 import com.gurbakir.storefront.graphql.CartLinesAddMutation
@@ -30,35 +29,6 @@ private const val HTTP_SERVER_ERROR_START = 500
 internal const val DEFAULT_PAGE_SIZE = 20
 internal const val MAX_PAGE_SIZE = 50
 internal const val DEFAULT_REQUEST_TIMEOUT_MILLIS = 45_000L
-
-object StorefrontApolloClientFactory {
-    fun createGateways(
-        configuration: StorefrontConfiguration,
-        mediaPolicy: StorefrontMediaPolicy
-    ): StorefrontGatewaySet {
-        val client = createClient(configuration)
-        return StorefrontGatewaySet(
-            api = ApolloStorefrontGateway(client, mediaPolicy),
-            catalog = ApolloStorefrontCatalogGateway(client, mediaPolicy),
-            search = ApolloStorefrontSearchGateway(client, mediaPolicy),
-            product = ApolloStorefrontProductGateway(client, mediaPolicy)
-        )
-    }
-
-    internal fun createClient(configuration: StorefrontConfiguration): ApolloClient {
-        require(configuration.validationIssues().isEmpty()) {
-            "Storefront configuration must be valid before creating a network client."
-        }
-
-        val endpoint = "https://${configuration.domain}/api/${configuration.apiVersion}/graphql.json"
-        return configuration.publicToken.use { token ->
-            ApolloClient.Builder()
-                .serverUrl(endpoint)
-                .addHttpHeader("X-Shopify-Storefront-Access-Token", token)
-                .build()
-        }
-    }
-}
 
 class ApolloStorefrontGateway(
     private val client: ApolloClient,
@@ -159,19 +129,14 @@ class ApolloStorefrontGateway(
             is StorefrontResult.Success -> {
                 val payload = result.value.cartCreate
                 val userErrors = payload?.userErrors.orEmpty().toCreateProjectErrors()
-                when {
-                    userErrors.isNotEmpty() -> userErrors.toCartFailure()
-
-                    payload?.cart == null -> graphQlFailure("MISSING_CART_CREATE_PAYLOAD")
-
-                    else ->
-                        cartPager.completeMutationCart(
-                            payload.cart.cartSnapshotFields.toMappedCart(
-                                payload.warnings.mapTo(mutableSetOf()) { it.code.rawValue },
-                                mediaPolicy
-                            )
-                        )
-                }
+                completeCartMutation(
+                    userErrors,
+                    payload?.cart?.cartSnapshotFields?.toMappedCart(
+                        payload.warnings.orEmpty().mapTo(mutableSetOf()) { it.code.rawValue },
+                        mediaPolicy
+                    ),
+                    "MISSING_CART_CREATE_PAYLOAD"
+                )
             }
         }
     }
@@ -197,19 +162,14 @@ class ApolloStorefrontGateway(
             is StorefrontResult.Success -> {
                 val payload = result.value.cartLinesAdd
                 val userErrors = payload?.userErrors.orEmpty().toAddProjectErrors()
-                when {
-                    userErrors.isNotEmpty() -> userErrors.toCartFailure()
-
-                    payload?.cart == null -> graphQlFailure("MISSING_CART_ADD_PAYLOAD")
-
-                    else ->
-                        cartPager.completeMutationCart(
-                            payload.cart.cartSnapshotFields.toMappedCart(
-                                payload.warnings.mapTo(mutableSetOf()) { it.code.rawValue },
-                                mediaPolicy
-                            )
-                        )
-                }
+                completeCartMutation(
+                    userErrors,
+                    payload?.cart?.cartSnapshotFields?.toMappedCart(
+                        payload.warnings.orEmpty().mapTo(mutableSetOf()) { it.code.rawValue },
+                        mediaPolicy
+                    ),
+                    "MISSING_CART_ADD_PAYLOAD"
+                )
             }
         }
     }
@@ -234,19 +194,14 @@ class ApolloStorefrontGateway(
             is StorefrontResult.Success -> {
                 val payload = result.value.cartLinesUpdate
                 val userErrors = payload?.userErrors.orEmpty().toUpdateProjectErrors()
-                when {
-                    userErrors.isNotEmpty() -> userErrors.toCartFailure()
-
-                    payload?.cart == null -> graphQlFailure("MISSING_CART_UPDATE_PAYLOAD")
-
-                    else ->
-                        cartPager.completeMutationCart(
-                            payload.cart.cartSnapshotFields.toMappedCart(
-                                payload.warnings.mapTo(mutableSetOf()) { it.code.rawValue },
-                                mediaPolicy
-                            )
-                        )
-                }
+                completeCartMutation(
+                    userErrors,
+                    payload?.cart?.cartSnapshotFields?.toMappedCart(
+                        payload.warnings.orEmpty().mapTo(mutableSetOf()) { it.code.rawValue },
+                        mediaPolicy
+                    ),
+                    "MISSING_CART_UPDATE_PAYLOAD"
+                )
             }
         }
     }
@@ -266,19 +221,14 @@ class ApolloStorefrontGateway(
             is StorefrontResult.Success -> {
                 val payload = result.value.cartLinesRemove
                 val userErrors = payload?.userErrors.orEmpty().toRemoveProjectErrors()
-                when {
-                    userErrors.isNotEmpty() -> userErrors.toCartFailure()
-
-                    payload?.cart == null -> graphQlFailure("MISSING_CART_REMOVE_PAYLOAD")
-
-                    else ->
-                        cartPager.completeMutationCart(
-                            payload.cart.cartSnapshotFields.toMappedCart(
-                                payload.warnings.mapTo(mutableSetOf()) { it.code.rawValue },
-                                mediaPolicy
-                            )
-                        )
-                }
+                completeCartMutation(
+                    userErrors,
+                    payload?.cart?.cartSnapshotFields?.toMappedCart(
+                        payload.warnings.orEmpty().mapTo(mutableSetOf()) { it.code.rawValue },
+                        mediaPolicy
+                    ),
+                    "MISSING_CART_REMOVE_PAYLOAD"
+                )
             }
         }
     }
@@ -300,20 +250,29 @@ class ApolloStorefrontGateway(
             is StorefrontResult.Success -> {
                 val payload = result.value.cartBuyerIdentityUpdate
                 val userErrors = payload?.userErrors.orEmpty().toBuyerIdentityProjectErrors()
-                when {
-                    userErrors.isNotEmpty() -> userErrors.toCartFailure()
-
-                    payload?.cart == null -> graphQlFailure("MISSING_BUYER_IDENTITY_PAYLOAD")
-
-                    else ->
-                        cartPager.completeMutationCart(
-                            payload.cart.cartSnapshotFields.toMappedCart(
-                                payload.warnings.mapTo(mutableSetOf()) { it.code.rawValue },
-                                mediaPolicy
-                            )
-                        )
-                }
+                completeCartMutation(
+                    userErrors,
+                    payload?.cart?.cartSnapshotFields?.toMappedCart(
+                        payload.warnings.orEmpty().mapTo(mutableSetOf()) { it.code.rawValue },
+                        mediaPolicy
+                    ),
+                    "MISSING_BUYER_IDENTITY_PAYLOAD"
+                )
             }
+        }
+    }
+
+    private suspend fun completeCartMutation(
+        userErrors: List<ShopifyUserError>,
+        mapped: StorefrontResult<MappedCartSnapshot>?,
+        missingCode: String
+    ): StorefrontResult<CartReference> {
+        val cartResult = mapped?.let { cartPager.completeMutationCart(it) } ?: graphQlFailure(missingCode)
+        return if (userErrors.isNotEmpty()) {
+            val cart = (cartResult as? StorefrontResult.Success)?.value
+            StorefrontResult.Failure(StorefrontFailure.UserErrors(userErrors, cart))
+        } else {
+            cartResult
         }
     }
 }
