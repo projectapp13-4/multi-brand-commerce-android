@@ -23,6 +23,7 @@ enum class AddressListPhase {
 enum class AddressListFailure {
     CONNECTION,
     SERVICE,
+    SECURE_STORAGE,
     CONFLICT,
     SAVE_UNCONFIRMED,
     DEFAULT_ADDRESS_PROTECTED,
@@ -153,12 +154,7 @@ constructor(private val controller: AddressController) : ViewModel() {
             AddressLoadResult.SignedOut -> returnToAccount()
 
             is AddressLoadResult.Failed ->
-                _state.value =
-                    _state.value.copy(
-                        phase = AddressListPhase.FAILED,
-                        failure = result.reason.toListFailure(),
-                        notice = notice
-                    )
+                _state.value = _state.value.failed(result.reason.toListFailure(), notice)
         }
     }
 
@@ -212,12 +208,19 @@ private fun AddressListUiState.requestConfirmation(
     null
 }
 
-private fun AddressListUiState.failed(failure: AddressListFailure): AddressListUiState = copy(
-    phase = AddressListPhase.FAILED,
-    confirmation = null,
-    failure = failure,
-    notice = null
-)
+private fun AddressListUiState.failed(
+    failure: AddressListFailure,
+    notice: AddressListNotice? = null
+): AddressListUiState = if (failure == AddressListFailure.SECURE_STORAGE) {
+    AddressListUiState(phase = AddressListPhase.FAILED, failure = failure)
+} else {
+    copy(
+        phase = AddressListPhase.FAILED,
+        confirmation = null,
+        failure = failure,
+        notice = notice
+    )
+}
 
 private fun AddressContent.toInput(): AddressInput = AddressInput(
     firstName = firstName,
@@ -232,6 +235,8 @@ private fun AddressContent.toInput(): AddressInput = AddressInput(
 
 private fun AddressFailure.toListFailure(): AddressListFailure = when (this) {
     AddressFailure.CONNECTION -> AddressListFailure.CONNECTION
+
+    AddressFailure.SECURE_STORAGE -> AddressListFailure.SECURE_STORAGE
 
     AddressFailure.SAVE_UNCONFIRMED -> AddressListFailure.SAVE_UNCONFIRMED
 

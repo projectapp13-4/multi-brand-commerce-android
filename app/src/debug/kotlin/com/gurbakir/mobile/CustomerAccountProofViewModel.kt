@@ -158,6 +158,7 @@ private fun CustomerAccountProofFailure.toUiState(
         CustomerAccountProofFailure.TOKEN_EXPIRED,
         CustomerAccountProofFailure.TOKEN_IDENTITY -> CustomerAccountProofPhase.TOKEN_FAILED
 
+        CustomerAccountProofFailure.SECURE_STORAGE,
         CustomerAccountProofFailure.IDENTITY_AUTHENTICATION,
         CustomerAccountProofFailure.IDENTITY_DISCOVERY,
         CustomerAccountProofFailure.IDENTITY_GRAPHQL,

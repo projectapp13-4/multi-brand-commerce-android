@@ -106,6 +106,8 @@ class DefaultCommerceProofController(
 
             is CheckoutEvent.Failed -> emit(CommerceProofEvent.CHECKOUT_FAILED)
 
+            is CheckoutEvent.RecoveryStarted -> Unit
+
             is CheckoutEvent.ExternalLinkRequested -> emit(CommerceProofEvent.EXTERNAL_LINK_REQUIRES_POLICY)
         }
     }

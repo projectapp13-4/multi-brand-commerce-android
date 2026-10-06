@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
+import com.gurbakir.mobile.checkout.CheckoutFailureCategory
 import com.gurbakir.mobile.checkout.CheckoutState
 import com.gurbakir.mobile.checkout.CheckoutStatus
 import com.gurbakir.mobile.core.R
@@ -29,7 +30,9 @@ internal fun LazyListScope.cartMessages(state: CartState, checkoutState: Checkou
     if (state.status == CartStatus.LOADING || state.mutation != null || checkoutState.busy) {
         item { LinearProgressIndicator(Modifier.fillMaxWidth().testTag(CartTestTags.LOADING)) }
     }
-    state.failure?.takeIf { state.status != CartStatus.ERROR }?.let { failure ->
+    state.failure?.takeIf {
+        state.status != CartStatus.ERROR && state.status != CartStatus.RESTRICTED
+    }?.let { failure ->
         item { CartInlineFailureBanner(failure, actions.onRetry) }
     }
     if (state.cart?.hasWarnings == true || state.adjustment != null) {
@@ -40,13 +43,18 @@ internal fun LazyListScope.cartMessages(state: CartState, checkoutState: Checkou
             )
         }
     }
-    if (checkoutState.status != CheckoutStatus.IDLE) {
+    val sharedStorageRecovery = checkoutState.status == CheckoutStatus.FAILED &&
+        state.status == CartStatus.RESTRICTED &&
+        state.failure?.category == CartFailureCategory.SECURE_STORAGE &&
+        checkoutState.failure?.category == CheckoutFailureCategory.SECURE_STORAGE
+    if (checkoutState.status != CheckoutStatus.IDLE && !sharedStorageRecovery) {
         item {
             CheckoutFeedback(
                 state = checkoutState,
                 onContinue = actions.onBrowse,
                 onRetryCheckout = actions.onCheckout,
-                onRefresh = actions.onRetry
+                onRefresh = actions.onRetry,
+                onCleanup = actions.onRetryCheckoutCleanup
             )
         }
     }
@@ -72,7 +80,7 @@ internal fun LazyListScope.cartStatusContent(
         CartStatus.EXPIRED -> item { ExpiredCart(actions.onBrowse) }
 
         CartStatus.RESTRICTED ->
-            item { RestrictedCart(state.ownership, actions.onBrowse, actions.onRetry, onRequestDiscard) }
+            item { RestrictedCart(state.ownership, state.failure, actions.onBrowse, actions.onRetry, onRequestDiscard) }
 
         CartStatus.ACTIVE -> activeCartContent(state, checkoutState, actions, onRequestDiscard)
     }
@@ -100,7 +108,8 @@ private fun LazyListScope.activeCartContent(
             item { CartTotals(cart) }
             item {
                 CheckoutPanel(
-                    enabled = state.mutation == null && !checkoutState.busy,
+                    enabled = state.mutation == null && !checkoutState.busy &&
+                        checkoutState.status != CheckoutStatus.CLEANUP_REQUIRED,
                     onCheckout = actions.onCheckout
                 )
             }
@@ -162,6 +171,7 @@ private fun ExpiredCart(onBrowse: () -> Unit) {
 @Composable
 private fun RestrictedCart(
     ownership: CartOwnership?,
+    failure: CartFailure?,
     onBrowse: () -> Unit,
     onRetry: () -> Unit,
     onRequestDiscard: () -> Unit
@@ -170,7 +180,9 @@ private fun RestrictedCart(
     CommerceStatePanel(
         title =
             stringResource(
-                if (ownership == CartOwnership.DETACH_PENDING) {
+                if (failure?.category == CartFailureCategory.SECURE_STORAGE) {
+                    R.string.cart_error_title
+                } else if (ownership == CartOwnership.DETACH_PENDING) {
                     R.string.cart_detaching_title
                 } else {
                     R.string.cart_restricted_title
@@ -178,7 +190,9 @@ private fun RestrictedCart(
             ),
         body =
             stringResource(
-                if (ownership == CartOwnership.DETACH_PENDING) {
+                if (failure?.category == CartFailureCategory.SECURE_STORAGE) {
+                    R.string.account_failure_secure_storage
+                } else if (ownership == CartOwnership.DETACH_PENDING) {
                     R.string.cart_detaching
                 } else {
                     R.string.cart_restricted

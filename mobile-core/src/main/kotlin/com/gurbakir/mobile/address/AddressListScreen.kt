@@ -277,6 +277,7 @@ private fun AddressListNotice.messageResource(): Int = when (this) {
 private fun AddressListFailure.messageResource(): Int = when (this) {
     AddressListFailure.CONNECTION -> R.string.address_failure_connection
     AddressListFailure.SERVICE -> R.string.address_failure_service
+    AddressListFailure.SECURE_STORAGE -> R.string.account_failure_secure_storage
     AddressListFailure.CONFLICT -> R.string.address_failure_conflict
     AddressListFailure.SAVE_UNCONFIRMED -> R.string.address_failure_unconfirmed
     AddressListFailure.DEFAULT_ADDRESS_PROTECTED -> R.string.address_failure_default_protected

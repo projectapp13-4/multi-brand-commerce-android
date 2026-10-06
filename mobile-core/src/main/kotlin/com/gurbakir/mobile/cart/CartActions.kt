@@ -11,5 +11,6 @@ data class CartActions(
     val onDecrease: (CartLine) -> Unit,
     val onRemove: (SensitiveCartLineId) -> Unit,
     val onDiscard: () -> Unit,
-    val onCheckout: () -> Unit
+    val onCheckout: () -> Unit,
+    val onRetryCheckoutCleanup: () -> Unit
 )

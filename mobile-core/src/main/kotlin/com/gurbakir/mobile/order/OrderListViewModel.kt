@@ -142,7 +142,7 @@ class OrderListViewModel @Inject constructor(private val controller: OrderContro
             is OrderPageResult.Failed -> {
                 val current = _state.value
                 _state.value =
-                    if (append && current.orders.isNotEmpty()) {
+                    if (result.reason != OrderFailure.SECURE_STORAGE && append && current.orders.isNotEmpty()) {
                         current.copy(phase = OrderListPhase.FAILED, failure = result.reason, addedOrderCount = 0)
                     } else {
                         OrderListUiState(phase = OrderListPhase.FAILED, failure = result.reason)

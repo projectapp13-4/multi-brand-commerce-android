@@ -10,6 +10,7 @@ import com.gurbakir.account.CustomerProfileUpdateResult
 import com.gurbakir.account.oauth.CustomerAccountDiscoveryFailure
 import com.gurbakir.account.oauth.CustomerTokenFailure
 import com.gurbakir.account.session.CustomerAccountSessionCoordinator
+import com.gurbakir.account.session.CustomerSessionStorageException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,6 +19,7 @@ data class ProfileContent(val firstName: String, val lastName: String) {
 }
 
 enum class ProfileFailure {
+    SECURE_STORAGE,
     CONNECTION,
     SERVICE,
     CONFLICT,
@@ -94,9 +96,13 @@ constructor(
 
     private suspend fun resolveFailure(failure: CustomerAccountFailure, outcomeMayBeUnknown: Boolean): ProfileResult =
         when {
-            failure.isTerminal() -> {
+            failure == CustomerAccountFailure.SecureStorage -> ProfileResult.Failed(ProfileFailure.SECURE_STORAGE)
+
+            failure.isTerminal() -> try {
                 sessionCoordinator.clearForLogout()
                 ProfileResult.SignedOut
+            } catch (_: CustomerSessionStorageException) {
+                ProfileResult.Failed(ProfileFailure.SECURE_STORAGE)
             }
 
             outcomeMayBeUnknown -> ProfileResult.Failed(ProfileFailure.SAVE_UNCONFIRMED)
@@ -120,6 +126,7 @@ private fun CustomerAccountFailure.isTerminal(): Boolean = when (this) {
     is CustomerAccountFailure.GraphQl -> errorCodes.any(TERMINAL_PROFILE_ERROR_CODES::contains)
 
     is CustomerAccountFailure.Discovery,
+    CustomerAccountFailure.SecureStorage,
     is CustomerAccountFailure.Transport -> false
 }
 
@@ -131,6 +138,7 @@ private fun CustomerAccountFailure.isConnectionFailure(): Boolean = when (this) 
     is CustomerAccountFailure.Transport -> retryable
 
     is CustomerAccountFailure.GraphQl,
+    CustomerAccountFailure.SecureStorage,
     CustomerAccountFailure.SignedOut -> false
 }
 

@@ -200,12 +200,16 @@ constructor(private val controller: ProfileController) : ViewModel() {
 
             is ProfileResult.Failed -> {
                 _state.value =
-                    _state.value.copy(
-                        phase = ProfilePhase.FAILED,
-                        failure = result.reason,
-                        notice = null,
-                        focusRequest = null
-                    )
+                    if (result.reason == ProfileFailure.SECURE_STORAGE) {
+                        ProfileUiState(phase = ProfilePhase.FAILED, failure = result.reason)
+                    } else {
+                        _state.value.copy(
+                            phase = ProfilePhase.FAILED,
+                            failure = result.reason,
+                            notice = null,
+                            focusRequest = null
+                        )
+                    }
             }
         }
     }

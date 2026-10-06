@@ -4,6 +4,7 @@ import android.app.Activity
 import com.gurbakir.checkout.CheckoutAdapter
 import com.gurbakir.checkout.CheckoutEvent
 import com.gurbakir.checkout.CheckoutFailure as SdkCheckoutFailure
+import com.gurbakir.checkout.CheckoutPresentationOwner
 import com.gurbakir.checkout.CheckoutResult
 import com.gurbakir.checkout.CheckoutSessionEvent
 import com.gurbakir.checkout.CheckoutSessionId
@@ -14,6 +15,9 @@ import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
 import java.net.URI
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,164 +37,273 @@ constructor(
     private val adapter: CheckoutAdapter
 ) {
     private val lock = Mutex()
+    private val ownership = Any()
     private val _state = MutableStateFlow(CheckoutState())
     val state: StateFlow<CheckoutState> = _state.asStateFlow()
-    private var activeCheckout: ActiveCheckout? = null
+    private var current: CheckoutRun? = null
+    private var pendingCleanup: CheckoutCleanup? = null
+    private var cleanupAttempt: CheckoutCleanupAttempt? = null
+    private var followUp: Job? = null
 
     suspend fun start(activity: Activity) = startWithPresentation { url -> adapter.present(activity, url) }
 
-    /** The bounded presentation launch runs under the verified cart/session lease; event collection does not. */
+    /** The bounded SDK launch shares the verified session lease; event collection never holds it. */
     internal suspend fun startWithPresentation(present: suspend (URI) -> CheckoutResult) {
-        val launched = lock.withLock {
-            if (_state.value.busy) return@withLock null
-            _state.value = CheckoutState(CheckoutStatus.PREPARING)
-            cartRepository.withPreparedCheckout { resolution ->
-                val prepared = applyPreparation(resolution) ?: return@withPreparedCheckout null
-                adapter.invalidate()
-                prepared to prepared.checkoutUrl.useSuspending(present)
+        val run = begin(currentCoroutineContext()[Job]) ?: return
+        var unadopted: CheckoutResult.Presented? = null
+        try {
+            val launched = lock.withLock {
+                cartRepository.withPreparedCheckout { resolution ->
+                    val prepared = applyPreparation(run, resolution) ?: return@withPreparedCheckout null
+                    adapter.invalidate()
+                    val result = prepared.checkoutUrl.useSuspending(present)
+                    unadopted = result as? CheckoutResult.Presented
+                    prepared to result
+                }
+            }
+            if (launched != null) {
+                val presentation = adopt(run, launched.first, launched.second)
+                if (presentation != null) unadopted = null
+                presentation?.events?.collect { acceptEvent(CheckoutSessionEvent(presentation.sessionId, it)) }
+            }
+        } finally {
+            unadopted?.owner?.dispose()
+            release(run)
+        }
+    }
+
+    suspend fun acceptEvent(sessionEvent: CheckoutSessionEvent) {
+        val run = synchronized(ownership) {
+            current?.takeIf { !it.settled && it.sessionId == sessionEvent.sessionId }
+        } ?: return
+        when (val event = sessionEvent.event) {
+            CheckoutEvent.Completed -> acceptTerminal(run, CheckoutStatus.CLEANUP_REQUIRED)
+            CheckoutEvent.Cancelled -> acceptTerminal(run, CheckoutStatus.CANCELLED)
+            is CheckoutEvent.Failed -> acceptTerminal(run, CheckoutStatus.FAILED, event.failure)
+            is CheckoutEvent.RecoveryStarted -> publishActive(run, CheckoutStatus.IN_PROGRESS)
+            is CheckoutEvent.ExternalLinkRequested -> publishActive(run, CheckoutStatus.EXTERNAL_LINK_BLOCKED)
+        }
+    }
+
+    suspend fun retryCleanup() {
+        val attempt = synchronized(ownership) {
+            pendingCleanup?.takeIf { cleanupAttempt == null }?.let { cleanup ->
+                CheckoutCleanupAttempt(cleanup).also { cleanupAttempt = it }
             }
         } ?: return
-        acceptPresentation(launched.first, launched.second)
-    }
-
-    suspend fun acceptEvent(sessionEvent: CheckoutSessionEvent): Unit = lock.withLock {
-        val active = activeCheckout?.takeIf { it.sessionId == sessionEvent.sessionId } ?: return@withLock
-        when (val event = sessionEvent.event) {
-            CheckoutEvent.Completed -> complete(active)
-
-            CheckoutEvent.Cancelled -> finishRetainingCart(CheckoutStatus.CANCELLED)
-
-            is CheckoutEvent.Failed -> finishWithFailure(event.failure)
-
-            is CheckoutEvent.ExternalLinkRequested ->
-                _state.value = CheckoutState(CheckoutStatus.EXTERNAL_LINK_BLOCKED, cartRetained = true)
+        try {
+            val oldJob = synchronized(ownership) { followUp }
+            if (oldJob != null && oldJob !== currentCoroutineContext()[Job]) oldJob.cancelAndJoin()
+            lock.withLock {
+                finishCleanup(attempt.cleanup)
+                releaseCleanupAttempt(attempt)
+                refreshAfterTerminal(currentCoroutineContext()[Job])
+            }
+        } finally {
+            releaseCleanupAttempt(attempt)
         }
     }
 
-    internal suspend fun prepare(): PreparedCheckout? = lock.withLock {
-        if (_state.value.busy) return@withLock null
-        _state.value = CheckoutState(CheckoutStatus.PREPARING)
-        applyPreparation(cartRepository.prepareCheckout())
-    }
-
-    private fun applyPreparation(resolution: CartCheckoutResolution): PreparedCheckout? = when (resolution) {
-        is CartCheckoutResolution.Eligible -> {
-            _state.value = CheckoutState(CheckoutStatus.PRESENTING)
-            PreparedCheckout(resolution.cartId, resolution.checkoutUrl)
+    internal suspend fun prepare(): PreparedCheckout? {
+        val run = begin(currentCoroutineContext()[Job]) ?: return null
+        var prepared: PreparedCheckout? = null
+        try {
+            prepared = lock.withLock { applyPreparation(run, cartRepository.prepareCheckout()) }
+            return prepared
+        } finally {
+            if (prepared == null) release(run)
         }
-
-        CartCheckoutResolution.Empty -> failPreparation(CheckoutFailureCategory.CART_EMPTY, retained = false)
-
-        CartCheckoutResolution.Restricted -> failPreparation(
-            CheckoutFailureCategory.CART_RESTRICTED,
-            retained = true
-        )
-
-        CartCheckoutResolution.Unavailable -> failPreparation(
-            CheckoutFailureCategory.CART_UNAVAILABLE,
-            retained = true
-        )
-
-        is CartCheckoutResolution.Failed -> failPreparation(resolution.failure.toCheckoutFailure())
     }
 
     internal suspend fun acceptPresentation(prepared: PreparedCheckout, result: CheckoutResult) {
-        val presentation = lock.withLock {
-            when (result) {
-                is CheckoutResult.Presented -> {
-                    activeCheckout = ActiveCheckout(prepared.cartId, result.sessionId)
-                    _state.value = CheckoutState(CheckoutStatus.IN_PROGRESS)
-                    result
-                }
-
-                CheckoutResult.Preloaded -> {
-                    failPresentation(CheckoutFailureCategory.FATAL)
-                    null
-                }
-
-                is CheckoutResult.Rejected -> {
-                    failPresentation(result.reason.toFailureCategory())
-                    null
-                }
-            }
-        }
-        presentation?.events?.collect { event ->
-            acceptEvent(CheckoutSessionEvent(presentation.sessionId, event))
-        }
-    }
-
-    private suspend fun complete(active: ActiveCheckout) {
-        activeCheckout = null
-        adapter.invalidate()
-        when (cartCompleter.complete(active.cartId)) {
-            CartCompletionResolution.CLEARED,
-            CartCompletionResolution.ALREADY_ABSENT -> {
-                cartRepository.refresh()
-                _state.value = CheckoutState(CheckoutStatus.COMPLETED, cartRetained = false)
-            }
-
-            CartCompletionResolution.DIFFERENT_CART -> {
-                cartRepository.refresh()
-                _state.value =
-                    CheckoutState(CheckoutStatus.COMPLETED_CURRENT_CART_PRESERVED, cartRetained = true)
-            }
-
-            CartCompletionResolution.SECURE_PERSISTENCE_FAILED -> {
-                cartRepository.refresh()
-                _state.value =
-                    CheckoutState(
-                        status = CheckoutStatus.CLEANUP_REQUIRED,
-                        failure =
-                            CheckoutFailure(
-                                CheckoutFailureCategory.SECURE_STORAGE,
-                                retryable = true,
-                                cartRetained = true
-                            ),
-                        cartRetained = true
-                    )
+        val run = synchronized(ownership) { current } ?: begin(currentCoroutineContext()[Job])
+        if (run == null) {
+            (result as? CheckoutResult.Presented)?.owner?.dispose()
+        } else {
+            try {
+                val ownerJob = currentCoroutineContext()[Job]
+                synchronized(ownership) { run.job = ownerJob }
+                val presentation = adopt(run, prepared, result)
+                if (presentation == null) (result as? CheckoutResult.Presented)?.owner?.dispose()
+                presentation?.events?.collect { acceptEvent(CheckoutSessionEvent(presentation.sessionId, it)) }
+            } finally {
+                release(run)
             }
         }
     }
 
-    private suspend fun finishRetainingCart(status: CheckoutStatus) {
-        activeCheckout = null
-        adapter.invalidate()
-        cartRepository.refresh()
-        _state.value = CheckoutState(status, cartRetained = cartRepository.hasProtectedCart())
+    private fun begin(job: Job?): CheckoutRun? = synchronized(ownership) {
+        if (_state.value.busy || pendingCleanup != null || cleanupAttempt != null) {
+            null
+        } else {
+            CheckoutRun(job).also {
+                current = it
+                _state.value = CheckoutState(CheckoutStatus.PREPARING)
+            }
+        }
     }
 
-    private suspend fun finishWithFailure(failure: SdkCheckoutFailure) {
-        activeCheckout = null
-        adapter.invalidate()
-        cartRepository.refresh()
-        val retained = cartRepository.hasProtectedCart()
-        _state.value =
-            CheckoutState(
-                status = CheckoutStatus.FAILED,
-                failure = failure.toProjectFailure(retained),
-                cartRetained = retained
-            )
+    private fun applyPreparation(run: CheckoutRun, resolution: CartCheckoutResolution): PreparedCheckout? =
+        synchronized(ownership) {
+            if (current !== run) {
+                null
+            } else {
+                when (resolution) {
+                    is CartCheckoutResolution.Eligible -> {
+                        _state.value = CheckoutState(CheckoutStatus.PRESENTING)
+                        PreparedCheckout(resolution.cartId, resolution.checkoutUrl)
+                    }
+
+                    CartCheckoutResolution.Empty -> fail(run, CheckoutFailureCategory.CART_EMPTY, false)
+
+                    CartCheckoutResolution.Restricted -> fail(run, CheckoutFailureCategory.CART_RESTRICTED, true)
+
+                    CartCheckoutResolution.Unavailable -> fail(run, CheckoutFailureCategory.CART_UNAVAILABLE, true)
+
+                    is CartCheckoutResolution.Failed -> fail(run, resolution.failure.toCheckoutFailure())
+                }
+            }
+        }
+
+    private fun adopt(run: CheckoutRun, prepared: PreparedCheckout, result: CheckoutResult): CheckoutResult.Presented? =
+        synchronized(ownership) {
+            if (current !== run || run.settled) {
+                null
+            } else {
+                when (result) {
+                    is CheckoutResult.Presented -> {
+                        run.cartId = prepared.cartId
+                        run.sessionId = result.sessionId
+                        run.owner = result.owner
+                        _state.value = CheckoutState(CheckoutStatus.IN_PROGRESS)
+                        result
+                    }
+
+                    CheckoutResult.Preloaded -> fail(run, CheckoutFailureCategory.FATAL, true)
+
+                    is CheckoutResult.Rejected -> fail(run, result.reason.toFailureCategory(), true)
+                }
+            }
+        }
+
+    private suspend fun acceptTerminal(run: CheckoutRun, status: CheckoutStatus, failure: SdkCheckoutFailure? = null) {
+        var acceptedAttempt: CheckoutCleanupAttempt? = null
+        val accepted = synchronized(ownership) {
+            if (current !== run || run.settled) {
+                false
+            } else {
+                run.settled = true
+                if (status == CheckoutStatus.CLEANUP_REQUIRED) {
+                    val cleanup = CheckoutCleanup(requireNotNull(run.cartId))
+                    pendingCleanup = cleanup
+                    acceptedAttempt = CheckoutCleanupAttempt(cleanup).also { cleanupAttempt = it }
+                    _state.value = cleanupRequired()
+                } else {
+                    val retained = cartRepository.hasProtectedCart()
+                    _state.value = CheckoutState(status, failure?.toProjectFailure(retained), retained)
+                }
+                true
+            }
+        }
+        if (accepted) {
+            val attempt = acceptedAttempt
+            try {
+                disposeOwner(run)
+                adapter.invalidate()
+                lock.withLock {
+                    if (attempt != null) completeAttempt(attempt)
+                    if (synchronized(ownership) { current === run }) refreshAfterTerminal(run.job)
+                }
+            } finally {
+                if (attempt != null) releaseCleanupAttempt(attempt)
+            }
+        }
     }
 
-    private fun failPresentation(category: CheckoutFailureCategory) {
-        activeCheckout = null
-        _state.value =
-            CheckoutState(
-                status = CheckoutStatus.FAILED,
-                failure = CheckoutFailure(category, category.isRetryable(), cartRetained = true),
-                cartRetained = true
-            )
+    private suspend fun completeAttempt(attempt: CheckoutCleanupAttempt) {
+        try {
+            finishCleanup(attempt.cleanup)
+        } finally {
+            releaseCleanupAttempt(attempt)
+        }
     }
 
-    private fun failPreparation(category: CheckoutFailureCategory, retained: Boolean): PreparedCheckout? {
-        failPreparation(CheckoutFailure(category, category.isRetryable(), retained))
-        return null
+    private suspend fun finishCleanup(cleanup: CheckoutCleanup) {
+        val result = cartCompleter.complete(cleanup.cartId)
+        synchronized(ownership) {
+            if (pendingCleanup === cleanup) {
+                _state.value = when (result) {
+                    CartCompletionResolution.CLEARED,
+                    CartCompletionResolution.ALREADY_ABSENT ->
+                        CheckoutState(CheckoutStatus.COMPLETED, cartRetained = false)
+
+                    CartCompletionResolution.DIFFERENT_CART ->
+                        CheckoutState(CheckoutStatus.COMPLETED_CURRENT_CART_PRESERVED, cartRetained = true)
+
+                    CartCompletionResolution.SECURE_PERSISTENCE_FAILED -> cleanupRequired()
+                }
+                if (result != CartCompletionResolution.SECURE_PERSISTENCE_FAILED) pendingCleanup = null
+            }
+        }
     }
 
-    private fun failPreparation(failure: CheckoutFailure): PreparedCheckout? {
+    private fun publishActive(run: CheckoutRun, status: CheckoutStatus) {
+        synchronized(ownership) {
+            if (current === run && !run.settled) _state.value = CheckoutState(status, cartRetained = true)
+        }
+    }
+
+    private fun releaseCleanupAttempt(attempt: CheckoutCleanupAttempt) {
+        synchronized(ownership) { if (cleanupAttempt === attempt) cleanupAttempt = null }
+    }
+
+    private suspend fun refreshAfterTerminal(job: Job?) {
+        synchronized(ownership) { followUp = job }
+        try {
+            cartRepository.refresh()
+        } finally {
+            synchronized(ownership) { if (followUp === job) followUp = null }
+        }
+    }
+
+    private fun release(run: CheckoutRun) {
+        synchronized(ownership) {
+            if (current === run) {
+                current = null
+                if (!run.settled) _state.value = CheckoutState(CheckoutStatus.INTERRUPTED, cartRetained = true)
+            }
+        }
+        disposeOwner(run)
+    }
+
+    private fun disposeOwner(run: CheckoutRun) {
+        val owner = synchronized(ownership) { run.owner.also { run.owner = null } }
+        owner?.dispose()
+    }
+
+    private fun fail(run: CheckoutRun, category: CheckoutFailureCategory, retained: Boolean): Nothing? =
+        fail(run, CheckoutFailure(category, category.isRetryable(), retained))
+
+    private fun fail(run: CheckoutRun, failure: CheckoutFailure): Nothing? {
+        run.settled = true
         _state.value = CheckoutState(CheckoutStatus.FAILED, failure, failure.cartRetained)
         return null
     }
 }
 
-private data class ActiveCheckout(val cartId: SensitiveCartId, val sessionId: CheckoutSessionId)
+private class CheckoutRun(var job: Job?) {
+    var cartId: SensitiveCartId? = null
+    var sessionId: CheckoutSessionId? = null
+    var owner: CheckoutPresentationOwner? = null
+    var settled = false
+}
+
+private class CheckoutCleanup(val cartId: SensitiveCartId)
+
+private class CheckoutCleanupAttempt(val cleanup: CheckoutCleanup)
+
+private fun cleanupRequired() = CheckoutState(
+    status = CheckoutStatus.CLEANUP_REQUIRED,
+    failure = CheckoutFailure(CheckoutFailureCategory.SECURE_STORAGE, retryable = true, cartRetained = true),
+    cartRetained = true
+)

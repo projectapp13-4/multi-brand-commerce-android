@@ -42,6 +42,36 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CartScreenTest {
     @Test
+    fun sharedPreparationStorageFailureShowsOneSessionRecoveryAction() {
+        var retried = 0
+        var checkedOut = 0
+        setCartContent {
+            CartScreen(
+                state = CartState(
+                    status = CartStatus.RESTRICTED,
+                    ownership = CartOwnership.VERIFY_PENDING,
+                    failure = CartFailure(CartFailureCategory.SECURE_STORAGE, true, true)
+                ),
+                checkoutState = CheckoutState(
+                    status = CheckoutStatus.FAILED,
+                    failure = CheckoutFailure(CheckoutFailureCategory.SECURE_STORAGE, true, true)
+                ),
+                actions = actions(retry = { retried++ }, checkout = { checkedOut++ })
+            )
+        }
+        val notice = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+            R.string.account_failure_secure_storage
+        )
+        composeRule.onNodeWithText(notice).assertIsDisplayed()
+        composeRule.onAllNodesWithTag(CartTestTags.RETRY).assertCountEquals(1)
+        composeRule.onNodeWithTag(CartTestTags.RETRY).performDeterministicClick()
+        composeRule.waitForIdle()
+        assertEquals(1, retried)
+        assertEquals(0, checkedOut)
+        composeRule.onAllNodesWithTag(CartTestTags.CHECKOUT).assertCountEquals(0)
+    }
+
+    @Test
     fun pendingOwnershipOffersRetryWithoutDiscardingTheRetainedCart() {
         var retried = 0
         var discarded = 0
@@ -361,7 +391,8 @@ class CartScreenTest {
         onDecrease = {},
         onRemove = remove,
         onDiscard = discard,
-        onCheckout = checkout
+        onCheckout = checkout,
+        onRetryCheckoutCleanup = {}
     )
 
     private fun activeState(line: CartLine, ownership: CartOwnership = CartOwnership.ANONYMOUS): CartState {

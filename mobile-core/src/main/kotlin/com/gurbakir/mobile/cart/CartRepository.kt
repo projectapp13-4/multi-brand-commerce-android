@@ -12,6 +12,7 @@ import com.gurbakir.storefront.CartLineUpdate
 import com.gurbakir.storefront.CartOwnership
 import com.gurbakir.storefront.CartQuantityRule
 import com.gurbakir.storefront.CartReference
+import com.gurbakir.storefront.CartRestrictionReason
 import com.gurbakir.storefront.CartSessionResolution
 import com.gurbakir.storefront.SensitiveBuyerAccessToken
 import com.gurbakir.storefront.SensitiveCartId
@@ -281,7 +282,7 @@ constructor(
             }
         }
     } catch (_: CustomerSessionStorageException) {
-        restricted(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING))
+        restricted(CartSessionResolution.Restricted(CartOwnership.VERIFY_PENDING, CartRestrictionReason.SECURE_STORAGE))
     }
 }
 
@@ -449,7 +450,8 @@ constructor(private val operations: CartOperations) : CartRepository {
         return when {
             restricted != null || (observed == null && priorRestriction != null) -> {
                 activeCart = null
-                CartState(status = CartStatus.RESTRICTED, ownership = ownership)
+                val knownStorageFailure = cancelledRestrictionFailure(observed, previous)
+                CartState(status = CartStatus.RESTRICTED, ownership = ownership, failure = knownStorageFailure)
             }
 
             verified?.ownership == CartOwnership.ANONYMOUS -> {
@@ -541,7 +543,7 @@ constructor(private val operations: CartOperations) : CartRepository {
         val current = operation.restore()
         val publication = applyResolution(current)
         return when {
-            publication == CartActionResult.Restricted -> publication
+            current is CartSessionResolution.Restricted -> publication
 
             current is CartSessionResolution.Failed &&
                 current.error == StorefrontFailure.SecurePersistence -> publication
@@ -600,8 +602,14 @@ constructor(private val operations: CartOperations) : CartRepository {
 
         is CartSessionResolution.Restricted -> {
             activeCart = null
-            _state.value = CartState(status = CartStatus.RESTRICTED, ownership = resolution.ownership)
-            CartActionResult.Restricted
+            val failure =
+                if (resolution.reason == CartRestrictionReason.SECURE_STORAGE) secureSessionFailure() else null
+            _state.value = CartState(
+                status = CartStatus.RESTRICTED,
+                ownership = resolution.ownership,
+                failure = failure
+            )
+            failure?.let { CartActionResult.Failed(it) } ?: CartActionResult.Restricted
         }
 
         is CartSessionResolution.Failed -> applyFailure(resolution)
@@ -673,13 +681,30 @@ private fun CartSessionResolution.toCheckoutResolution(action: CartActionResult)
     CartSessionResolution.Empty,
     CartSessionResolution.Expired -> CartCheckoutResolution.Empty
 
-    is CartSessionResolution.Restricted -> CartCheckoutResolution.Restricted
+    is CartSessionResolution.Restricted ->
+        if (action is CartActionResult.Failed) {
+            CartCheckoutResolution.Failed(action.failure)
+        } else {
+            CartCheckoutResolution.Restricted
+        }
 
     is CartSessionResolution.Failed ->
         CartCheckoutResolution.Failed(
             (action as CartActionResult.Failed).failure
         )
 }
+
+private fun cancelledRestrictionFailure(observed: CartSessionResolution?, previous: CartState): CartFailure? = when {
+    (observed as? CartSessionResolution.Restricted)?.reason == CartRestrictionReason.SECURE_STORAGE ->
+        secureSessionFailure()
+
+    observed == null && previous.failure?.category == CartFailureCategory.SECURE_STORAGE -> previous.failure
+
+    else -> null
+}
+
+private fun secureSessionFailure() =
+    CartFailure(CartFailureCategory.SECURE_STORAGE, retryable = true, cartRetained = true)
 
 private fun CartReference.isCheckoutEligible(): Boolean =
     !hasMoreLines && lines.isNotEmpty() && totalQuantity > 0 && subtotal != null && total != null &&

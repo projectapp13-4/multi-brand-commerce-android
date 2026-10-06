@@ -8,6 +8,7 @@ import com.gurbakir.account.CustomerOrderIds
 import com.gurbakir.account.CustomerOrderSummary
 import com.gurbakir.account.oauth.CustomerTokenFailure
 import com.gurbakir.account.session.CustomerAccountSessionCoordinator
+import com.gurbakir.account.session.CustomerSessionStorageException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +21,7 @@ data class OrderPageContent(val orders: List<OrderSummaryContent>, val nextCurso
 }
 
 enum class OrderFailure {
+    SECURE_STORAGE,
     CONNECTION,
     SERVICE
 }
@@ -81,9 +83,13 @@ constructor(
     }
 
     private suspend fun resolvePageFailure(failure: CustomerAccountFailure): OrderPageResult = when {
-        failure.isTerminalOrderSessionFailure() -> {
+        failure == CustomerAccountFailure.SecureStorage -> OrderPageResult.Failed(OrderFailure.SECURE_STORAGE)
+
+        failure.isTerminalOrderSessionFailure() -> try {
             sessionCoordinator.clearForLogout()
             OrderPageResult.SignedOut
+        } catch (_: CustomerSessionStorageException) {
+            OrderPageResult.Failed(OrderFailure.SECURE_STORAGE)
         }
 
         failure.isOrderConnectionFailure() -> OrderPageResult.Failed(OrderFailure.CONNECTION)
@@ -92,11 +98,15 @@ constructor(
     }
 
     private suspend fun resolveDetailFailure(failure: CustomerAccountFailure): OrderDetailResult = when {
+        failure == CustomerAccountFailure.SecureStorage -> OrderDetailResult.Failed(OrderFailure.SECURE_STORAGE)
+
         failure.isOrderUnavailableFailure() -> OrderDetailResult.Unavailable
 
-        failure.isTerminalOrderSessionFailure() -> {
+        failure.isTerminalOrderSessionFailure() -> try {
             sessionCoordinator.clearForLogout()
             OrderDetailResult.SignedOut
+        } catch (_: CustomerSessionStorageException) {
+            OrderDetailResult.Failed(OrderFailure.SECURE_STORAGE)
         }
 
         failure.isOrderConnectionFailure() -> OrderDetailResult.Failed(OrderFailure.CONNECTION)

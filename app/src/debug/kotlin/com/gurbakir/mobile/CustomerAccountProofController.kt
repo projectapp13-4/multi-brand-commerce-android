@@ -56,6 +56,7 @@ enum class CustomerAccountProofFailure {
     TOKEN_SCOPE,
     TOKEN_EXPIRED,
     TOKEN_IDENTITY,
+    SECURE_STORAGE,
     IDENTITY_AUTHENTICATION,
     IDENTITY_DISCOVERY,
     IDENTITY_GRAPHQL,
@@ -138,6 +139,8 @@ private fun CustomerTokenFailure.toProofFailure(): CustomerAccountProofFailure =
 }
 
 private fun CustomerAccountFailure.toProofFailure(): CustomerAccountProofFailure = when (this) {
+    CustomerAccountFailure.SecureStorage -> CustomerAccountProofFailure.SECURE_STORAGE
+
     CustomerAccountFailure.SignedOut,
     is CustomerAccountFailure.Authentication -> CustomerAccountProofFailure.IDENTITY_AUTHENTICATION
 

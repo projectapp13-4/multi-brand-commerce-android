@@ -17,13 +17,18 @@ import com.gurbakir.storefront.SensitiveCartId
 import com.gurbakir.storefront.SensitiveCartLineId
 import com.gurbakir.storefront.SensitiveCheckoutUrl
 import java.net.URI
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CheckoutControllerTest {
     @Test
     fun `only the matching presented session can complete and clear its cart`() = runTest {
@@ -32,7 +37,7 @@ class CheckoutControllerTest {
         val adapter = FakeCheckoutAdapter()
         val controller = CheckoutController(repository, completer, adapter)
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(1))
+        adopt(controller, prepared, presentation(1))
 
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(2), CheckoutEvent.Completed))
         assertEquals(CheckoutStatus.IN_PROGRESS, controller.state.value.status)
@@ -51,11 +56,11 @@ class CheckoutControllerTest {
         val completer = FakeCheckoutCartCompleter(CartCompletionResolution.CLEARED)
         val controller = CheckoutController(repository, completer, FakeCheckoutAdapter())
         val firstPrepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(firstPrepared, presentation(1))
+        adopt(controller, firstPrepared, presentation(1))
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(1), CheckoutEvent.Completed))
 
         val laterPrepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(laterPrepared, presentation(2))
+        adopt(controller, laterPrepared, presentation(2))
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(1), CheckoutEvent.Completed))
 
         assertEquals(CheckoutStatus.IN_PROGRESS, controller.state.value.status)
@@ -67,7 +72,7 @@ class CheckoutControllerTest {
         val repository = FakeCartRepository(eligible())
         val controller = CheckoutController(repository, FakeCheckoutCartCompleter(), FakeCheckoutAdapter())
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(7))
+        adopt(controller, prepared, presentation(7))
 
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(7), CheckoutEvent.Cancelled))
 
@@ -82,7 +87,7 @@ class CheckoutControllerTest {
         val completer = FakeCheckoutCartCompleter()
         val controller = CheckoutController(repository, completer, FakeCheckoutAdapter())
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(3))
+        adopt(controller, prepared, presentation(3))
 
         controller.acceptEvent(
             CheckoutSessionEvent(
@@ -104,7 +109,7 @@ class CheckoutControllerTest {
         val controller = CheckoutController(repository, completer, FakeCheckoutAdapter())
         val sessionId = CheckoutSessionId(8)
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(sessionId.value))
+        adopt(controller, prepared, presentation(sessionId.value))
 
         controller.acceptEvent(
             CheckoutSessionEvent(
@@ -130,7 +135,7 @@ class CheckoutControllerTest {
                 FakeCheckoutAdapter()
             )
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(4))
+        adopt(controller, prepared, presentation(4))
 
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(4), CheckoutEvent.Completed))
 
@@ -148,7 +153,7 @@ class CheckoutControllerTest {
                 FakeCheckoutAdapter()
             )
         val prepared = requireNotNull(controller.prepare())
-        controller.acceptPresentation(prepared, presentation(5))
+        adopt(controller, prepared, presentation(5))
 
         controller.acceptEvent(CheckoutSessionEvent(CheckoutSessionId(5), CheckoutEvent.Completed))
 
@@ -224,8 +229,11 @@ private class FakeCheckoutAdapter : CheckoutAdapter {
     }
 }
 
-private fun presentation(sessionId: Long): CheckoutResult.Presented =
-    CheckoutResult.Presented(CheckoutSessionId(sessionId), emptyFlow())
+private fun presentation(sessionId: Long): CheckoutResult.Presented = CheckoutResult.Presented(
+    CheckoutSessionId(sessionId),
+    MutableSharedFlow(),
+    com.gurbakir.checkout.CheckoutPresentationOwner {}
+)
 
 private fun checkoutCartId(value: String): SensitiveCartId =
     SensitiveCartId::class.java.getDeclaredConstructor(String::class.java).run {
@@ -238,3 +246,13 @@ private fun checkoutUrl(value: URI): SensitiveCheckoutUrl =
         isAccessible = true
         newInstance(value)
     }
+
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun TestScope.adopt(
+    controller: CheckoutController,
+    prepared: PreparedCheckout,
+    result: CheckoutResult.Presented
+) {
+    backgroundScope.launch { controller.acceptPresentation(prepared, result) }
+    runCurrent()
+}

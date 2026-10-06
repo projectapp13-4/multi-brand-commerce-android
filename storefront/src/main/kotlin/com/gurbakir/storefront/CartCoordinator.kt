@@ -18,6 +18,11 @@ enum class CartOwnership {
     QUARANTINED
 }
 
+enum class CartRestrictionReason {
+    OWNERSHIP,
+    SECURE_STORAGE
+}
+
 data class PersistedCart(
     val id: SensitiveCartId,
     val expiresAt: Instant,
@@ -44,7 +49,10 @@ sealed interface CartSessionResolution {
 
     data object Expired : CartSessionResolution
 
-    data class Restricted(val ownership: CartOwnership) : CartSessionResolution
+    data class Restricted(
+        val ownership: CartOwnership,
+        val reason: CartRestrictionReason = CartRestrictionReason.OWNERSHIP
+    ) : CartSessionResolution
 
     data class Failed(
         val error: StorefrontFailure,

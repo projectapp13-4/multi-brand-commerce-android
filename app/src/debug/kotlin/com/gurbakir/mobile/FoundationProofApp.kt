@@ -439,6 +439,7 @@ private val CUSTOMER_ACCOUNT_STATUS_RESOURCES = mapOf(
 private fun CustomerAccountProofPhase.statusResourceId(): Int = CUSTOMER_ACCOUNT_STATUS_RESOURCES.getValue(this)
 
 private fun CustomerAccountProofUiState.statusResourceId(): Int = when (failure) {
+    CustomerAccountProofFailure.SECURE_STORAGE -> com.gurbakir.mobile.core.R.string.account_failure_secure_storage
     CustomerAccountProofFailure.TOKEN_REJECTED -> R.string.customer_account_status_token_rejected
     CustomerAccountProofFailure.TOKEN_TRANSIENT -> R.string.customer_account_status_token_transient
     CustomerAccountProofFailure.TOKEN_INVALID -> R.string.customer_account_status_token_invalid

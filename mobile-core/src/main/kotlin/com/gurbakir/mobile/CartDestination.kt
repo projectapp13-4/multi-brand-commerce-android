@@ -42,7 +42,8 @@ internal fun CartDestination(navController: NavHostController) {
                 onDecrease = viewModel::decrease,
                 onRemove = viewModel::remove,
                 onDiscard = viewModel::discard,
-                onCheckout = { activity?.let(checkoutViewModel::start) }
+                onCheckout = { activity?.let(checkoutViewModel::start) },
+                onRetryCheckoutCleanup = checkoutViewModel::retryCleanup
             )
     )
 }

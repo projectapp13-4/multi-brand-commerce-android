@@ -144,18 +144,22 @@ class ApolloCustomerProfileGateway(
 
     private suspend fun <D : Operation.Data> executeAuthenticated(
         createCall: () -> ApolloCall<D>
-    ): CustomerAccountResult<D> = when (val resolution = sessionResolver.resolve()) {
-        CustomerSessionResolution.SignedOut ->
-            CustomerAccountResult.Failure(CustomerAccountFailure.SignedOut)
+    ): CustomerAccountResult<D> = when (val result = sessionResolver.resolveForAccount()) {
+        is CustomerAccountResult.Failure -> result
 
-        is CustomerSessionResolution.Failed ->
-            CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(resolution.reason))
+        is CustomerAccountResult.Success -> when (val resolution = result.value) {
+            CustomerSessionResolution.SignedOut ->
+                CustomerAccountResult.Failure(CustomerAccountFailure.SignedOut)
 
-        is CustomerSessionResolution.Authenticated -> {
-            val call = resolution.session.accessToken.use { token ->
-                createCall().addHttpHeader("Authorization", token)
+            is CustomerSessionResolution.Failed ->
+                CustomerAccountResult.Failure(CustomerAccountFailure.Authentication(resolution.reason))
+
+            is CustomerSessionResolution.Authenticated -> {
+                val call = resolution.session.accessToken.use { token ->
+                    createCall().addHttpHeader("Authorization", token)
+                }
+                callExecutor.execute(call)
             }
-            callExecutor.execute(call)
         }
     }
 }

@@ -184,10 +184,13 @@
     <string name="checkout_external_context">Ödeme, teslimat ve sipariş onayı güvenli ödeme sayfasında tamamlanır.</string>
     <string name="checkout_preparing">Sepet g&#252;ncel uygunluk ve tutarlar i&#231;in yenileniyor.</string>
     <string name="checkout_in_progress">G&#252;venli checkout a&#231;&#305;l&#305;yor. Sonu&#231; yaln&#305;zca Shopify tamamlanma bildirimiyle kabul edilir.</string>
-    <string name="checkout_cancelled">Checkout kapat&#305;ld&#305;. Sepet korunup Shopify\'dan yeniden okundu.</string>
+    <string name="checkout_cancelled">Ödeme ekranı iptal edildi. Sepet korunuyor.</string>
+    <string name="checkout_interrupted">Ödeme ekranı kapandı. Sonuç doğrulanmadı; yeniden denemeden önce sepeti kontrol edin.</string>
+    <string name="checkout_interrupted_title">Ödeme sonucu doğrulanmadı</string>
+    <string name="checkout_retry_cleanup">Sepet temizliğini yeniden dene</string>
     <string name="checkout_completed">Checkout tamamland&#305;. Tamamlanan sepet bu cihazdan temizlendi.</string>
     <string name="checkout_completed_cart_preserved">Checkout tamamland&#305;. Bu s&#305;rada olu&#351;an farkl&#305; mevcut sepet korundu.</string>
-    <string name="checkout_cleanup_required">Checkout tamamland&#305; ancak korunan yerel sepet kayd&#305; temizlenemedi. Ayn&#305; sepeti yeniden g&#246;ndermeyin; ba&#287;lant&#305; d&#252;zelince yenileyin.</string>
+    <string name="checkout_cleanup_required">Alışveriş işlemi tamamlandı. Yerel sepet temizliği henüz doğrulanmadı. Aynı sepeti yeniden göndermeyin; yerel temizliği yeniden deneyin.</string>
     <string name="checkout_external_link_blocked">Checkout i&#231;indeki d&#305;&#351; ba&#287;lant&#305; g&#252;venlik politikas&#305; nedeniyle a&#231;&#305;lmad&#305;. Checkout i&#231;eri&#287;i korunuyor.</string>
     <string name="checkout_error_empty">Checkout i&#231;in g&#252;ncel ve dolu bir sepet bulunamad&#305;.</string>
     <string name="checkout_error_restricted">M&#252;&#351;teri ili&#351;kisi do&#287;rulanmam&#305;&#351; bu sepet checkout\'a g&#246;nderilemez.</string>
@@ -199,7 +202,7 @@
     <string name="checkout_error_invalid_url">Checkout adresi ma&#287;azan&#305;n izin verilen g&#252;venli adresiyle e&#351;le&#351;medi.</string>
     <string name="checkout_error_sdk">Checkout &#351;u anda a&#231;&#305;lamad&#305;. Tekrar deneyin.</string>
     <string name="checkout_error_network">Checkout a&#287; veya sunucu hatas&#305; nedeniyle kapand&#305;. Sepet korunuyor.</string>
-    <string name="checkout_error_expired">Checkout oturumunun s&#252;resi doldu. Sepet yeniden do&#287;ruland&#305;; tekrar deneyebilirsiniz.</string>
+    <string name="checkout_error_expired">Bu ödeme bağlantısı artık kullanılamıyor. Yeniden denemeden önce sepeti kontrol edin.</string>
     <string name="checkout_error_recoverable">Checkout ge&#231;ici bir hatayla kapand&#305;. Sepet korunuyor.</string>
     <string name="checkout_error_fatal">Checkout g&#252;venli bi&#231;imde ba&#351;lat&#305;lamad&#305;. Sepet korunuyor.</string>
     <string name="account_title">Hesap</string>
