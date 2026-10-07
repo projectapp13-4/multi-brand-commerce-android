@@ -52,7 +52,6 @@ import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.DestinationTitleAlignment
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
-import com.gurbakir.mobile.ui.withDestinationSpacing
 import com.gurbakir.storefront.CatalogProductSummary
 import com.gurbakir.storefront.StorefrontProductDetail
 
@@ -104,18 +103,21 @@ private fun WishlistBody(
         columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
             Modifier.fillMaxSize()
+                .padding(padding)
                 .centeredDestinationContent(720.dp)
                 .consumeDestinationInsets(padding)
                 .testTag(WishlistTestTags.CONTENT),
-        contentPadding = padding.withDestinationSpacing(),
+        contentPadding = PaddingValues(horizontal = spacing.generousDp.dp, vertical = spacing.generousDp.dp),
         horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         when {
-            state.loading -> item(span = { GridItemSpan(maxLineSpan) }) { WishlistLoading() }
-
             !state.storageAvailable -> item(span = { GridItemSpan(maxLineSpan) }) {
                 WishlistStorageError(actions.onRetry)
+            }
+
+            state.loading && state.entries.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
+                WishlistLoading()
             }
 
             state.entries.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
@@ -285,5 +287,6 @@ private fun WishlistItemIssue?.messageResourceId(): Int = when (this) {
     WishlistItemIssue.REMOVED -> R.string.wishlist_product_removed
     WishlistItemIssue.CONNECTION -> R.string.wishlist_product_connection
     WishlistItemIssue.CONFIGURATION -> R.string.wishlist_product_configuration
-    WishlistItemIssue.SERVICE, null -> R.string.wishlist_product_service
+    WishlistItemIssue.SERVICE -> R.string.wishlist_product_service
+    null -> R.string.wishlist_product_checking
 }

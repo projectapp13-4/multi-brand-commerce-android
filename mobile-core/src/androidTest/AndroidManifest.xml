@@ -25,5 +25,6 @@
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
             tools:node="remove" />
         <activity android:name="com.gurbakir.mobile.accessibility.Wave4AccessibilityProbeActivity" android:exported="true" android:launchMode="singleTop" />
+        <activity android:name="com.gurbakir.mobile.wishlist.WishlistLifecycleProbeActivity" android:exported="false" />
     </application>
 </manifest>

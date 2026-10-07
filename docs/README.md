@@ -1,6 +1,6 @@
 # Documentation Map
 
-Status date: 2026-10-06
+Status date: 2026-10-07
 
 Current release governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. The bounded Gürbakır [closed-test candidate preparation](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) is underway; public production release readiness is not established.
 
@@ -22,12 +22,14 @@ The remediation contracts and dated pre-merge evidence are recorded in
 [Wave 2A: mutation outcomes](remediation/WAVE-2A-MUTATION-OUTCOMES.md), and
 [Wave 2B: cancellation and feedback](remediation/WAVE-2B-CANCELLATION-AND-FEEDBACK.md), and
 [Wave 3: protected state and checkout](remediation/WAVE-3-PROTECTED-STATE-AND-CHECKOUT.md), and
-[Wave 4: accessible forms and controls](remediation/WAVE-4-ACCESSIBLE-FORMS-AND-CONTROLS.md).
+[Wave 4: accessible forms and controls](remediation/WAVE-4-ACCESSIBLE-FORMS-AND-CONTROLS.md), and
+[Wave 5: Wishlist lifetime and local controls](remediation/WAVE-5-WISHLIST-LIFECYCLE-AND-LOCAL-CONTROLS.md).
 The program plan records later protected wave acceptance; the individual
-handoffs retain their scoped checkpoints. Wave 4 now has reviewed local
-API30/API23, proportional broader and actual TalkBack/native recovery evidence;
-its new protected PR-head and merged-main acceptance remain pending. Wave 5
-and the final replacement-key-signed candidate remain gated by those results.
+handoffs retain their scoped checkpoints. Wave 4 is accepted after protected
+PR-head and exact merged-main verification. Wave 5 is implemented with current
+local focused/API 30/API 23 and reviewed proportional broad/isolation evidence;
+protected PR-head and merged-main acceptance remain pending. The final source and replacement-key-signed candidate
+remain separate program obligations.
 
 Current ownership correction (2026-09-26): the same contract distinguishes merchant, app-provider and deployment-model-dependent operations. Gürbakır uses a project-managed Play/signing/release path while Shopify policy, first-line support, privacy/deletion and domain content remain merchant-owned. This is the current reading of older role-assignment statements; historical audits are preserved.
 

@@ -13,6 +13,7 @@ import com.gurbakir.mobile.cart.CartState
 import com.gurbakir.mobile.search.SearchHistoryRepository
 import com.gurbakir.mobile.search.SearchHistoryState
 import com.gurbakir.mobile.wishlist.WishlistLoadResult
+import com.gurbakir.mobile.wishlist.WishlistLocalState
 import com.gurbakir.mobile.wishlist.WishlistMembershipState
 import com.gurbakir.mobile.wishlist.WishlistMutationResult
 import com.gurbakir.mobile.wishlist.WishlistRepository
@@ -153,6 +154,8 @@ class AccountDeletionControllerTest {
 
         override fun observeMembership(): Flow<WishlistMembershipState> =
             flowOf(WishlistMembershipState.Available(emptySet()))
+
+        override fun observeLocalEntries(): Flow<WishlistLocalState> = flowOf(WishlistLocalState.Available(emptyList()))
 
         override suspend fun setSaved(productId: String, saved: Boolean): WishlistMutationResult =
             WishlistMutationResult.Success
