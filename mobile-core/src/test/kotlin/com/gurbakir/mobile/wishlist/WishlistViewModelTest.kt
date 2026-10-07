@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -97,18 +98,56 @@ class WishlistViewModelTest {
 
 private class FakeWishlistRepository(var loadResult: WishlistLoadResult) : WishlistRepository {
     var loadCount = 0
-    val membership =
-        MutableStateFlow<WishlistMembershipState>(WishlistMembershipState.Available(emptySet()))
+    val membership = MutableStateFlow<WishlistMembershipState>(
+        when (val initial = loadResult) {
+            is WishlistLoadResult.Content -> WishlistMembershipState.Available(
+                initial.entries.mapTo(linkedSetOf()) { it.productId }
+            )
+
+            WishlistLoadResult.StorageUnavailable -> WishlistMembershipState.StorageUnavailable
+        }
+    )
 
     override fun observeMembership(): Flow<WishlistMembershipState> = membership
 
-    override suspend fun setSaved(productId: String, saved: Boolean): WishlistMutationResult =
-        WishlistMutationResult.Success
+    override fun observeLocalEntries(): Flow<WishlistLocalState> = membership.map { current ->
+        when (current) {
+            is WishlistMembershipState.Available -> when (val result = loadResult) {
+                is WishlistLoadResult.Content -> WishlistLocalState.Available(
+                    result.entries.filter { it.productId in current.productIds }.map {
+                        StoredWishlistEntry(it.productId, it.addedAtEpochMillis)
+                    }
+                )
+
+                WishlistLoadResult.StorageUnavailable -> WishlistLocalState.StorageUnavailable
+            }
+
+            WishlistMembershipState.StorageUnavailable -> WishlistLocalState.StorageUnavailable
+        }
+    }
+
+    override suspend fun setSaved(productId: String, saved: Boolean): WishlistMutationResult {
+        if (!saved) {
+            val result = loadResult
+            if (result is WishlistLoadResult.Content) {
+                loadResult = result.copy(entries = result.entries.filterNot { it.productId == productId })
+            }
+            val current = membership.value
+            if (current is WishlistMembershipState.Available) {
+                membership.value = current.copy(productIds = current.productIds - productId)
+            }
+        }
+        return WishlistMutationResult.Success
+    }
 
     override suspend fun load(forceRefresh: Boolean): WishlistLoadResult {
         loadCount += 1
         return loadResult
     }
 
-    override suspend fun clear(): WishlistMutationResult = WishlistMutationResult.Success
+    override suspend fun clear(): WishlistMutationResult {
+        loadResult = WishlistLoadResult.Content(emptyList())
+        membership.value = WishlistMembershipState.Available(emptySet())
+        return WishlistMutationResult.Success
+    }
 }

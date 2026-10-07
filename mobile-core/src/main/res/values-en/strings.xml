@@ -459,4 +459,5 @@
     <string name="update_policy_help">Help and policies</string>
     <string name="update_policy_defer">Later</string>
     <string name="update_policy_dismiss">Dismiss</string>
+    <string name="wishlist_product_checking">Checking current product details. This product remains in your list on this device.</string>
 </resources>

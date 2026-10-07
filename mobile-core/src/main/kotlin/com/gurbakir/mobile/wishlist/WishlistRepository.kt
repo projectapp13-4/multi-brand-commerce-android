@@ -17,9 +17,12 @@ import com.gurbakir.storefront.StorefrontProductGateway
 import com.gurbakir.storefront.StorefrontProductIds
 import com.gurbakir.storefront.StorefrontResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -27,6 +30,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
 private const val MAX_CONCURRENT_WISHLIST_HYDRATIONS = 4
 
@@ -147,6 +151,12 @@ fun interface WishlistClock {
     fun nowEpochMillis(): Long
 }
 
+sealed interface WishlistLocalState {
+    data class Available(val entries: List<StoredWishlistEntry>) : WishlistLocalState
+
+    data object StorageUnavailable : WishlistLocalState
+}
+
 sealed interface WishlistMembershipState {
     data class Available(val productIds: Set<String>) : WishlistMembershipState
 
@@ -182,6 +192,8 @@ enum class WishlistItemIssue(val retryable: Boolean) {
 }
 
 interface WishlistRepository {
+    fun observeLocalEntries(): Flow<WishlistLocalState>
+
     fun observeMembership(): Flow<WishlistMembershipState>
 
     suspend fun setSaved(productId: String, saved: Boolean): WishlistMutationResult
@@ -197,70 +209,155 @@ class DefaultWishlistRepository(
     private val partition: WishlistPartition,
     private val clock: WishlistClock
 ) : WishlistRepository {
-    private val hydrationLock = Mutex()
+    private val localMutex = Mutex()
+    private val remoteMutex = Mutex()
+    private val physicalPermits = Semaphore(MAX_CONCURRENT_WISHLIST_HYDRATIONS)
+    private var generation = 0L
+    private var startedRound = 0L
+    private var activeFlight: WishlistHydrationFlight? = null
     private var cachedHydration: CachedWishlistHydration? = null
 
-    override fun observeMembership(): Flow<WishlistMembershipState> = store.observe(partition)
-        .map<List<StoredWishlistEntry>, WishlistMembershipState> { entries ->
-            WishlistMembershipState.Available(entries.mapTo(linkedSetOf(), StoredWishlistEntry::productId))
-        }.catch { error ->
+    override fun observeLocalEntries(): Flow<WishlistLocalState> = store.observe(partition)
+        .map<List<StoredWishlistEntry>, WishlistLocalState> { WishlistLocalState.Available(it.toList()) }
+        .catch { error ->
             if (error is CancellationException) throw error
-            if (error.isStorageFailure()) emit(WishlistMembershipState.StorageUnavailable) else throw error
+            if (error.isStorageFailure()) emit(WishlistLocalState.StorageUnavailable) else throw error
         }
+
+    override fun observeMembership(): Flow<WishlistMembershipState> = observeLocalEntries().map { local ->
+        when (local) {
+            is WishlistLocalState.Available ->
+                WishlistMembershipState.Available(local.entries.mapTo(linkedSetOf(), StoredWishlistEntry::productId))
+
+            WishlistLocalState.StorageUnavailable -> WishlistMembershipState.StorageUnavailable
+        }
+    }
 
     override suspend fun setSaved(productId: String, saved: Boolean): WishlistMutationResult {
         if (!StorefrontProductIds.isProductGid(productId)) return WishlistMutationResult.InvalidProduct
-        return guardedMutation {
-            hydrationLock.withLock {
-                store.setSaved(partition, productId, saved, clock.nowEpochMillis())
-                cachedHydration = null
+        val addedAtEpochMillis = clock.nowEpochMillis()
+        return mutate { store.setSaved(partition, productId, saved, addedAtEpochMillis) }
+    }
+
+    override suspend fun clear(): WishlistMutationResult = mutate { store.clear(partition) }
+
+    override suspend fun load(forceRefresh: Boolean): WishlistLoadResult {
+        currentCoroutineContext().ensureActive()
+        // Capture before waiting: requests made during round N require at least N + 1.
+        val minimumRound = localMutex.withLock { if (forceRefresh) startedRound + 1L else 0L }
+        return remoteMutex.withLock { loadRound(minimumRound) }
+    }
+
+    private suspend fun loadRound(minimumRound: Long): WishlistLoadResult {
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            when (val selection = selectRound(minimumRound)) {
+                is WishlistRoundSelection.Ready -> {
+                    currentCoroutineContext().ensureActive()
+                    return selection.result
+                }
+
+                is WishlistRoundSelection.Hydrate -> {
+                    val accepted = hydrateRound(selection.flight)
+                    if (accepted != null) return accepted
+                }
             }
         }
     }
 
-    override suspend fun load(forceRefresh: Boolean): WishlistLoadResult = try {
-        hydrationLock.withLock {
-            val entries = store.load(partition)
-            cachedHydration?.takeIf { !forceRefresh && it.entries == entries }?.result
-                ?: WishlistLoadResult.Content(entries.resolveAll()).also { result ->
-                    cachedHydration = CachedWishlistHydration(entries, result)
+    private suspend fun hydrateRound(flight: WishlistHydrationFlight): WishlistLoadResult? {
+        try {
+            val result = WishlistLoadResult.Content(
+                coroutineScope {
+                    flight.entries.map { entry ->
+                        async { physicalPermits.withPermit { resolve(entry) } }
+                    }.awaitAll()
                 }
+            )
+            currentCoroutineContext().ensureActive()
+            val accepted = localMutex.withLock {
+                when (val current = store.readStoredEntries(partition)) {
+                    WishlistLocalState.StorageUnavailable -> {
+                        cachedHydration = null
+                        WishlistLoadResult.StorageUnavailable
+                    }
+
+                    is WishlistLocalState.Available -> {
+                        currentCoroutineContext().ensureActive()
+                        if (activeFlight === flight && generation == flight.generation &&
+                            current.entries == flight.entries
+                        ) {
+                            cachedHydration = CachedWishlistHydration(
+                                flight.entries,
+                                flight.generation,
+                                flight.sequence,
+                                result
+                            )
+                            result
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+            if (accepted != null) currentCoroutineContext().ensureActive()
+            return accepted
+        } finally {
+            // Only metadata cleanup is noncancellable; no gateway, store IO or join here.
+            withContext(NonCancellable) {
+                localMutex.withLock { if (activeFlight === flight) activeFlight = null }
+            }
         }
-    } catch (error: CancellationException) {
-        throw error
-    } catch (_: SQLiteException) {
-        WishlistLoadResult.StorageUnavailable
-    } catch (_: IllegalStateException) {
-        WishlistLoadResult.StorageUnavailable
     }
 
-    override suspend fun clear(): WishlistMutationResult = guardedMutation {
-        hydrationLock.withLock {
-            store.clear(partition)
-            cachedHydration = null
+    private suspend fun selectRound(minimumRound: Long): WishlistRoundSelection = localMutex.withLock {
+        when (val local = store.readStoredEntries(partition)) {
+            WishlistLocalState.StorageUnavailable -> {
+                cachedHydration = null
+                WishlistRoundSelection.Ready(WishlistLoadResult.StorageUnavailable)
+            }
+
+            is WishlistLocalState.Available -> {
+                currentCoroutineContext().ensureActive()
+                val cached = cachedHydration?.takeIf {
+                    it.entries == local.entries && it.generation == generation && it.sequence >= minimumRound
+                }
+                if (cached != null) {
+                    WishlistRoundSelection.Ready(cached.result)
+                } else {
+                    cachedHydration = null
+                    val flight = WishlistHydrationFlight(local.entries, generation, ++startedRound)
+                    activeFlight = flight
+                    WishlistRoundSelection.Hydrate(flight)
+                }
+            }
         }
     }
 
-    private suspend fun List<StoredWishlistEntry>.resolveAll(): List<WishlistResolvedEntry> = coroutineScope {
-        val permits = Semaphore(MAX_CONCURRENT_WISHLIST_HYDRATIONS)
-        map { entry ->
-            async { permits.withPermit { entry.resolve() } }
-        }.awaitAll()
-    }
-
-    private suspend fun StoredWishlistEntry.resolve(): WishlistResolvedEntry =
-        when (val result = gateway.loadProductDetail(ProductDetailRequest(productId))) {
+    private suspend fun resolve(entry: StoredWishlistEntry): WishlistResolvedEntry {
+        val result = gateway.loadProductDetail(ProductDetailRequest(entry.productId))
+        currentCoroutineContext().ensureActive()
+        return when (result) {
             is StorefrontResult.Success ->
                 result.value?.let { product ->
-                    WishlistResolvedEntry(productId, addedAtEpochMillis, product = product)
-                } ?: WishlistResolvedEntry(productId, addedAtEpochMillis, issue = WishlistItemIssue.REMOVED)
+                    WishlistResolvedEntry(entry.productId, entry.addedAtEpochMillis, product = product)
+                } ?: WishlistResolvedEntry(entry.productId, entry.addedAtEpochMillis, issue = WishlistItemIssue.REMOVED)
 
             is StorefrontResult.Failure ->
-                WishlistResolvedEntry(productId, addedAtEpochMillis, issue = result.error.toWishlistIssue())
+                WishlistResolvedEntry(entry.productId, entry.addedAtEpochMillis, issue = result.error.toWishlistIssue())
         }
+    }
 
-    private suspend fun guardedMutation(block: suspend () -> Unit): WishlistMutationResult = try {
-        block()
+    private suspend fun mutate(operation: suspend () -> Unit): WishlistMutationResult = try {
+        localMutex.withLock {
+            try {
+                operation()
+            } finally {
+                // A failed/cancelled local write can have applied; never retain its old hydrated snapshot.
+                generation++
+                cachedHydration = null
+            }
+        }
         WishlistMutationResult.Success
     } catch (error: CancellationException) {
         throw error
@@ -273,8 +370,28 @@ class DefaultWishlistRepository(
 
 private data class CachedWishlistHydration(
     val entries: List<StoredWishlistEntry>,
+    val generation: Long,
+    val sequence: Long,
     val result: WishlistLoadResult.Content
 )
+
+private class WishlistHydrationFlight(val entries: List<StoredWishlistEntry>, val generation: Long, val sequence: Long)
+
+private sealed interface WishlistRoundSelection {
+    data class Ready(val result: WishlistLoadResult) : WishlistRoundSelection
+
+    data class Hydrate(val flight: WishlistHydrationFlight) : WishlistRoundSelection
+}
+
+private suspend fun WishlistStore.readStoredEntries(partition: WishlistPartition): WishlistLocalState = try {
+    WishlistLocalState.Available(load(partition).toList())
+} catch (error: CancellationException) {
+    throw error
+} catch (_: SQLiteException) {
+    WishlistLocalState.StorageUnavailable
+} catch (_: IllegalStateException) {
+    WishlistLocalState.StorageUnavailable
+}
 
 private fun WishlistEntity.toStored() = StoredWishlistEntry(productId, addedAtEpochMillis)
 

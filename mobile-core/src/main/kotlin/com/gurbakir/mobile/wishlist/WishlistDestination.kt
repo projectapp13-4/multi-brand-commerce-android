@@ -3,8 +3,10 @@
 package com.gurbakir.mobile.wishlist
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.gurbakir.foundation.config.ApplicationCapability
@@ -17,6 +19,13 @@ import com.gurbakir.mobile.navigation.CategoriesRoute
 @Composable
 internal fun WishlistDestination(navController: NavHostController, applicationComposition: ApplicationComposition) {
     val viewModel: WishlistViewModel = hiltViewModel()
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.onHidden() }
+    }
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onResumed()
+        onPauseOrDispose { viewModel.onHidden() }
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     WishlistScreen(
         state = state,
