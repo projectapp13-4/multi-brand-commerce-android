@@ -6,13 +6,16 @@ package com.gurbakir.mobile.address
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -23,21 +26,21 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -53,27 +56,19 @@ import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.centeredDestinationContent
 import com.gurbakir.mobile.ui.consumeDestinationInsets
-import com.gurbakir.mobile.ui.withDestinationSpacing
+import kotlinx.coroutines.flow.collect
 
 data class AddressFormActions(
     val onBack: () -> Unit,
     val onFieldChanged: (CustomerAddressField, String) -> Unit,
     val onMakeDefaultChanged: (Boolean) -> Unit,
-    val onSave: () -> Unit,
+    val onSave: (beforeSubmission: () -> Unit) -> Unit,
     val onReload: () -> Unit,
-    val onFocusHandled: () -> Unit
+    val onFocusHandled: (Long) -> Unit
 )
 
 @Composable
 fun AddressFormScreen(state: AddressFormUiState, actions: AddressFormActions) {
-    val focusRequesters = remember { ADDRESS_FORM_FIELDS.associateWith { FocusRequester() } }
-    LaunchedEffect(state.focusRequest) {
-        state.focusRequest?.let { field ->
-            withFrameNanos { }
-            focusRequesters[field]?.requestFocus()
-            actions.onFocusHandled()
-        }
-    }
     DestinationScaffold(
         title =
             stringResource(
@@ -84,33 +79,31 @@ fun AddressFormScreen(state: AddressFormUiState, actions: AddressFormActions) {
         onNavigateUp = actions.onBack,
         navigateUpTestTag = AddressFormTestTags.BACK
     ) { padding ->
-        AddressFormContent(state, actions, focusRequesters, padding)
+        AddressFormContent(state, actions, padding)
     }
 }
 
 @Composable
-private fun AddressFormContent(
-    state: AddressFormUiState,
-    actions: AddressFormActions,
-    focusRequesters: Map<CustomerAddressField, FocusRequester>,
-    padding: PaddingValues
-) {
+private fun AddressFormContent(state: AddressFormUiState, actions: AddressFormActions, padding: PaddingValues) {
     val spacing = LocalBrandSpacing.current
     val listState = rememberLazyListState()
+    val fields = remember { ADDRESS_FORM_FIELDS.associateWith { AddressFieldFocus() } }
     val fieldStartIndex =
         ADDRESS_FORM_HEADER_ITEM_COUNT +
             (if (state.busy) 1 else 0) +
             (if (state.failure != null || CustomerAddressField.FORM in state.fieldErrors) 1 else 0) +
             (if (state.canReload && (state.failure != null || !state.loaded)) 1 else 0)
+    AddressValidationFocusEffect(state, actions, fields, listState, fieldStartIndex)
     LazyColumn(
         state = listState,
         modifier =
             Modifier.fillMaxSize()
                 .centeredDestinationContent(600.dp)
+                .padding(padding)
                 .consumeDestinationInsets(padding)
                 .testTag(AddressFormTestTags.CONTENT),
         contentPadding =
-            padding.withDestinationSpacing(
+            PaddingValues(
                 horizontal = spacing.generousDp.dp,
                 vertical = spacing.generousDp.dp
             ),
@@ -137,7 +130,7 @@ private fun AddressFormContent(
             item { LinearProgressIndicator(Modifier.fillMaxWidth().testTag(AddressFormTestTags.PROGRESS)) }
         }
         addressFormRecoveryItems(state, actions)
-        addressFormBodyItems(state, actions, focusRequesters, listState, fieldStartIndex)
+        addressFormBodyItems(state, actions, fields, listState, fieldStartIndex)
     }
 }
 
@@ -160,7 +153,7 @@ private fun LazyListScope.addressFormRecoveryItems(state: AddressFormUiState, ac
 private fun LazyListScope.addressFormBodyItems(
     state: AddressFormUiState,
     actions: AddressFormActions,
-    focusRequesters: Map<CustomerAddressField, FocusRequester>,
+    fields: Map<CustomerAddressField, AddressFieldFocus>,
     listState: LazyListState,
     fieldStartIndex: Int
 ) {
@@ -172,7 +165,7 @@ private fun LazyListScope.addressFormBodyItems(
                     last = index == ADDRESS_FORM_FIELDS.lastIndex,
                     state = state,
                     actions = actions,
-                    focusRequester = checkNotNull(focusRequesters[field]),
+                    focus = fields.getValue(field),
                     listState = listState,
                     itemIndex = fieldStartIndex + index
                 )
@@ -183,8 +176,9 @@ private fun LazyListScope.addressFormBodyItems(
         }
         item { Text(stringResource(R.string.address_unsaved_explanation)) }
         item {
+            val focusManager = LocalFocusManager.current
             Button(
-                onClick = actions.onSave,
+                onClick = { actions.onSave { focusManager.clearFocus() } },
                 enabled = state.canSave,
                 modifier = Modifier.fillMaxWidth().testTag(AddressFormTestTags.SAVE)
             ) {
@@ -201,32 +195,69 @@ private fun AddressField(
     last: Boolean,
     state: AddressFormUiState,
     actions: AddressFormActions,
-    focusRequester: FocusRequester,
+    focus: AddressFieldFocus,
     listState: LazyListState,
     itemIndex: Int
 ) {
     val focusManager = LocalFocusManager.current
-    AddressTextField(
-        spec = field.spec(state, last),
-        onValueChanged = { value -> actions.onFieldChanged(field, value) },
-        focusRequester = focusRequester,
-        onFocused = { listState.scrollToItem(itemIndex) },
-        onKeyboardAction = {
-            if (last) focusManager.clearFocus() else focusManager.moveFocus(FocusDirection.Down)
+    DisposableEffect(focus) {
+        onDispose {
+            focus.coordinates = null
+            focus.focused = false
+            focus.keyboardRecovery.clearOwnership()
         }
-    )
+    }
+    LaunchedEffect(field, itemIndex, focus.focused, state.loaded, state.phase, state.focusRequest?.id) {
+        val formReady = state.loaded && state.phase == AddressFormPhase.READY
+        if (focus.focused && formReady && state.focusRequest == null) {
+            snapshotFlow { listState.layoutInfo.viewportSize.height }.collect { height ->
+                if (height > 0) listState.scrollToItem(itemIndex)
+            }
+        }
+    }
+    AddressRecoveryKeyboardEffect(state, field, focus)
+    AddressFieldInputSession(focus.keyboardRecovery) {
+        AddressTextField(
+            spec = field.spec(state, last),
+            onValueChanged = { value ->
+                focus.keyboardRecovery.cancel()
+                actions.onFieldChanged(field, value)
+            },
+            modifier =
+                Modifier.focusRequester(focus.requester)
+                    .onFocusChanged {
+                        focus.focused = it.isFocused
+                        if (!it.isFocused) focus.keyboardRecovery.clearOwnership()
+                    }
+                    .onGloballyPositioned { focus.coordinates = it },
+            onKeyboardAction = {
+                if (last) focusManager.clearFocus() else focusManager.moveFocus(FocusDirection.Down)
+            }
+        )
+    }
 }
 
 @Composable
 private fun MakeDefaultControl(state: AddressFormUiState, onChanged: (Boolean) -> Unit) {
-    androidx.compose.foundation.layout.Row(
-        modifier = Modifier.fillMaxWidth().testTag(AddressFormTestTags.MAKE_DEFAULT),
+    val enabled = state.phase == AddressFormPhase.READY
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .testTag(AddressFormTestTags.MAKE_DEFAULT)
+                .toggleable(
+                    value = state.makeDefault,
+                    enabled = enabled,
+                    role = Role.Checkbox,
+                    onValueChange = onChanged
+                ),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.compactDp.dp)
     ) {
         Checkbox(
             checked = state.makeDefault,
-            onCheckedChange = onChanged,
-            enabled = state.phase == AddressFormPhase.READY
+            onCheckedChange = null,
+            enabled = enabled
         )
         Text(stringResource(R.string.address_make_default))
     }
@@ -248,18 +279,10 @@ private data class AddressFieldSpec(
 private fun AddressTextField(
     spec: AddressFieldSpec,
     onValueChanged: (String) -> Unit,
-    focusRequester: FocusRequester,
-    onFocused: suspend () -> Unit,
+    modifier: Modifier,
     onKeyboardAction: () -> Unit
 ) {
     val errorText = spec.error?.let { stringResource(it.messageResource()) }
-    var focused by remember { mutableStateOf(false) }
-    LaunchedEffect(focused) {
-        if (focused) {
-            withFrameNanos { }
-            onFocused()
-        }
-    }
     OutlinedTextField(
         shape = MaterialTheme.shapes.medium,
         value = spec.value,
@@ -283,8 +306,7 @@ private fun AddressTextField(
             },
         modifier =
             Modifier.fillMaxWidth()
-                .focusRequester(focusRequester)
-                .onFocusChanged { focused = it.isFocused }
+                .then(modifier)
                 .then(if (errorText == null) Modifier else Modifier.semantics { error(errorText) })
                 .testTag(spec.testTag)
     )
@@ -363,7 +385,7 @@ private fun CustomerAddressField.metadata(postalCodeInputMode: PostalCodeInputMo
         CustomerAddressField.FORM -> Triple(R.string.address_country, KeyboardType.Text, "form")
     }
 
-private val ADDRESS_FORM_FIELDS =
+internal val ADDRESS_FORM_FIELDS =
     listOf(
         CustomerAddressField.FIRST_NAME,
         CustomerAddressField.LAST_NAME,

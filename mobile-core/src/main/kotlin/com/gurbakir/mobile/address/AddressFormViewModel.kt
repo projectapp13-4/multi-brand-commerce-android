@@ -42,6 +42,8 @@ enum class AddressFormFailure {
     SAVE_UNCONFIRMED
 }
 
+data class AddressFocusRequest(val id: Long, val field: CustomerAddressField)
+
 data class AddressFormUiState(
     val postalCodeInputMode: PostalCodeInputMode,
     val phase: AddressFormPhase = AddressFormPhase.LOADING,
@@ -52,7 +54,7 @@ data class AddressFormUiState(
     val loaded: Boolean = false,
     val fieldErrors: Map<CustomerAddressField, AddressFieldError> = emptyMap(),
     val failure: AddressFormFailure? = null,
-    val focusRequest: CustomerAddressField? = null
+    val focusRequest: AddressFocusRequest? = null
 ) {
     val isCreate: Boolean
         get() = addressId == null
@@ -95,6 +97,7 @@ constructor(
 
     private var initialTarget: AddressFormTarget? = null
     private var storageRecoveryTarget: AddressFormTarget? = null
+    private var lastFocusRequestId = 0L
 
     fun start(addressId: String?) {
         if (initialTarget != null) return
@@ -128,44 +131,53 @@ constructor(
         _state.value = current.copy(makeDefault = value, failure = null)
     }
 
-    fun save() {
-        val current = _state.value
+    fun save(beforeSubmission: () -> Unit = {}) {
+        var current = _state.value
         if (!current.canSave) return
-        val normalized = current.input.normalized()
-        val errors = normalized.validate(territoryPolicy)
+        var normalized = current.input.normalized()
+        var errors = normalized.validate(territoryPolicy)
+        if (errors.isEmpty()) {
+            beforeSubmission()
+            current = _state.value
+            if (!current.canSave) return
+            normalized = current.input.normalized()
+            errors = normalized.validate(territoryPolicy)
+        }
         if (errors.isNotEmpty()) {
             _state.value =
                 current.copy(
                     input = normalized,
                     fieldErrors = errors,
                     failure = null,
-                    focusRequest = errors.keys.firstAddressField()
+                    focusRequest =
+                        errors.keys.firstAddressField()?.let { AddressFocusRequest(++lastFocusRequestId, it) }
                 )
-            return
-        }
-        _state.value =
-            current.copy(
-                phase = AddressFormPhase.SAVING,
-                input = normalized,
-                fieldErrors = emptyMap(),
-                failure = null,
-                focusRequest = null
-            )
-        viewModelScope.launch {
-            handleActionResult(
-                controller.saveAddress(
-                    addressId = current.addressId,
+        } else {
+            _state.value =
+                current.copy(
+                    phase = AddressFormPhase.SAVING,
                     input = normalized,
-                    expected = current.original,
-                    makeDefault = current.makeDefault
+                    fieldErrors = emptyMap(),
+                    failure = null,
+                    focusRequest = null
                 )
-            )
+            viewModelScope.launch {
+                handleActionResult(
+                    controller.saveAddress(
+                        addressId = current.addressId,
+                        input = normalized,
+                        expected = current.original,
+                        makeDefault = current.makeDefault
+                    )
+                )
+            }
         }
     }
 
-    fun consumeFocusRequest() {
-        if (_state.value.focusRequest != null) {
-            _state.value = _state.value.copy(focusRequest = null)
+    fun consumeFocusRequest(id: Long) {
+        val current = _state.value
+        if (current.focusRequest?.id == id) {
+            _state.value = current.copy(focusRequest = null)
         }
     }
 
@@ -226,7 +238,8 @@ constructor(
                         phase = AddressFormPhase.READY,
                         fieldErrors = errors,
                         failure = null,
-                        focusRequest = errors.keys.firstAddressField()
+                        focusRequest =
+                            errors.keys.firstAddressField()?.let { AddressFocusRequest(++lastFocusRequestId, it) }
                     )
             }
 

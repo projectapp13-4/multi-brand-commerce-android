@@ -28,7 +28,7 @@ class AddressViewModelTest {
             viewModel.save()
 
             assertEquals(AddressFieldError.REQUIRED, viewModel.state.value.fieldErrors[CustomerAddressField.FIRST_NAME])
-            assertEquals(CustomerAddressField.FIRST_NAME, viewModel.state.value.focusRequest)
+            assertEquals(CustomerAddressField.FIRST_NAME, viewModel.state.value.focusRequest?.field)
 
             validInput().forEach(viewModel::update)
             viewModel.update(CustomerAddressField.ZIP, "34")
@@ -40,7 +40,7 @@ class AddressViewModelTest {
                 viewModel.state.value.fieldErrors[CustomerAddressField.ZIP]
             )
             assertEquals(AddressFieldError.INVALID_PHONE, viewModel.state.value.fieldErrors[CustomerAddressField.PHONE])
-            assertEquals(CustomerAddressField.ZIP, viewModel.state.value.focusRequest)
+            assertEquals(CustomerAddressField.ZIP, viewModel.state.value.focusRequest?.field)
         }
     }
 

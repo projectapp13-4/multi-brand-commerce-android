@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -47,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -350,7 +352,16 @@ private fun SearchHistorySettingsPanel(state: SearchUiState, onHistoryEnabledCha
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .heightIn(min = MINIMUM_TOUCH_TARGET_SIZE)
+                        .toggleable(
+                            value = state.historyEnabled,
+                            enabled = state.historyStorageAvailable && !state.historyLoading,
+                            role = Role.Switch,
+                            onValueChange = onHistoryEnabledChanged
+                        )
+                        .testTag(SearchTestTags.HISTORY_TOGGLE),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -361,9 +372,8 @@ private fun SearchHistorySettingsPanel(state: SearchUiState, onHistoryEnabledCha
                 )
                 Switch(
                     checked = state.historyEnabled,
-                    onCheckedChange = onHistoryEnabledChanged,
-                    enabled = state.historyStorageAvailable && !state.historyLoading,
-                    modifier = Modifier.testTag(SearchTestTags.HISTORY_TOGGLE)
+                    onCheckedChange = null,
+                    enabled = state.historyStorageAvailable && !state.historyLoading
                 )
             }
         }
