@@ -4,6 +4,10 @@ Status date: 2026-10-07
 
 Current release governance authority: [Privacy and Release Operating Contract](operations/PRIVACY-RELEASE-OPERATING-CONTRACT.md). It records the Türkiye-only Shopify-hosted privacy model, intentional Android `visitorConsent` omission, role contracts, deletion/support process and release/incident/recovery rules. The bounded Gürbakır [closed-test candidate preparation](phase3/GURBAKIR-CLOSED-TEST-CANDIDATE.md) is underway; public production release readiness is not established.
 
+The owner-authorized [Gür Bakır SDK 24 Closed Alpha transition](operations/GURBAKIR-SDK24-CLOSED-ALPHA.md)
+records the application-only Android 7 minimum, preserved shared API-23 policy,
+and the release gates for the replacement v3 candidate.
+
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
 The second pull request's current implementation and visual evidence are in

@@ -414,7 +414,7 @@ android {
 
     defaultConfig {
         applicationId = "com.gurbakir.mobile.unconfigured"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
         versionCode = 3
         versionName = "0.3.0"
