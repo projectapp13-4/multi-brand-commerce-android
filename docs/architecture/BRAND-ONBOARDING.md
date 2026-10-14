@@ -21,6 +21,25 @@ For each real configured profile:
 - privileged Shopify Admin and Firebase bearer credentials remain process-scoped and are never Gradle inputs;
 - disabled Customer Account, Firebase, or App Links capabilities require no dummy credential or provider request.
 
+Shopify Customer Account discovery may return an independently owned custom
+account domain. The ignored provider binding may therefore include the optional
+`shopify.customerAccountOrigin`, a canonical HTTPS origin with no explicit port,
+path, query, fragment or user information. Record its merchant/Admin provenance
+in `approvedEvidenceRef`. Discovery and ignored client configuration accept
+only Shopify-owned account hosts or this exact bound origin; discovered URLs
+cannot approve their own origin, and sibling/subdomain or suffix matches do not
+expand trust. Existing bindings without this field retain their Shopify-owned
+host policy. This is non-secret provider identity, not a token or client ID.
+
+The registry-pinned Customer Account API version governs the ignored configured
+GraphQL endpoint. Android currently uses the GraphQL endpoint returned by live
+discovery, which can advertise a newer version. Record and validate both facts
+without silently upgrading the registry pin or treating an unauthenticated 401
+as operation compatibility. Configured onboarding and later authenticated
+runtime acceptance remain separate evidence. Shopify documents discovery as
+the source for current authentication and API URLs; see the
+[Customer Account API reference](https://shopify.dev/docs/api/customer/2026-07).
+
 Provider-changing work uses a fresh read-only Inspect, immutable redacted Plan, exact target confirmations, per-write reinspection, guarded Apply, and provider/mobile Readback. Receipts are write-once evidence. An empty valid action set is a normal no-op. Apply can report success only after final target and semantic readback succeed; a post-write mismatch produces partial recovery evidence instead. Admin and public Storefront identities must both match the independent shop binding before any Shopify write.
 
 The one Gate 8 acceptance probe is a receipt-attributed, unselected DRAFT resource. Existing selected Menu/Home content remains merchant-managed and validate-only. Operator-digest compatibility is explicit and bounded to reviewed transitions; unrelated stale evidence cannot attribute an existing resource.

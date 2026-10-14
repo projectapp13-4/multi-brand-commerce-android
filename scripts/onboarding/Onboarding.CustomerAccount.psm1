@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'Onboarding.Common.psm1') -Force
 
 function Get-OnboardingSecureDiscoveryEndpoint {
-    param([Parameter(Mandatory)]$Document,[Parameter(Mandatory)][string]$Name)
+    param([Parameter(Mandatory)]$Document,[Parameter(Mandatory)][string]$Name,[AllowEmptyString()][string]$TrustedCustomerAccountOrigin = '')
     if (-not $Document.Contains($Name)) { throw 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH' }
     $value = [string]$Document[$Name]
     $uri = $null
@@ -14,7 +14,7 @@ function Get-OnboardingSecureDiscoveryEndpoint {
         throw 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH'
     }
     Assert-OnboardingHost -HostName $uri.IdnHost -Field "customerDiscovery.$Name"
-    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri)) {
+    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri -TrustedCustomerAccountOrigin $TrustedCustomerAccountOrigin)) {
         throw 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH'
     }
     return $uri.AbsoluteUri
@@ -32,11 +32,12 @@ function Get-OnboardingCustomerDiscovery {
     if ($openId.StatusCode -ne 200 -or $account.StatusCode -ne 200) { throw 'CUSTOMER_DISCOVERY_HTTP_FAILURE' }
     $expectedIssuer = "https://shopify.com/authentication/$($Binding.shopify.shopId)"
     if ([string]$openId.Data.issuer -cne $expectedIssuer) { throw 'CUSTOMER_SHOP_ID_MISMATCH' }
-    $authorizationEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'authorization_endpoint'
-    $tokenEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'token_endpoint'
-    $logoutEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'end_session_endpoint'
-    $jwksEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'jwks_uri'
-    $graphqlEndpoint = Get-OnboardingSecureDiscoveryEndpoint $account.Data 'graphql_api'
+    $trustedOrigin = if ($Binding.shopify.Contains('customerAccountOrigin')) { [string]$Binding.shopify.customerAccountOrigin } else { '' }
+    $authorizationEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'authorization_endpoint' $trustedOrigin
+    $tokenEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'token_endpoint' $trustedOrigin
+    $logoutEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'end_session_endpoint' $trustedOrigin
+    $jwksEndpoint = Get-OnboardingSecureDiscoveryEndpoint $openId.Data 'jwks_uri' $trustedOrigin
+    $graphqlEndpoint = Get-OnboardingSecureDiscoveryEndpoint $account.Data 'graphql_api' $trustedOrigin
     if ('S256' -notin @($openId.Data.code_challenge_methods_supported) -or
         'authorization_code' -notin @($openId.Data.grant_types_supported) -or
         'RS256' -notin @($openId.Data.id_token_signing_alg_values_supported)) { throw 'CUSTOMER_DISCOVERY_CAPABILITY_MISMATCH' }

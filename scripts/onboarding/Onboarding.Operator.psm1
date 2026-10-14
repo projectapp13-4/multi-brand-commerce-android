@@ -289,14 +289,14 @@ function Assert-OnboardingVisibleAsciiValue {
     }
 }
 function Assert-OnboardingHttpsClientEndpoint {
-    param([Parameter(Mandatory)][string]$Value,[Parameter(Mandatory)][string]$Field)
+    param([Parameter(Mandatory)][string]$Value,[Parameter(Mandatory)][string]$Field,[AllowEmptyString()][string]$TrustedCustomerAccountOrigin = '')
     if ($Value.Length -gt 2048) { throw "UNSAFE_CLIENT_CONFIGURATION:$Field" }
     $uri = $null
     if (-not [uri]::TryCreate($Value, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -cne 'https' -or $uri.UserInfo.Length -ne 0 -or $uri.Fragment.Length -ne 0) {
         throw "UNSAFE_CLIENT_CONFIGURATION:$Field"
     }
     Assert-OnboardingHost -HostName $uri.IdnHost -Field $Field
-    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri)) {
+    if (-not (Test-OnboardingShopifyCustomerUri -Uri $uri -TrustedCustomerAccountOrigin $TrustedCustomerAccountOrigin)) {
         throw "UNSAFE_CLIENT_CONFIGURATION:$Field"
     }
     return $uri
@@ -331,8 +331,9 @@ function Get-OnboardingValidatedClientConfigurationLines {
         Assert-OnboardingVisibleAsciiValue -Value ([string]$Values['shopify.customerAccountClientId']) -Field 'shopify.customerAccountClientId' -MaximumLength 1024
         $expectedIssuer="https://shopify.com/authentication/$($Context.Binding.shopify.shopId)"
         if([string]$Values['shopify.customerAccountIssuer']-cne$expectedIssuer){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountIssuer'}
-        foreach($key in @('shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint')){[void](Assert-OnboardingHttpsClientEndpoint ([string]$Values[$key]) $key)}
-        $graphql=[uri](Assert-OnboardingHttpsClientEndpoint ([string]$Values['shopify.customerAccountGraphqlEndpoint']) 'shopify.customerAccountGraphqlEndpoint')
+        $trustedOrigin = if ($Context.Binding.shopify.Contains('customerAccountOrigin')) { [string]$Context.Binding.shopify.customerAccountOrigin } else { '' }
+        foreach($key in @('shopify.customerAccountAuthorizationEndpoint','shopify.customerAccountTokenEndpoint','shopify.customerAccountLogoutEndpoint')){[void](Assert-OnboardingHttpsClientEndpoint ([string]$Values[$key]) $key $trustedOrigin)}
+        $graphql=[uri](Assert-OnboardingHttpsClientEndpoint ([string]$Values['shopify.customerAccountGraphqlEndpoint']) 'shopify.customerAccountGraphqlEndpoint' $trustedOrigin)
         $apiVersion=[string]$Context.Registry.providerContracts.shopifyCustomerAccountApiVersion
         if(-not$graphql.AbsolutePath.EndsWith("/$apiVersion/graphql",[StringComparison]::Ordinal)){throw 'UNSAFE_CLIENT_CONFIGURATION:shopify.customerAccountGraphqlEndpoint'}
         $identity=$Context.Selected.Application.identity.customerAccount
