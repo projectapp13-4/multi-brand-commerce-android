@@ -666,6 +666,65 @@ function Invoke-RegistrySuite {
             -ExpectedFirebaseVariants @('developmentDebug', 'developmentRelease')
         Assert-True -Condition ($binding.shopify.shopId -ceq '1234567890') `
             -Name 'closed provider binding is accepted'
+        $customOriginBindingPath = Join-Path $temporaryRoot 'custom-origin-binding.json'
+        $customOriginBinding = Copy-TestValue $binding
+        $customOriginBinding.shopify.customerAccountOrigin = 'https://account.fixture-merchant.example'
+        [IO.File]::WriteAllText($customOriginBindingPath, (Get-OnboardingCanonicalJson $customOriginBinding), [Text.UTF8Encoding]::new($false))
+        $acceptedCustomOriginBinding = Import-OnboardingProviderBinding `
+            -Path $customOriginBindingPath -Application 'gurbakir' -Profile 'development'
+        Assert-True `
+            -Condition ($acceptedCustomOriginBinding.shopify.customerAccountOrigin -ceq 'https://account.fixture-merchant.example') `
+            -Name 'provider binding accepts an independently evidenced canonical Customer Account origin'
+        $bindingSchemaPath = Join-Path $repoRoot 'config\onboarding\provider-binding.schema.v1.json'
+        Assert-True -Condition (Test-Json -Json $bindingJson -SchemaFile $bindingSchemaPath) `
+            -Name 'provider binding schema preserves legacy bindings without a custom origin'
+        Assert-True -Condition (Test-Json -Json (Get-OnboardingCanonicalJson $customOriginBinding) -SchemaFile $bindingSchemaPath) `
+            -Name 'provider binding schema accepts the canonical independently trusted custom origin'
+        foreach ($unsafeOrigin in @(
+            'http://account.fixture-merchant.example',
+            'https://account.fixture-merchant.example:443',
+            'https://account.fixture-merchant.example:8443',
+            'https://account.fixture-merchant.example/',
+            'https://account.fixture-merchant.example/auth',
+            'https://account.fixture-merchant.example?next=elsewhere',
+            'https://account.fixture-merchant.example#fragment',
+            'https://user@account.fixture-merchant.example',
+            'https://ACCOUNT.fixture-merchant.example',
+            'https://account.fixture-merchant.example.',
+            'https://127.0.0.1',
+            'https://localhost',
+            'https://account.fixture.invalid'
+        )) {
+            $unsafeOriginBinding = Copy-TestValue $customOriginBinding
+            $unsafeOriginBinding.shopify.customerAccountOrigin = $unsafeOrigin
+            [IO.File]::WriteAllText($customOriginBindingPath, (Get-OnboardingCanonicalJson $unsafeOriginBinding), [Text.UTF8Encoding]::new($false))
+            Assert-Throws `
+                -Action { Import-OnboardingProviderBinding -Path $customOriginBindingPath -Application 'gurbakir' -Profile 'development' } `
+                -Pattern 'UNSAFE_URL|UNSAFE_HOST' `
+                -Name "provider binding rejects unsafe or noncanonical Customer Account origin: $unsafeOrigin"
+            Assert-True `
+                -Condition (-not (Test-Json -Json (Get-OnboardingCanonicalJson $unsafeOriginBinding) -SchemaFile $bindingSchemaPath -ErrorAction SilentlyContinue)) `
+                -Name "provider binding schema rejects unsafe or noncanonical Customer Account origin: $unsafeOrigin"
+        }
+        foreach ($invalidOriginType in @(
+            @{ Name = 'array'; Value = @('https://account.fixture-merchant.example') },
+            @{ Name = 'object'; Value = @{ origin = 'https://account.fixture-merchant.example' } },
+            @{ Name = 'null'; Value = $null },
+            @{ Name = 'number'; Value = 123 },
+            @{ Name = 'boolean'; Value = $true }
+        )) {
+            $invalidTypeBinding = Copy-TestValue $customOriginBinding
+            $invalidTypeBinding.shopify.customerAccountOrigin = $invalidOriginType.Value
+            $invalidTypeJson = Get-OnboardingCanonicalJson $invalidTypeBinding
+            [IO.File]::WriteAllText($customOriginBindingPath, $invalidTypeJson, [Text.UTF8Encoding]::new($false))
+            Assert-Throws `
+                -Action { Import-OnboardingProviderBinding -Path $customOriginBindingPath -Application 'gurbakir' -Profile 'development' } `
+                -Pattern 'INVALID_JSON_TYPE' `
+                -Name "provider binding rejects raw Customer Account origin type: $($invalidOriginType.Name)"
+            Assert-True `
+                -Condition (-not (Test-Json -Json $invalidTypeJson -SchemaFile $bindingSchemaPath -ErrorAction SilentlyContinue)) `
+                -Name "provider binding schema rejects raw Customer Account origin type: $($invalidOriginType.Name)"
+        }
         Assert-Throws `
             -Action {
                 Import-OnboardingProviderBinding `
@@ -1781,6 +1840,84 @@ public sealed class Gate8BlockingReadStream : Stream
     }
     $customer = Get-OnboardingCustomerDiscovery $selected $binding $discoveryTransport
     Assert-True -Condition ($customer.Callback -ceq 'shop.1234567890.gurbakir://oauth/callback') -Name 'Customer callback derives from pinned shop and app identity'
+    $customAccountBinding = Copy-TestValue $binding
+    $customAccountBinding.shopify.customerAccountOrigin = 'https://account.fixture-merchant.example'
+    $customAccountTransport = {
+        param($method, $uri, $headers, $body, $maximumBytes)
+        $data = if ($uri.AbsolutePath -eq '/.well-known/openid-configuration') {
+            @{ issuer='https://shopify.com/authentication/1234567890'; authorization_endpoint='https://account.fixture-merchant.example/auth'; token_endpoint='https://account.fixture-merchant.example/token'; end_session_endpoint='https://account.fixture-merchant.example/logout'; jwks_uri='https://account.fixture-merchant.example/jwks'; code_challenge_methods_supported=@('S256'); grant_types_supported=@('authorization_code'); id_token_signing_alg_values_supported=@('RS256') }
+        } else { @{ graphql_api='https://account.fixture-merchant.example/customer/api/2026-10/graphql' } }
+        [pscustomobject]@{ StatusCode=200; Data=$data }
+    }
+    $customAccountDiscovery = Get-OnboardingCustomerDiscovery $selected $customAccountBinding $customAccountTransport
+    Assert-True `
+        -Condition ($customAccountDiscovery.Classification -ceq 'PASS' -and $customAccountDiscovery.Callback -ceq $customer.Callback) `
+        -Name 'Customer discovery accepts the independently bound exact custom account origin'
+    Assert-Throws `
+        -Action { Get-OnboardingCustomerDiscovery $selected $binding $customAccountTransport } `
+        -Pattern 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH' `
+        -Name 'custom account discovery cannot approve its own unbound origin'
+    foreach ($hostileEndpoint in @(
+        'https://account.fixture-merchant.example.attacker.example/token',
+        'https://child.account.fixture-merchant.example/token',
+        'https://other.fixture-merchant.example/token',
+        'https://account.fixture-merchant.example./token',
+        'http://account.fixture-merchant.example/token',
+        'https://account.fixture-merchant.example:8443/token',
+        'https://user@account.fixture-merchant.example/token',
+        'https://account.fixture-merchant.example/token#fragment'
+    )) {
+        $hostileCustomAccountTransport = {
+            param($method, $uri, $headers, $body, $maximumBytes)
+            $response = & $customAccountTransport $method $uri $headers $body $maximumBytes
+            if ($uri.AbsolutePath -eq '/.well-known/openid-configuration') {
+                $response.Data.token_endpoint = $hostileEndpoint
+            }
+            $response
+        }.GetNewClosure()
+        Assert-Throws `
+            -Action { Get-OnboardingCustomerDiscovery $selected $customAccountBinding $hostileCustomAccountTransport } `
+            -Pattern 'CUSTOMER_DISCOVERY_ENDPOINT_MISMATCH|UNSAFE_HOST' `
+            -Name "bound custom account discovery rejects hostile endpoint: $hostileEndpoint"
+    }
+    $customClientValues = [ordered]@{
+        'shopify.storefrontPublicToken' = 'fixture-public-token'
+        'shopify.customerAccountClientId' = 'fixture-client-id'
+        'shopify.customerAccountIssuer' = 'https://shopify.com/authentication/1234567890'
+        'shopify.customerAccountAuthorizationEndpoint' = 'https://account.fixture-merchant.example/auth'
+        'shopify.customerAccountTokenEndpoint' = 'https://account.fixture-merchant.example/token'
+        'shopify.customerAccountLogoutEndpoint' = 'https://account.fixture-merchant.example/logout'
+        'shopify.customerAccountGraphqlEndpoint' = 'https://account.fixture-merchant.example/customer/api/2026-07/graphql'
+        'shopify.customerAccountRedirectUri' = 'shop.1234567890.gurbakir://oauth/callback'
+    }
+    $customClientContext = @{ Selected = $selected; Binding = $customAccountBinding; Registry = $registry }
+    $customClientLines = @(Get-OnboardingValidatedClientConfigurationLines -Context $customClientContext -Values $customClientValues)
+    Assert-True -Condition ($customClientLines.Count -eq 8) `
+        -Name 'local client configuration accepts bound custom endpoints while preserving the pinned API version'
+    $unboundClientContext = @{ Selected = $selected; Binding = $binding; Registry = $registry }
+    Assert-Throws `
+        -Action { Get-OnboardingValidatedClientConfigurationLines -Context $unboundClientContext -Values $customClientValues } `
+        -Pattern 'UNSAFE_CLIENT_CONFIGURATION' `
+        -Name 'local client configuration cannot approve an unbound custom origin'
+    foreach ($invalidCustomClientCase in @('host', 'version', 'callback')) {
+        $invalidCustomClientValues = Copy-TestValue $customClientValues
+        switch ($invalidCustomClientCase) {
+            'host' { $invalidCustomClientValues['shopify.customerAccountTokenEndpoint'] = 'https://account.fixture-merchant.example.attacker.example/token' }
+            'version' { $invalidCustomClientValues['shopify.customerAccountGraphqlEndpoint'] = 'https://account.fixture-merchant.example/customer/api/2026-10/graphql' }
+            'callback' { $invalidCustomClientValues['shopify.customerAccountRedirectUri'] = 'shop.999.other://oauth/callback' }
+        }
+        Assert-Throws `
+            -Action { Get-OnboardingValidatedClientConfigurationLines -Context $customClientContext -Values $invalidCustomClientValues } `
+            -Pattern 'UNSAFE_CLIENT_CONFIGURATION' `
+            -Name "bound custom local configuration preserves rejection for wrong $invalidCustomClientCase"
+    }
+    $redirectingCustomAccountTransport = {
+        [pscustomobject]@{ StatusCode = 302; Data = @{}; Headers = @{ Location = 'https://attacker.example' } }
+    }
+    Assert-Throws `
+        -Action { Get-OnboardingCustomerDiscovery $selected $customAccountBinding $redirectingCustomAccountTransport } `
+        -Pattern 'PROVIDER_REDIRECT_BLOCKED' `
+        -Name 'bound custom account discovery never follows a provider redirect'
     $unsafeDiscoveryTransport = {
         param($method, $uri, $headers, $body, $maximumBytes)
         $data = if ($uri.AbsolutePath -eq '/.well-known/openid-configuration') {

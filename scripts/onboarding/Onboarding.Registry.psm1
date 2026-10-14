@@ -775,12 +775,22 @@ function Import-OnboardingProviderBinding {
         throw (New-OnboardingContractError -Code 'INVALID_EVIDENCE_REFERENCE' -Field '$.approvedEvidenceRef')
     }
     Assert-OnboardingObjectFields -Object $binding.shopify `
-        -Allowed @('adminShopDomain', 'shopId') -Required @('adminShopDomain', 'shopId') -Field '$.shopify'
+        -Allowed @('adminShopDomain', 'shopId', 'customerAccountOrigin') -Required @('adminShopDomain', 'shopId') -Field '$.shopify'
     $adminDomain = [string]$binding.shopify.adminShopDomain
     Assert-OnboardingHost -HostName $adminDomain -Field '$.shopify.adminShopDomain'
     if ($adminDomain -cnotmatch '^[a-z0-9](?:[a-z0-9-]{0,60}[a-z0-9])?\.myshopify\.com$' -or
         [string]$binding.shopify.shopId -cnotmatch '^[0-9]{1,20}$') {
         throw (New-OnboardingContractError -Code 'INVALID_SHOPIFY_BINDING' -Field '$.shopify')
+    }
+    if ($binding.shopify.Contains('customerAccountOrigin')) {
+        if ($binding.shopify.customerAccountOrigin -isnot [string]) {
+            throw (New-OnboardingContractError -Code 'INVALID_JSON_TYPE' -Field '$.shopify.customerAccountOrigin')
+        }
+        $customerOrigin = $binding.shopify.customerAccountOrigin
+        Assert-OnboardingHttpsOrigin -Value $customerOrigin -Field '$.shopify.customerAccountOrigin'
+        if ($customerOrigin -cne ([uri]$customerOrigin).GetLeftPart([UriPartial]::Authority)) {
+            throw (New-OnboardingContractError -Code 'UNSAFE_URL' -Field '$.shopify.customerAccountOrigin')
+        }
     }
     if ($binding.Contains('firebase')) {
         Assert-OnboardingObjectFields -Object $binding.firebase `

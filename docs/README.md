@@ -8,6 +8,12 @@ The owner-authorized [Gür Bakır SDK 24 Closed Alpha transition](operations/GUR
 records the application-only Android 7 minimum, preserved shared API-23 policy,
 and the release gates for the replacement v3 candidate.
 
+The [TumiArt Stage 3 preflight and Stage 4 blueprint](multi-brand/TUMIART-STAGE-3-PREFLIGHT-AND-STAGE-4-BLUEPRINT.md)
+records the independently verified Public/Mobile registration, scoped custom-account-origin
+operator correction, current Home/commerce gaps and next-phase implementation inputs.
+TumiArt application implementation and authenticated runtime acceptance have not begun;
+this preparation does not establish production readiness.
+
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
 The second pull request's current implementation and visual evidence are in

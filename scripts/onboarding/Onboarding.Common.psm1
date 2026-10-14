@@ -366,14 +366,32 @@ function Protect-OnboardingOutput {
 }
 
 function Test-OnboardingShopifyCustomerUri {
-    param([Parameter(Mandatory)][uri]$Uri)
+    param(
+        [Parameter(Mandatory)][uri]$Uri,
+        [AllowEmptyString()][string]$TrustedCustomerAccountOrigin = ''
+    )
 
     $hostName = $Uri.IdnHost.ToLowerInvariant()
-    return $Uri.Scheme -ceq 'https' -and
+    $secure = $Uri.Scheme -ceq 'https' -and
         $Uri.IsDefaultPort -and
         $Uri.UserInfo.Length -eq 0 -and
-        $Uri.Fragment.Length -eq 0 -and
-        ($hostName -ceq 'shopify.com' -or $hostName.EndsWith('.shopify.com', [System.StringComparison]::Ordinal))
+        $Uri.Fragment.Length -eq 0
+    if (-not $secure) { return $false }
+    if ($hostName -ceq 'shopify.com' -or $hostName.EndsWith('.shopify.com', [System.StringComparison]::Ordinal)) {
+        return $true
+    }
+    $trustedOrigin = $null
+    if (-not [uri]::TryCreate($TrustedCustomerAccountOrigin, [UriKind]::Absolute, [ref]$trustedOrigin) -or
+        $trustedOrigin.Scheme -cne 'https' -or
+        -not $trustedOrigin.IsDefaultPort -or
+        $trustedOrigin.UserInfo.Length -ne 0 -or
+        $trustedOrigin.Query.Length -ne 0 -or
+        $trustedOrigin.Fragment.Length -ne 0 -or
+        $TrustedCustomerAccountOrigin -cne $trustedOrigin.GetLeftPart([UriPartial]::Authority)) {
+        return $false
+    }
+    try { Assert-OnboardingHost -HostName $trustedOrigin.IdnHost -Field 'customerAccountOrigin' } catch { return $false }
+    return $Uri.GetLeftPart([UriPartial]::Authority) -ceq $TrustedCustomerAccountOrigin
 }
 
 function Read-OnboardingBoundedStream {
