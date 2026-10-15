@@ -1,5 +1,10 @@
 # Trademarks and Brand Assets
 
+TumiArt is identified by name only in its owner-authorized development application
+scaffold. No merchant logo, wordmark artwork, website imagery or font binary is
+included in that scaffold. The project-authored launcher is a replaceable
+geometric placeholder; repository licensing grants no TumiArt trademark rights.
+
 The Apache License 2.0 applies only to copyright and patent rights in the
 publishable original work. It does not grant rights to trade names,
 trademarks, service marks, logos, or other brand identifiers.

@@ -11,8 +11,10 @@ and the release gates for the replacement v3 candidate.
 The [TumiArt Stage 3 preflight and Stage 4 blueprint](multi-brand/TUMIART-STAGE-3-PREFLIGHT-AND-STAGE-4-BLUEPRINT.md)
 records the independently verified Public/Mobile registration, scoped custom-account-origin
 operator correction, current Home/commerce gaps and next-phase implementation inputs.
-TumiArt application implementation and authenticated runtime acceptance have not begun;
-this preparation does not establish production readiness.
+PR #46 merged the operator correction; its exact merged-main CI passed.
+The [Stage 4 P0/P1 candidate](multi-brand/TUMIART-STAGE-4-P0-P1.md) adds the
+independent development scaffold and CI enrollment. Authenticated TumiArt runtime
+acceptance, final UI, production identity/signing and release readiness remain open.
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).

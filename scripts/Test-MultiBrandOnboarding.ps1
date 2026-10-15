@@ -169,6 +169,18 @@ function Invoke-RegistrySuite {
         ) `
         -Name 'Gurbakir owns a dedicated brand-level deletion request path'
 
+    $tumiart = Get-OnboardingApplicationProfile -Registry $registry -Application 'tumiart' -Profile 'development'
+    Assert-True -Condition (
+        $tumiart.Application.module -ceq ':tumiart' -and
+        $tumiart.Application.providerModules.Count -eq 0 -and
+        $tumiart.Profile.firebase.mode -ceq 'disabled' -and
+        $tumiart.Profile.variants[0].applicationId -ceq 'com.tumiart.mobile.development.debug' -and
+        $tumiart.Profile.variants[1].applicationId -ceq 'com.tumiart.mobile.development' -and
+        $tumiart.Profile.storefront.domain -ceq 'tumiart.com' -and
+        $tumiart.Profile.storefront.catalog.menuHandle -ceq 'tum-koleksiyonlar' -and
+        $tumiart.Application.identity.customerAccount.callbackSchemeSuffix -ceq 'tumiart'
+    ) -Name 'TumiArt development enrollment has independent identity and disabled Firebase'
+
     $trial = Get-OnboardingApplicationProfile `
         -Registry $registry `
         -Application 'trial' `
@@ -467,8 +479,8 @@ function Invoke-RegistrySuite {
             -AllowFixtureRecords
         Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.key -ceq 'future-fixture' }).Count -eq 1) `
             -Name 'future real-brand fixture is accepted only in explicit fixture mode'
-        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 3) `
-            -Name 'fixture registry preserves both enrolled real applications while adding an independent fixture record'
+        Assert-True -Condition (@($acceptedFixture.applications | Where-Object { $_.role -ceq 'real-brand-application' }).Count -eq 4) `
+            -Name 'fixture registry preserves all three enrolled real applications while adding an independent fixture record'
         $futureSelected = Get-OnboardingApplicationProfile `
             -Registry $acceptedFixture -Application 'future-fixture' -Profile 'conformance'
         Import-Module (Join-Path $repoRoot 'scripts\onboarding\Onboarding.Operator.psm1') -Force
@@ -2949,12 +2961,15 @@ function Invoke-HistoricalGate8HomeApplyFixture {
     Import-Module $registryModule -Force
     Import-Module $commonModule -Force
     $registryPath = Join-Path $repoRoot 'config\onboarding\application-registry.v1.json'
+    $currentRegistry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
     $projectionPaths = @(
-        'config\onboarding\generated\gurbakir\development.properties',
-        'config\onboarding\generated\gurbakir\production.properties',
-        'config\onboarding\generated\gurbakir\staging.properties',
-        'config\onboarding\generated\trial\development.properties'
-    ) | ForEach-Object { Join-Path $repoRoot $_ }
+        foreach ($application in @($currentRegistry.applications)) {
+            if ($null -eq $application.configurationProjection) { continue }
+            foreach ($profile in @($application.profiles)) {
+                Join-Path $repoRoot ('{0}/{1}.properties' -f $application.configurationProjection, $profile.key)
+            }
+        }
+    )
     $paths = @($registryPath) + $projectionPaths
     $snapshots = @{}
     foreach ($path in $paths) { $snapshots[$path] = Get-TestFileSnapshot -Path $path }
@@ -2998,6 +3013,18 @@ function Invoke-HistoricalGate8HomeApplyFixture {
                 [Convert]::ToBase64String($snapshot.Bytes)
     }).Count -eq $paths.Count) `
         -Name 'historical v1 Apply fixture restores current Home v2 source bytes'
+    $restoredRegistry = Import-OnboardingRegistry -Path $registryPath -RepositoryRoot $repoRoot
+    $restoredRegistrySha = (Get-FileHash -LiteralPath $registryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    foreach ($restoredApplication in @($restoredRegistry.applications)) {
+        if ($null -eq $restoredApplication.configurationProjection) { continue }
+        foreach ($restoredProfile in @($restoredApplication.profiles)) {
+            $restoredPath = Join-Path $repoRoot ('{0}/{1}.properties' -f $restoredApplication.configurationProjection, $restoredProfile.key)
+            $expectedLines = Get-OnboardingProjectionLines -Registry $restoredRegistry `
+                -ApplicationRecord $restoredApplication -ProfileRecord $restoredProfile -RegistrySha256 $restoredRegistrySha
+            Test-OnboardingProjection -Path $restoredPath -ExpectedLines $expectedLines
+        }
+    }
+    Assert-True -Condition $true -Name 'historical Apply leaves every enrolled application projection current'
 }
 
 function Invoke-OperatorApplyPreservationRegression {

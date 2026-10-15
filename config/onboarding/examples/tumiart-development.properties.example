@@ -1,0 +1,8 @@
+shopify.storefrontPublicToken=
+shopify.customerAccountClientId=
+shopify.customerAccountIssuer=https://shopify.com/authentication/80183034101
+shopify.customerAccountAuthorizationEndpoint=https://hesabim.tumiart.com/authentication/oauth/authorize
+shopify.customerAccountTokenEndpoint=https://hesabim.tumiart.com/authentication/oauth/token
+shopify.customerAccountLogoutEndpoint=https://hesabim.tumiart.com/authentication/logout
+shopify.customerAccountGraphqlEndpoint=https://hesabim.tumiart.com/customer/api/2026-07/graphql
+shopify.customerAccountRedirectUri=shop.80183034101.tumiart://oauth/callback

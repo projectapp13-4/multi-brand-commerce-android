@@ -10,6 +10,7 @@ rights were not affirmatively established.
 
 | Path | Material | Disposition | Required evidence or action |
 |---|---|---|---|
+| `apps/tumiart/src/main/res/drawable/ic_tumiart_launcher.xml` | Original geometric picture-frame placeholder | `publishable under Apache-2.0` | Project-authored for the development scaffold; not a merchant logo or artwork. Website images, reference-board assets and font binaries are excluded from this slice |
 | `app/src/main/res/drawable/ic_launcher_foreground.xml` | Gürbakır launcher/brand artwork | `excluded from Apache grant, publication permitted` | The Gürbakır owner authorized public repository distribution on 2026-09-13; trademark and brand-asset rights remain reserved |
 | `app/src/main/res/drawable/*.xml` except `ic_launcher_foreground.xml` | Licensed Material UI icon vectors used by the Gürbakır application | `third-party Apache-2.0` | Repository history records their project introduction in the approved Material-icon baseline; retain the notice in `THIRD_PARTY_NOTICES.md` |
 | `mobile-core/src/main/res/drawable/*.xml` | Shared Material UI icon vectors moved unchanged from the Gürbakır implementation | `third-party Apache-2.0` | Repository history records the move into `:mobile-core`; retain the notice in `THIRD_PARTY_NOTICES.md` |
