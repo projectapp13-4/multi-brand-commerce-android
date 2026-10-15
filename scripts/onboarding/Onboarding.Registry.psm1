@@ -509,6 +509,12 @@ function Assert-OnboardingNativeCompositionCompatibility {
             customerAccount = 'DISABLED'
             primaryNavigation = @('SEARCH', 'HOME', 'CATEGORIES')
         }
+        tumiart = [ordered]@{
+            search = 'ENABLED'
+            wishlist = 'ENABLED'
+            customerAccount = 'ENABLED'
+            primaryNavigation = @('HOME', 'CATEGORIES', 'SEARCH', 'WISHLIST', 'ACCOUNT')
+        }
         trial = [ordered]@{
             search = 'ENABLED'
             wishlist = 'ENABLED'

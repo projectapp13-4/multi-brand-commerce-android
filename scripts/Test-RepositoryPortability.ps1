@@ -108,21 +108,26 @@ function Test-ApprovedTopology {
     $missingProjects = @($expectedProjects | Where-Object { $_ -notin $includedProjects })
     $unexpectedProjects = @($includedProjects | Where-Object { $_ -notin $expectedProjects })
     $mappings = Get-ProjectDirectoryMappings -SettingsText $SettingsText
-    $syntheticMappingCorrect = $mappings.ContainsKey(':synthetic') -and
-        $mappings[':synthetic'] -eq 'apps/synthetic'
-    $trialMappingCorrect = $mappings.ContainsKey(':trial') -and
-        $mappings[':trial'] -eq 'apps/trial'
+    $incorrectMappings = @($Inventory | Where-Object {
+        $actualDirectory = if ($mappings.ContainsKey($_.LogicalPath)) {
+            $mappings[$_.LogicalPath]
+        } else {
+            $_.LogicalPath.TrimStart(':')
+        }
+        $actualDirectory -cne $_.Directory
+    })
+    $unknownMappings = @($mappings.Keys | Where-Object { $_ -notin $expectedProjects })
     $passed = $missingProjects.Count -eq 0 -and
         $unexpectedProjects.Count -eq 0 -and
         $includedProjects.Count -eq $expectedProjects.Count -and
         $unsupportedIncludes.Count -eq 0 -and
         ':apps' -notin $includedProjects -and
-        $syntheticMappingCorrect -and
-        $trialMappingCorrect
+        $incorrectMappings.Count -eq 0 -and
+        $unknownMappings.Count -eq 0
     $evidence = if ($passed) {
-        "$($expectedProjects.Count) explicitly enrolled subprojects; physical synthetic/trial mappings; no :apps project"
+        "$($expectedProjects.Count) explicitly enrolled subprojects; exact registered physical mappings; no :apps project"
     } else {
-        "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); synthetic mapping: $($mappings[':synthetic']); trial mapping: $($mappings[':trial'])"
+        "missing: $($missingProjects -join ', '); unexpected: $($unexpectedProjects -join ', '); unsupported include expressions: $($unsupportedIncludes.Count); incorrect mappings: $(@($incorrectMappings | ForEach-Object { $_.LogicalPath }) -join ', '); unknown mappings: $($unknownMappings -join ', ')"
     }
     return [pscustomobject]@{ Passed = $passed; Evidence = $evidence }
 }
@@ -775,11 +780,13 @@ function Invoke-PortabilitySelfTest {
         [void](New-Item -ItemType Directory -Path $fixtureRoot)
         $inventory = @(Get-ModuleInventory)
         $validSettings = @'
-include(":app", ":synthetic", ":trial", ":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase")
+include(":app", ":synthetic", ":trial", ":tumiart", ":mobile-core", ":foundation", ":storefront", ":account", ":checkout", ":firebase")
 project(":synthetic").projectDir = file("apps/synthetic")
 project(":trial").projectDir = file("apps/trial")
+project(":tumiart").projectDir = file("apps/tumiart")
 '@
         Add-SelfTestResult 'valid flat topology and mapping pass' (Test-ApprovedTopology $validSettings $inventory).Passed
+        Add-SelfTestResult 'missing TumiArt physical mapping is rejected' (-not (Test-ApprovedTopology ($validSettings -replace '(?m)^project\(":tumiart"\).*$', '') $inventory).Passed)
         $hierarchicalSettings = $validSettings.Replace('":synthetic"', '":apps:synthetic"')
         Add-SelfTestResult 'hierarchical include creates and rejects implicit :apps' (-not (Test-ApprovedTopology $hierarchicalSettings $inventory).Passed)
         $computedIncludeSettings = $validSettings + "`nval hidden = `":unexpected`"`ninclude(hidden)"

@@ -21,6 +21,7 @@ include(
     ":app",
     ":synthetic",
     ":trial",
+    ":tumiart",
     ":mobile-core",
     ":foundation",
     ":storefront",
@@ -31,3 +32,5 @@ include(
 
 project(":synthetic").projectDir = file("apps/synthetic")
 project(":trial").projectDir = file("apps/trial")
+
+project(":tumiart").projectDir = file("apps/tumiart")
