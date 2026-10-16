@@ -26,8 +26,17 @@ merchant image licensing or release readiness. The full visual bundle remains ig
 
 The [TumiArt Stage 4 P3 native catalog work](multi-brand/TUMIART-STAGE-4-P3.md)
 starts after P2 PR #48 and its four passing merged-main checks. It applies V3.2 to
-discovery and collection listing through an explicit application opt-in;
-native visual acceptance and PR integration remain separate controls.
+discovery and collection listing through an explicit application opt-in.
+As checked on 2026-10-17, P3 PR #49 was draft/unmerged at head b17235c, with
+all four exact-head CI jobs successful; future commits require fresh checks.
+Native visual acceptance and integration remain separate controls.
+
+The owner-approved [TumiArt native design direction and grouped Stage 4 roadmap](multi-brand/TUMIART-STAGE-4-NATIVE-DESIGN-AND-ROADMAP.md)
+records the cross-screen design principles, provisional type roles, P4 PDP priority,
+P5 Home and lower-risk visual-harmonization grouping, and the conditional P6/P7 gates.
+The next [P4 Codex execution brief](multi-brand/TUMIART-STAGE-4-P4-CODEX-BRIEF.md)
+sets the implementation boundary, evidence requirements and interruption-safe checkpoints.
+P4 must not start on an unverified pre-P3 main; merge and exact merged-main CI are separate gates.
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).

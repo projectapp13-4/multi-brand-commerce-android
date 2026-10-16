@@ -60,3 +60,7 @@ The accepted V3.1 restrained sage/slate distribution and V3.2 lightly softened c
 - Production identity, asset rights, Play, signing and release remain separate gates.
 
 **No Android source change, Git staging, commit, push, PR, merge or provider mutation is implied by this document.**
+
+## Later lifecycle note (2026-10-17; preserves the original V3.2 acceptance)
+
+The above roadmap is the **historical 2026-10-16 planning checkpoint**, not the current merge/CI status: P2 subsequently merged via PR #48; P3 draft PR #49 reached exact-head 4/4 successful checks but remained unmerged at the later 2026-10-17 check. The owner also approved the [TumiArt-only native design direction and grouped P4–P7 execution strategy](TUMIART-STAGE-4-NATIVE-DESIGN-AND-ROADMAP.md), with [P4 Codex brief](TUMIART-STAGE-4-P4-CODEX-BRIEF.md). These later decisions do not modify the accepted static V3.2 composition or grant approval for new native Android visual results. Reverify mutable GitHub state before execution.

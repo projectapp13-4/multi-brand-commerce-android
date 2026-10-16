@@ -57,7 +57,14 @@ architecture.
 The [accepted V3.2 four-screen static design](TUMIART-STAGE-4-VISUAL-DESIGN-V3-2.md)
 is the current TumiArt visual implementation target. The 14 October v1 PNG/HTML
 and design decision/handoff are historical source evidence, not competing final-screen targets.
-P2 theme/font integration and the real native P3/P4/P5 screen acceptance are independently verified; the static V3.2 decision does not establish either.
+P2 theme/font integration and real native P3/P4/P5 screen acceptance are separate evidence gates; static V3.2 alone does not establish them.
+
+The owner accepted the [TumiArt Stage 4 native design and grouped execution direction](TUMIART-STAGE-4-NATIVE-DESIGN-AND-ROADMAP.md)
+on 2026-10-17: preserve P3, prioritize P4 Artwork Detail + TumiArt-only design-system foundation
+in one draft PR, then group P5 Home with low-risk cross-screen presentation harmonization.
+The [P4 Codex execution brief](TUMIART-STAGE-4-P4-CODEX-BRIEF.md) is the next bounded task,
+not permission to merge P3 or to modify Shopify/payment. Source runtime tokens remain brand-owned;
+proposed type-size roles require Android visual verification.
 
 ## Gate index
 
