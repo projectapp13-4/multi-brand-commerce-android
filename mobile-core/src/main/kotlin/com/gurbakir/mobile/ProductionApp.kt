@@ -65,6 +65,7 @@ import com.gurbakir.foundation.config.ApplicationCapability
 import com.gurbakir.foundation.config.ApplicationComposition
 import com.gurbakir.foundation.config.BrandConfiguration
 import com.gurbakir.foundation.config.PrimaryNavigationDestination
+import com.gurbakir.foundation.ui.BrandFontFamilies
 import com.gurbakir.foundation.ui.CommerceTheme
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.account.AccountActions
@@ -151,11 +152,12 @@ fun MobileCoreApp(
     applicationComposition: ApplicationComposition,
     customerAccountBindings: CustomerAccountFeatureBindings?,
     legalSupportDestination: @Composable (onBack: () -> Unit) -> Unit,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    fontFamilies: BrandFontFamilies = BrandFontFamilies()
 ) {
     validateCustomerAccountBindings(applicationComposition, customerAccountBindings)
     val darkTheme = !LocalInspectionMode.current && isSystemInDarkTheme()
-    CommerceTheme(designTokens = brand.designTokens, darkTheme = darkTheme) {
+    CommerceTheme(designTokens = brand.designTokens, darkTheme = darkTheme, fontFamilies = fontFamilies) {
         val currentDestination = navController.currentBackStackEntryAsState().value?.destination
         if (applicationComposition.capabilities.isEnabled(ApplicationCapability.CUSTOMER_ACCOUNT)) {
             PrivateOrderCapturePolicy(currentDestination)

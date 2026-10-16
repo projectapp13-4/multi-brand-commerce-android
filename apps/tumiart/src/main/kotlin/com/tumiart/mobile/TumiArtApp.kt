@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,17 +27,32 @@ import com.gurbakir.foundation.ui.CommerceTheme
 import com.gurbakir.mobile.MobileCoreApp
 import com.gurbakir.mobile.navigation.CustomerAccountFeatureBindings
 import com.tumiart.mobile.brand.TumiArtBrand
+import com.tumiart.mobile.brand.TumiArtFontFamilies
 import com.tumiart.mobile.config.TumiArtConfiguration
+import com.tumiart.mobile.legal.TumiArtFontLicenses
 import com.tumiart.mobile.legal.TumiArtLegalPages
 import com.tumiart.mobile.order.TumiArtTrackingUrlPolicy
 
 @Composable
 fun TumiArtApp() {
     if (!TumiArtConfiguration.isLaunchReady()) {
-        CommerceTheme(designTokens = TumiArtBrand.configuration.designTokens, darkTheme = isSystemInDarkTheme()) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
-                Text(TumiArtBrand.configuration.displayName, style = MaterialTheme.typography.headlineMedium)
-                Text(stringResource(R.string.tumiart_setup_required), style = MaterialTheme.typography.bodyLarge)
+        CommerceTheme(
+            designTokens = TumiArtBrand.configuration.designTokens,
+            darkTheme = isSystemInDarkTheme(),
+            fontFamilies = TumiArtFontFamilies
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
+                Column(
+                    Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp)
+                ) {
+                    Text(TumiArtBrand.configuration.displayName, style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(R.string.tumiart_setup_required), style = MaterialTheme.typography.bodyLarge)
+                    TumiArtFontLicenses()
+                }
             }
         }
         return
@@ -52,7 +68,8 @@ fun TumiArtApp() {
             trackingUrlPolicy = TumiArtTrackingUrlPolicy,
             openDeletionPage = pages::openDeletionPage
         ),
-        legalSupportDestination = { onBack -> TumiArtLegalDestination(onBack, pages) }
+        legalSupportDestination = { onBack -> TumiArtLegalDestination(onBack, pages) },
+        fontFamilies = TumiArtFontFamilies
     )
 }
 
@@ -72,6 +89,7 @@ private fun TumiArtLegalDestination(onBack: () -> Unit, pages: TumiArtLegalPages
             }
         }
         if (feedback) Text(stringResource(R.string.tumiart_legal_no_browser))
+        TumiArtFontLicenses()
         TextButton(onClick = onBack) { Text(stringResource(R.string.tumiart_back)) }
     }
 }

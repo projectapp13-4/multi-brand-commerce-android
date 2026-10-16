@@ -50,7 +50,24 @@ data class BrandColorSchemeTokens(
     val inverseSurface: ArgbColor,
     val inverseOnSurface: ArgbColor,
     val inversePrimary: ArgbColor,
-    val scrim: ArgbColor
+    val scrim: ArgbColor,
+    // Null inherits at render time, preserving legacy aliases even after data-class copy().
+    val surfaceBright: ArgbColor? = null,
+    val surfaceDim: ArgbColor? = null,
+    val surfaceContainerHighest: ArgbColor? = null,
+    val surfaceContainerLowest: ArgbColor? = null,
+    val primaryFixed: ArgbColor? = null,
+    val primaryFixedDim: ArgbColor? = null,
+    val onPrimaryFixed: ArgbColor? = null,
+    val onPrimaryFixedVariant: ArgbColor? = null,
+    val secondaryFixed: ArgbColor? = null,
+    val secondaryFixedDim: ArgbColor? = null,
+    val onSecondaryFixed: ArgbColor? = null,
+    val onSecondaryFixedVariant: ArgbColor? = null,
+    val tertiaryFixed: ArgbColor? = null,
+    val tertiaryFixedDim: ArgbColor? = null,
+    val onTertiaryFixed: ArgbColor? = null,
+    val onTertiaryFixedVariant: ArgbColor? = null
 )
 
 data class BrandColorTokens(val light: BrandColorSchemeTokens, val dark: BrandColorSchemeTokens)
@@ -103,7 +120,9 @@ data class BrandTypographyTokens(
     val bodySmall: BrandTextStyleTokens,
     val labelLarge: BrandTextStyleTokens,
     val labelMedium: BrandTextStyleTokens,
-    val labelSmall: BrandTextStyleTokens
+    val labelSmall: BrandTextStyleTokens,
+    val editorialHero: BrandTextStyleTokens = headlineLarge,
+    val editorialTitle: BrandTextStyleTokens = titleLarge
 ) {
     init {
         require(fontFamilyResourceName == null || RESOURCE_NAME_PATTERN.matches(fontFamilyResourceName)) {

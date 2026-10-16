@@ -13,4 +13,6 @@
     <string name="tumiart_legal_notice">Legal notice — awaiting verification</string>
     <string name="tumiart_legal_no_browser">A secure browser could not be opened.</string>
     <string name="tumiart_back">Back</string>
+    <string name="tumiart_font_licenses">Font licenses</string>
+    <string name="tumiart_close">Close</string>
 </resources>

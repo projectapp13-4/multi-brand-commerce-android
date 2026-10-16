@@ -1,5 +1,16 @@
 # Third-Party Notices
 
+## TumiArt application fonts
+
+Karla: Copyright 2019 The Karla Project Authors
+(https://github.com/googlefonts/karla). Newsreader: Copyright 2020 The Newsreader
+Project Authors (http://github.com/productiontype/Newsreader).
+Both are distributed under the SIL Open Font License 1.1, independently of the
+repository's Apache grant. Complete license notices are packaged at
+`apps/tumiart/src/main/res/raw/karla_ofl.txt` and `newsreader_ofl.txt` and are
+readable offline through TumiArt's Font licenses dialog. See the
+[pinned provenance and binary hashes](docs/multi-brand/TUMIART-FONT-PROVENANCE.md).
+
 This repository depends on third-party libraries and services. Their source,
 binary distributions, generated code, and bundled assets remain governed by
 their respective licenses and notices; the repository's Apache-2.0 license
