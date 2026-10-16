@@ -13,4 +13,6 @@
     <string name="tumiart_legal_notice">Yasal bildirim — doğrulama bekleniyor</string>
     <string name="tumiart_legal_no_browser">Güvenli tarayıcı açılamadı.</string>
     <string name="tumiart_back">Geri</string>
+    <string name="tumiart_font_licenses">Yazı tipi lisansları</string>
+    <string name="tumiart_close">Kapat</string>
 </resources>

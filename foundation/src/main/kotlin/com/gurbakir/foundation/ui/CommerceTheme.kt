@@ -34,16 +34,22 @@ val LocalBrandSpacing = staticCompositionLocalOf { DefaultSpacing }
 val LocalBrandMotion = staticCompositionLocalOf { DefaultMotion }
 
 @Composable
-fun CommerceTheme(designTokens: BrandDesignTokens, darkTheme: Boolean, content: @Composable () -> Unit) {
+fun CommerceTheme(
+    designTokens: BrandDesignTokens,
+    darkTheme: Boolean,
+    fontFamilies: BrandFontFamilies = BrandFontFamilies(),
+    content: @Composable () -> Unit
+) {
     val colors = if (darkTheme) designTokens.colors.dark else designTokens.colors.light
     val shapes = designTokens.shapes
     CompositionLocalProvider(
         LocalBrandSpacing provides designTokens.spacing,
-        LocalBrandMotion provides designTokens.motion
+        LocalBrandMotion provides designTokens.motion,
+        LocalBrandEditorialTypography provides designTokens.typography.toEditorialTypography(fontFamilies)
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) colors.toDarkScheme() else colors.toLightScheme(),
-            typography = designTokens.typography.toTypography(),
+            colorScheme = colors.toMaterialColorScheme(darkTheme),
+            typography = designTokens.typography.toTypography(fontFamilies),
             shapes =
                 Shapes(
                     small = RoundedCornerShape(shapes.smallCornerDp.dp),
@@ -54,6 +60,9 @@ fun CommerceTheme(designTokens: BrandDesignTokens, darkTheme: Boolean, content: 
         )
     }
 }
+
+internal fun BrandColorSchemeTokens.toMaterialColorScheme(darkTheme: Boolean) =
+    if (darkTheme) toDarkScheme() else toLightScheme()
 
 private fun BrandColorSchemeTokens.toLightScheme() = lightColorScheme(
     primary = primary.toColor(),
@@ -85,25 +94,25 @@ private fun BrandColorSchemeTokens.toLightScheme() = lightColorScheme(
     outline = outline.toColor(),
     outlineVariant = outlineVariant.toColor(),
     scrim = scrim.toColor(),
-    surfaceBright = surface.toColor(),
-    surfaceDim = surfaceContainerHigh.toColor(),
+    surfaceBright = surfaceBright.toColorOr(surface),
+    surfaceDim = surfaceDim.toColorOr(surfaceContainerHigh),
     surfaceContainer = surfaceContainer.toColor(),
     surfaceContainerHigh = surfaceContainerHigh.toColor(),
-    surfaceContainerHighest = surfaceContainerHigh.toColor(),
+    surfaceContainerHighest = surfaceContainerHighest.toColorOr(surfaceContainerHigh),
     surfaceContainerLow = surfaceContainerLow.toColor(),
-    surfaceContainerLowest = surface.toColor(),
-    primaryFixed = primaryContainer.toColor(),
-    primaryFixedDim = primary.toColor(),
-    onPrimaryFixed = onPrimaryContainer.toColor(),
-    onPrimaryFixedVariant = onPrimary.toColor(),
-    secondaryFixed = secondaryContainer.toColor(),
-    secondaryFixedDim = secondary.toColor(),
-    onSecondaryFixed = onSecondaryContainer.toColor(),
-    onSecondaryFixedVariant = onSecondary.toColor(),
-    tertiaryFixed = tertiaryContainer.toColor(),
-    tertiaryFixedDim = tertiary.toColor(),
-    onTertiaryFixed = onTertiaryContainer.toColor(),
-    onTertiaryFixedVariant = onTertiary.toColor()
+    surfaceContainerLowest = surfaceContainerLowest.toColorOr(surface),
+    primaryFixed = primaryFixed.toColorOr(primaryContainer),
+    primaryFixedDim = primaryFixedDim.toColorOr(primary),
+    onPrimaryFixed = onPrimaryFixed.toColorOr(onPrimaryContainer),
+    onPrimaryFixedVariant = onPrimaryFixedVariant.toColorOr(onPrimary),
+    secondaryFixed = secondaryFixed.toColorOr(secondaryContainer),
+    secondaryFixedDim = secondaryFixedDim.toColorOr(secondary),
+    onSecondaryFixed = onSecondaryFixed.toColorOr(onSecondaryContainer),
+    onSecondaryFixedVariant = onSecondaryFixedVariant.toColorOr(onSecondary),
+    tertiaryFixed = tertiaryFixed.toColorOr(tertiaryContainer),
+    tertiaryFixedDim = tertiaryFixedDim.toColorOr(tertiary),
+    onTertiaryFixed = onTertiaryFixed.toColorOr(onTertiaryContainer),
+    onTertiaryFixedVariant = onTertiaryFixedVariant.toColorOr(onTertiary)
 )
 
 private fun BrandColorSchemeTokens.toDarkScheme() = darkColorScheme(
@@ -136,47 +145,54 @@ private fun BrandColorSchemeTokens.toDarkScheme() = darkColorScheme(
     outline = outline.toColor(),
     outlineVariant = outlineVariant.toColor(),
     scrim = scrim.toColor(),
-    surfaceBright = surface.toColor(),
-    surfaceDim = surfaceContainerHigh.toColor(),
+    surfaceBright = surfaceBright.toColorOr(surface),
+    surfaceDim = surfaceDim.toColorOr(surfaceContainerHigh),
     surfaceContainer = surfaceContainer.toColor(),
     surfaceContainerHigh = surfaceContainerHigh.toColor(),
-    surfaceContainerHighest = surfaceContainerHigh.toColor(),
+    surfaceContainerHighest = surfaceContainerHighest.toColorOr(surfaceContainerHigh),
     surfaceContainerLow = surfaceContainerLow.toColor(),
-    surfaceContainerLowest = surface.toColor(),
-    primaryFixed = primaryContainer.toColor(),
-    primaryFixedDim = primary.toColor(),
-    onPrimaryFixed = onPrimaryContainer.toColor(),
-    onPrimaryFixedVariant = onPrimary.toColor(),
-    secondaryFixed = secondaryContainer.toColor(),
-    secondaryFixedDim = secondary.toColor(),
-    onSecondaryFixed = onSecondaryContainer.toColor(),
-    onSecondaryFixedVariant = onSecondary.toColor(),
-    tertiaryFixed = tertiaryContainer.toColor(),
-    tertiaryFixedDim = tertiary.toColor(),
-    onTertiaryFixed = onTertiaryContainer.toColor(),
-    onTertiaryFixedVariant = onTertiary.toColor()
+    surfaceContainerLowest = surfaceContainerLowest.toColorOr(surface),
+    primaryFixed = primaryFixed.toColorOr(primaryContainer),
+    primaryFixedDim = primaryFixedDim.toColorOr(primary),
+    onPrimaryFixed = onPrimaryFixed.toColorOr(onPrimaryContainer),
+    onPrimaryFixedVariant = onPrimaryFixedVariant.toColorOr(onPrimary),
+    secondaryFixed = secondaryFixed.toColorOr(secondaryContainer),
+    secondaryFixedDim = secondaryFixedDim.toColorOr(secondary),
+    onSecondaryFixed = onSecondaryFixed.toColorOr(onSecondaryContainer),
+    onSecondaryFixedVariant = onSecondaryFixedVariant.toColorOr(onSecondary),
+    tertiaryFixed = tertiaryFixed.toColorOr(tertiaryContainer),
+    tertiaryFixedDim = tertiaryFixedDim.toColorOr(tertiary),
+    onTertiaryFixed = onTertiaryFixed.toColorOr(onTertiaryContainer),
+    onTertiaryFixedVariant = onTertiaryFixedVariant.toColorOr(onTertiary)
 )
 
-private fun BrandTypographyTokens.toTypography(): Typography = Typography(
-    displayLarge = headlineLarge.toTextStyle(),
-    displayMedium = headlineMedium.toTextStyle(),
-    displaySmall = headlineSmall.toTextStyle(),
-    headlineLarge = headlineLarge.toTextStyle(),
-    headlineMedium = headlineMedium.toTextStyle(),
-    headlineSmall = headlineSmall.toTextStyle(),
-    titleLarge = titleLarge.toTextStyle(),
-    titleMedium = titleMedium.toTextStyle(),
-    titleSmall = titleSmall.toTextStyle(),
-    bodyLarge = bodyLarge.toTextStyle(),
-    bodyMedium = bodyMedium.toTextStyle(),
-    bodySmall = bodySmall.toTextStyle(),
-    labelLarge = labelLarge.toTextStyle(),
-    labelMedium = labelMedium.toTextStyle(),
-    labelSmall = labelSmall.toTextStyle()
-)
+internal fun BrandTypographyTokens.toTypography(fontFamilies: BrandFontFamilies = BrandFontFamilies()): Typography =
+    Typography(
+        displayLarge = headlineLarge.toTextStyle(fontFamilies.functional),
+        displayMedium = headlineMedium.toTextStyle(fontFamilies.functional),
+        displaySmall = headlineSmall.toTextStyle(fontFamilies.functional),
+        headlineLarge = headlineLarge.toTextStyle(fontFamilies.functional),
+        headlineMedium = headlineMedium.toTextStyle(fontFamilies.functional),
+        headlineSmall = headlineSmall.toTextStyle(fontFamilies.functional),
+        titleLarge = titleLarge.toTextStyle(fontFamilies.functional),
+        titleMedium = titleMedium.toTextStyle(fontFamilies.functional),
+        titleSmall = titleSmall.toTextStyle(fontFamilies.functional),
+        bodyLarge = bodyLarge.toTextStyle(fontFamilies.functional),
+        bodyMedium = bodyMedium.toTextStyle(fontFamilies.functional),
+        bodySmall = bodySmall.toTextStyle(fontFamilies.functional),
+        labelLarge = labelLarge.toTextStyle(fontFamilies.functional),
+        labelMedium = labelMedium.toTextStyle(fontFamilies.functional),
+        labelSmall = labelSmall.toTextStyle(fontFamilies.functional)
+    )
 
-private fun BrandTextStyleTokens.toTextStyle(): TextStyle = TextStyle(
-    fontFamily = FontFamily.SansSerif,
+internal fun BrandTypographyTokens.toEditorialTypography(fontFamilies: BrandFontFamilies): BrandEditorialTypography =
+    BrandEditorialTypography(
+        hero = editorialHero.toTextStyle(fontFamilies.editorial),
+        title = editorialTitle.toTextStyle(fontFamilies.editorial)
+    )
+
+private fun BrandTextStyleTokens.toTextStyle(fontFamily: FontFamily): TextStyle = TextStyle(
+    fontFamily = fontFamily,
     fontWeight = fontWeight.toComposeWeight(),
     fontSize = fontSizeSp.sp,
     lineHeight = lineHeightSp.sp
@@ -189,3 +205,5 @@ private fun BrandFontWeight.toComposeWeight(): FontWeight = when (this) {
 }
 
 private fun ArgbColor.toColor(): Color = Color(value.toInt())
+
+private fun ArgbColor?.toColorOr(fallback: ArgbColor): Color = (this ?: fallback).toColor()

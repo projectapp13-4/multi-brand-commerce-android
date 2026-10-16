@@ -15,6 +15,14 @@ PR #46 merged the operator correction; its exact merged-main CI passed.
 The [Stage 4 P0/P1 candidate](multi-brand/TUMIART-STAGE-4-P0-P1.md) adds the
 independent development scaffold and CI enrollment. Authenticated TumiArt runtime
 acceptance, final UI, production identity/signing and release readiness remain open.
+The [Stage 4 P2 theme work](multi-brand/TUMIART-STAGE-4-P2.md) records
+the default-preserving typography seam, TumiArt light/dark mapping and licensed
+font provenance. Its integration and later screen acceptance remain separate.
+
+The user accepted the [TumiArt V3.2 four-screen static visual target](multi-brand/TUMIART-STAGE-4-VISUAL-DESIGN-V3-2.md)
+on 2026-10-16. That record supersedes historical v1 compositions as the screen-design target
+without altering Stage 4 sequencing, the P2 local/PR boundary, runtime UI acceptance,
+merchant image licensing or release readiness. The full visual bundle remains ignored local evidence.
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).

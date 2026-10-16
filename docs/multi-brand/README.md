@@ -52,6 +52,13 @@ review, merge, or post-merge events.
 Research supports decisions but does not override current source or canonical
 architecture.
 
+### TumiArt Stage 4 visual target (2026-10-16)
+
+The [accepted V3.2 four-screen static design](TUMIART-STAGE-4-VISUAL-DESIGN-V3-2.md)
+is the current TumiArt visual implementation target. The 14 October v1 PNG/HTML
+and design decision/handoff are historical source evidence, not competing final-screen targets.
+P2 theme/font integration and the real native P3/P4/P5 screen acceptance are independently verified; the static V3.2 decision does not establish either.
+
 ## Gate index
 
 | Gate | Preserved execution/evidence | Current status |
