@@ -3,6 +3,8 @@ package com.gurbakir.mobile.catalog
 object CatalogTestTags {
     const val CATEGORIES_ROOT = "categories-root"
     const val GALLERY_FEATURED = "catalog-gallery-featured"
+    const val GALLERY_INTRO_TITLE = "catalog-gallery-intro-title"
+    const val GALLERY_INTRO_BODY = "catalog-gallery-intro-body"
     const val CATEGORIES_GRID = "categories-grid"
     const val CATEGORIES_EMPTY = "categories-empty"
     const val CATEGORIES_ERROR = "categories-error"

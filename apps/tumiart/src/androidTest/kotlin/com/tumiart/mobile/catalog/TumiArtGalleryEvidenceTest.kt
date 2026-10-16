@@ -162,11 +162,19 @@ class TumiArtGalleryEvidenceTest {
                 capture("$name-discovery-top", dark, listOf(CatalogTestTags.categoryMedia("ustalar")))
                 val grid = rule.onNodeWithTag(CatalogTestTags.CATEGORIES_GRID)
                 grid.performScrollToNode(hasTestTag(CatalogTestTags.category("tumi-art-originals")))
-                capture(
-                    "$name-discovery-covers",
-                    dark,
-                    listOf("tumi-art-originals", "modern-forms").map(CatalogTestTags::categoryMedia)
-                )
+                if (scale >= 2f) {
+                    // At large text scale the covers form one column; they cannot both
+                    // be fully visible in the same viewport. Verify each after scrolling.
+                    capture("$name-discovery-covers", dark, listOf(CatalogTestTags.categoryMedia("tumi-art-originals")))
+                    grid.performScrollToNode(hasTestTag(CatalogTestTags.category("modern-forms")))
+                    capture("$name-discovery-modern", dark, listOf(CatalogTestTags.categoryMedia("modern-forms")))
+                } else {
+                    capture(
+                        "$name-discovery-covers",
+                        dark,
+                        listOf("tumi-art-originals", "modern-forms").map(CatalogTestTags::categoryMedia)
+                    )
+                }
                 grid.performScrollToNode(hasTestTag(CatalogTestTags.category("tum-urunler")))
                 rule.onNodeWithTag(CatalogTestTags.category("tum-urunler")).assertIsDisplayed()
                 capture("$name-discovery-continuation", dark)
@@ -184,7 +192,10 @@ class TumiArtGalleryEvidenceTest {
                         TumiArtConfiguration.catalog.presentation
                     )
                 }
-                val productMedia = first.products.take(4).map { CatalogTestTags.productMedia(it.handle) }
+                // A 2x single-column viewport contains one artwork; other products are lazy/offscreen.
+                // At normal scale the two-column gallery proves the first four media together.
+                val productMedia = first.products.take(if (scale >= 2f) 1 else 4)
+                    .map { CatalogTestTags.productMedia(it.handle) }
                 capture("$name-listing-top", dark, productMedia)
                 rule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID).performScrollToIndex(1)
                 capture("$name-listing-art", dark, productMedia)
@@ -233,16 +244,31 @@ class TumiArtGalleryEvidenceTest {
 
     private fun capture(name: String, dark: Boolean, mediaTags: List<String> = emptyList()) {
         val expected = if (dark) 0xFF201F1E.toInt() else 0xFFFAF7F2.toInt()
-        rule.waitUntil(15_000) {
-            val frames = mediaTags.flatMap { tag ->
-                rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
-                    .map { it.boundsInWindow }.filter { it.width >= 48 && it.height >= 48 }
+        var latestReadiness = "No screenshot available"
+        try {
+            rule.waitUntil(15_000) {
+                val frameGroups = mediaTags.associateWith { tag ->
+                    rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes()
+                        .map { it.boundsInWindow }.filter { it.width >= 48 && it.height >= 48 }
+                }
+                val image = instrumentation.uiAutomation.takeScreenshot() ?: return@waitUntil false
+                val backgroundMatches = image.getPixel(1, image.height / 2) == expected
+                val painted = frameGroups.mapValues { (_, frames) ->
+                    frames.isNotEmpty() && frames.all { image.hasPaintedPhoto(it) }
+                }
+                latestReadiness = "background=$backgroundMatches, " +
+                    "frames=${frameGroups.mapValues { it.value.map(Rect::toString) }}, painted=$painted"
+                image.recycle()
+                backgroundMatches && painted.values.all { it }
             }
-            val image = instrumentation.uiAutomation.takeScreenshot() ?: return@waitUntil false
-            val matches = image.getPixel(1, image.height / 2) == expected &&
-                (mediaTags.isEmpty() || (frames.isNotEmpty() && frames.all { image.hasPaintedPhoto(it) }))
-            image.recycle()
-            matches
+        } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+            instrumentation.uiAutomation.takeScreenshot()?.let { image ->
+                directory().resolve("failed-$name.png").outputStream().use {
+                    image.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                image.recycle()
+            }
+            throw AssertionError("Gallery screenshot '$name' not ready: $latestReadiness", timeout)
         }
         val image = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         directory().resolve("api${Build.VERSION.SDK_INT}-$name.png").outputStream().use {
@@ -251,9 +277,9 @@ class TumiArtGalleryEvidenceTest {
         image.recycle()
     }
 
-    // These read-only captures use known varied merchant photographs. Check their visible inner
-    // pixels as well as preload success: a different-sized AsyncImage can still be loading.
-    // This is an evidence readiness guard, not a rule rejecting flat artwork in the application.
+    // Read-only captures must distinguish a painted merchant image from an empty surface.
+    // Four coarse color values also admit legitimately flat-color artwork (e.g. Modern Forms);
+    // the gateway/image-loader preload result is checked separately above.
     private fun Bitmap.hasPaintedPhoto(bounds: Rect): Boolean {
         val colors = buildSet {
             for (row in 1..7) {
@@ -264,6 +290,6 @@ class TumiArtGalleryEvidenceTest {
                 }
             }
         }
-        return colors.size >= 8
+        return colors.size >= 4
     }
 }

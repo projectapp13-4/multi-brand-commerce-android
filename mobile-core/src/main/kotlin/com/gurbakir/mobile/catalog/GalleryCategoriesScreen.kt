@@ -42,7 +42,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.gurbakir.foundation.ui.LocalBrandEditorialTypography
 import com.gurbakir.mobile.core.R
@@ -71,9 +73,9 @@ internal fun GalleryCategoriesGrid(
             columns = GridCells.Fixed(galleryColumnCount(maxWidth, fontScale)),
             modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight()
                 .testTag(CatalogTestTags.CATEGORIES_GRID),
-            contentPadding = padding.withDestinationSpacing(horizontal = 16.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            contentPadding = padding.withDestinationSpacing(horizontal = 20.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIntroduction(policy.copy) }
             if (state is CategoriesUiState.Content && sections != null) {
@@ -102,17 +104,24 @@ internal fun GalleryCategoriesGrid(
 
 @Composable
 private fun GalleryIntroduction(copy: CatalogGalleryCopy) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Screen-local editorial scale: retain Newsreader/Karla and system font scaling,
+    // without altering the brand's shared P2 typography or other screens.
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             stringResource(copy.introKicker),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
             color = MaterialTheme.colorScheme.primary
         )
-        Text(stringResource(copy.introTitle), style = LocalBrandEditorialTypography.current.hero)
+        Text(
+            stringResource(copy.introTitle),
+            style = LocalBrandEditorialTypography.current.hero.copy(fontSize = 24.sp, lineHeight = 30.sp),
+            modifier = Modifier.testTag(CatalogTestTags.GALLERY_INTRO_TITLE)
+        )
         Text(
             stringResource(copy.introBody),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 19.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag(CatalogTestTags.GALLERY_INTRO_BODY)
         )
     }
 }
@@ -140,19 +149,20 @@ private fun GalleryFeatured(item: CatalogCategoryItem, stacked: Boolean, onClick
 
 @Composable
 private fun GalleryFeaturedCopy(item: CatalogCategoryItem) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             stringResource(R.string.gallery_featured),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary
         )
-        GalleryLabel(item, MaterialTheme.typography.titleLarge)
+        GalleryLabel(item, MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, lineHeight = 24.sp))
         item.collection.description?.let {
             Text(
                 it,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE) Int.MAX_VALUE else 3
+                maxLines = if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE) Int.MAX_VALUE else 4,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Text(
@@ -173,15 +183,15 @@ private fun GalleryCover(item: CatalogCategoryItem, onClick: () -> Unit) {
                 max = if (LocalDensity.current.fontScale >= LARGE_TEXT_FONT_SCALE) {
                     androidx.compose.ui.unit.Dp.Infinity
                 } else {
-                    152.dp
+                    136.dp
                 }
             ).fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onClick)
                 .testTag(CatalogTestTags.category(item.collection.handle)),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             GalleryMedia(item, Modifier.fillMaxWidth().aspectRatio(.8f))
-            GalleryLabel(item, MaterialTheme.typography.titleMedium)
+            GalleryLabel(item, MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp, lineHeight = 20.sp))
         }
     }
 }
@@ -231,9 +241,12 @@ private fun LazyGridScope.galleryContinuation(
 ) {
     if (sections.children.isNotEmpty() || sections.remaining.isNotEmpty() || sections.allProducts != null) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text(stringResource(copy.continuationTitle), style = LocalBrandEditorialTypography.current.title)
+                Text(
+                    stringResource(copy.continuationTitle),
+                    style = LocalBrandEditorialTypography.current.title.copy(fontSize = 18.sp, lineHeight = 24.sp)
+                )
             }
         }
     }

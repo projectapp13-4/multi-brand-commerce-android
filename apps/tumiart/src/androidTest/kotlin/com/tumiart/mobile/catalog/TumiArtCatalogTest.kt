@@ -177,6 +177,31 @@ class TumiArtCatalogTest {
     @Test fun moderateTextKeepsTwoGalleryCoversAtNarrowWidth() = assertCoverLayout(1.3f)
 
     @Test
+    fun galleryIntroKeepsCompactEditorialHierarchyAndSystemTextScaling() {
+        content {
+            CategoriesScreen(CategoriesUiState.Content(categories(), null), {}, {}, presentation = policy)
+        }
+        val title = rule.onNodeWithTag(CatalogTestTags.GALLERY_INTRO_TITLE, useUnmergedTree = true)
+        val body = rule.onNodeWithTag(CatalogTestTags.GALLERY_INTRO_BODY, useUnmergedTree = true)
+        val titleLayouts = mutableListOf<TextLayoutResult>()
+        val bodyLayouts = mutableListOf<TextLayoutResult>()
+        title.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(titleLayouts) }
+        body.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(bodyLayouts) }
+        assertEquals(24f, titleLayouts.single().layoutInput.style.fontSize.value)
+        assertEquals(13f, bodyLayouts.single().layoutInput.style.fontSize.value)
+        assertCompleteTextLayout(titleLayouts.single())
+        assertCompleteTextLayout(bodyLayouts.single())
+        content(scale = 2f, dark = true) {
+            CategoriesScreen(CategoriesUiState.Content(categories(), null), {}, {}, presentation = policy)
+        }
+        val largeTitleLayouts = mutableListOf<TextLayoutResult>()
+        rule.onNodeWithTag(CatalogTestTags.GALLERY_INTRO_TITLE, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(largeTitleLayouts) }
+        assertTrue(largeTitleLayouts.single().lineCount >= titleLayouts.single().lineCount)
+        assertCompleteTextLayout(largeTitleLayouts.single())
+    }
+
+    @Test
     fun missingFeaturedAndAllProductsKeepOtherMerchantActionsWithoutInventingLinks() {
         content(dark = true) {
             CategoriesScreen(
@@ -370,6 +395,12 @@ class TumiArtCatalogTest {
         }
     }
 
+    private fun assertCompleteTextLayout(layout: TextLayoutResult) {
+        assertTrue(layout.lineCount > 0)
+        assertTrue((0 until layout.lineCount).none(layout::isLineEllipsized))
+        assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
+    }
+
     private fun assertCoverLayout(scale: Float) {
         content(scale = scale) {
             CategoriesScreen(CategoriesUiState.Content(categories(), null), {}, {}, presentation = policy)
@@ -381,6 +412,8 @@ class TumiArtCatalogTest {
         val second = rule.onNodeWithTag(CatalogTestTags.categoryMedia("modern"), useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot
         assertTrue(abs(first.width / first.height - .8f) < .03f)
+        val density = rule.activity.resources.displayMetrics.density
+        assertTrue(first.width / density <= 136.5f)
         assertTrue(abs(first.top - second.top) < 1f && second.left > first.left)
     }
 
