@@ -24,6 +24,11 @@ on 2026-10-16. That record supersedes historical v1 compositions as the screen-d
 without altering Stage 4 sequencing, the P2 local/PR boundary, runtime UI acceptance,
 merchant image licensing or release readiness. The full visual bundle remains ignored local evidence.
 
+The [TumiArt Stage 4 P3 native catalog work](multi-brand/TUMIART-STAGE-4-P3.md)
+starts after P2 PR #48 and its four passing merged-main checks. It applies V3.2 to
+discovery and collection listing through an explicit application opt-in;
+native visual acceptance and PR integration remain separate controls.
+
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
 The second pull request's current implementation and visual evidence are in

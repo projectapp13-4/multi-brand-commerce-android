@@ -6,6 +6,7 @@ package com.gurbakir.mobile.catalog
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -26,6 +28,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +63,8 @@ import com.gurbakir.storefront.CollectionCatalogSort
 fun CollectionScreen(
     state: CollectionUiState,
     actions: CollectionActions,
-    wishlist: WishlistMembershipUiState? = null
+    wishlist: WishlistMembershipUiState? = null,
+    presentation: CatalogPresentation = CatalogPresentation.Standard
 ) {
     DestinationScaffold(
         title = state.title ?: stringResource(R.string.collection_title_loading),
@@ -69,7 +73,19 @@ fun CollectionScreen(
         titleAlignment = DestinationTitleAlignment.CENTER,
         onNavigateUp = actions.onBack
     ) { padding ->
-        CollectionGrid(state = state, contentPadding = padding, actions = actions, wishlist = wishlist)
+        if (presentation is CatalogPresentation.Gallery) {
+            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                CollectionGrid(
+                    state,
+                    padding,
+                    actions,
+                    wishlist,
+                    galleryColumns = GridCells.Fixed(galleryColumnCount(maxWidth, LocalDensity.current.fontScale))
+                )
+            }
+        } else {
+            CollectionGrid(state = state, contentPadding = padding, actions = actions, wishlist = wishlist)
+        }
     }
 }
 
@@ -78,13 +94,17 @@ private fun CollectionGrid(
     state: CollectionUiState,
     contentPadding: PaddingValues,
     actions: CollectionActions,
-    wishlist: WishlistMembershipUiState?
+    wishlist: WishlistMembershipUiState?,
+    galleryColumns: GridCells? = null
 ) {
     val spacing = LocalBrandSpacing.current
+    val gallery = galleryColumns != null
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
+        columns =
+            galleryColumns
+                ?: GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
         modifier =
-            Modifier.fillMaxSize()
+            (if (gallery) Modifier.widthIn(max = 720.dp) else Modifier).fillMaxSize()
                 .consumeDestinationInsets(contentPadding)
                 .testTag(CatalogTestTags.COLLECTION_GRID),
         contentPadding = contentPadding.withDestinationSpacing(),
@@ -92,9 +112,9 @@ private fun CollectionGrid(
         verticalArrangement = Arrangement.spacedBy(spacing.generousDp.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            CollectionControls(state = state, actions = actions)
+            CollectionControls(state = state, actions = actions, gallery = gallery)
         }
-        collectionStateItems(state, actions, wishlist, spacing.normalDp.dp)
+        collectionStateItems(state, actions, wishlist, spacing.normalDp.dp, gallery)
     }
 }
 
@@ -102,7 +122,8 @@ private fun LazyGridScope.collectionStateItems(
     state: CollectionUiState,
     actions: CollectionActions,
     wishlist: WishlistMembershipUiState?,
-    itemSpacing: Dp
+    itemSpacing: Dp,
+    gallery: Boolean
 ) {
     when {
         state.loadingInitial -> item(span = { GridItemSpan(maxLineSpan) }) {
@@ -137,7 +158,8 @@ private fun LazyGridScope.collectionStateItems(
                 state,
                 actions,
                 wishlist,
-                itemSpacing
+                itemSpacing,
+                gallery
             )
     }
 }
@@ -146,14 +168,16 @@ private fun LazyGridScope.loadedProductItems(
     state: CollectionUiState,
     actions: CollectionActions,
     wishlist: WishlistMembershipUiState?,
-    itemSpacing: Dp
+    itemSpacing: Dp,
+    gallery: Boolean
 ) {
     items(state.products, key = { it.id }) { product ->
         CatalogProductTile(
             product,
             onClick = { actions.onOpenProduct(product.id) },
             wishlist =
-                wishlist.productAction(product.id, actions.onSetWishlist)
+                wishlist.productAction(product.id, actions.onSetWishlist),
+            gallery = gallery
         )
     }
     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -180,7 +204,7 @@ private fun LazyGridScope.loadedProductItems(
 }
 
 @Composable
-private fun CollectionControls(state: CollectionUiState, actions: CollectionActions) {
+private fun CollectionControls(state: CollectionUiState, actions: CollectionActions, gallery: Boolean) {
     val spacing = LocalBrandSpacing.current
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -202,7 +226,7 @@ private fun CollectionControls(state: CollectionUiState, actions: CollectionActi
                     .semantics { liveRegion = LiveRegionMode.Polite }
                     .testTag(CatalogTestTags.COLLECTION_RESULT_COUNT)
             )
-            CollectionSortAction(state.sort, actions.onSortSelected)
+            CollectionSortAction(state.sort, actions.onSortSelected, gallery)
         }
         state.productTypeFilter?.let { filter ->
             Text(
@@ -227,7 +251,8 @@ private fun CollectionControls(state: CollectionUiState, actions: CollectionActi
                                 )
                             )
                         },
-                        modifier = Modifier.testTag(CatalogTestTags.filter(value.value))
+                        modifier = Modifier.heightIn(min = if (gallery) 48.dp else 0.dp)
+                            .testTag(CatalogTestTags.filter(value.value))
                     )
                 }
             }
@@ -236,14 +261,26 @@ private fun CollectionControls(state: CollectionUiState, actions: CollectionActi
 }
 
 @Composable
-private fun CollectionSortAction(sort: CollectionCatalogSort, onSelect: (CollectionCatalogSort) -> Unit) {
+private fun CollectionSortAction(
+    sort: CollectionCatalogSort,
+    onSelect: (CollectionCatalogSort) -> Unit,
+    gallery: Boolean
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { expanded = true }, modifier = Modifier.testTag(CatalogTestTags.COLLECTION_SORT)) {
-            Text(
-                stringResource(R.string.collection_sort_label, stringResource(sort.labelResourceId())),
-                style = MaterialTheme.typography.labelMedium
-            )
+        val label = stringResource(R.string.collection_sort_label, stringResource(sort.labelResourceId()))
+        if (gallery) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.heightIn(min = 48.dp).testTag(CatalogTestTags.COLLECTION_SORT)
+            ) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+            }
+        } else {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.testTag(CatalogTestTags.COLLECTION_SORT)) {
+                Text(label, style = MaterialTheme.typography.labelMedium)
+            }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             CollectionCatalogSort.entries.forEach { value ->

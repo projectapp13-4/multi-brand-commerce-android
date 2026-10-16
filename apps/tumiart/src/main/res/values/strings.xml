@@ -15,4 +15,12 @@
     <string name="tumiart_back">Geri</string>
     <string name="tumiart_font_licenses">Yazı tipi lisansları</string>
     <string name="tumiart_close">Kapat</string>
+    <string name="primary_catalog">Keşfet</string>
+    <string name="tumiart_gallery_title">Koleksiyonlar</string>
+    <string name="tumiart_gallery_kicker">TUMIART · SANAT KOLEKSİYONLARI</string>
+    <string name="tumiart_gallery_intro">Her duvara bir hikâye.</string>
+    <string name="tumiart_gallery_body">Usta sanatçıların eserleri ve Tumi Art Studio\'nun özgün koleksiyonları.</string>
+    <string name="tumiart_gallery_continuation">Sanatın başka yolları.</string>
+    <string name="tumiart_gallery_artists">Sanatçı seçkileri</string>
+    <string name="categories_title">Keşfet</string>
 </resources>

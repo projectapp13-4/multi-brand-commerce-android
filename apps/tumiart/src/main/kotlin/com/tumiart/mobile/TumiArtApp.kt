@@ -69,7 +69,8 @@ fun TumiArtApp() {
             openDeletionPage = pages::openDeletionPage
         ),
         legalSupportDestination = { onBack -> TumiArtLegalDestination(onBack, pages) },
-        fontFamilies = TumiArtFontFamilies
+        fontFamilies = TumiArtFontFamilies,
+        catalogPresentation = TumiArtConfiguration.catalog.presentation
     )
 }
 

@@ -19,6 +19,7 @@ fragment CatalogDiscoveryItemFields on MenuItem {
       id
       handle
       title
+      description(truncateAt: 280)
       image {
         ...HomeImageFields
       }

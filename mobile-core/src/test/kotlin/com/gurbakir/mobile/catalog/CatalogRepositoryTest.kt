@@ -57,6 +57,8 @@ class CatalogRepositoryTest {
 
         val loaded = content(result)
         assertEquals(listOf("parent", "child", "survivor"), loaded.items.map { it.collection.handle })
+        assertEquals(listOf(0, 2, 2), loaded.items.map { it.depth })
+        assertEquals(listOf(null, "menu-item-parent", "menu-item-parent"), loaded.items.map { it.parentStableId })
         assertEquals(null, loaded.partialFailure)
     }
 
@@ -77,6 +79,8 @@ class CatalogRepositoryTest {
             val loaded = content(repository(gateway).loadCategories())
 
             assertEquals(listOf("child", "alpha"), loaded.items.map { it.collection.handle })
+            assertEquals(listOf(1, 0), loaded.items.map { it.depth })
+            assertEquals(listOf(null, null), loaded.items.map { it.parentStableId })
             assertEquals(CatalogLoadFailureCategory.CONFIGURATION, loaded.partialFailure?.category)
             assertEquals(false, loaded.partialFailure?.retryable)
         }

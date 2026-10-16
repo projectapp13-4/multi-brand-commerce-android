@@ -35,5 +35,12 @@ data class CatalogDiscoveryCollection(
     val id: String,
     val handle: String,
     val sourceTitle: String,
-    val media: StorefrontMedia
+    val media: StorefrontMedia,
+    val mediaSource: CatalogDiscoveryMediaSource = CatalogDiscoveryMediaSource.PRODUCT,
+    val description: String? = null
 )
+
+enum class CatalogDiscoveryMediaSource {
+    COLLECTION,
+    PRODUCT
+}
