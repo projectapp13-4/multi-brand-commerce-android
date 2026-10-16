@@ -10,7 +10,7 @@ Read the COMPLETE current:
 - [Accepted V3.2 static target](TUMIART-STAGE-4-VISUAL-DESIGN-V3-2.md);
 - [New native design and grouped roadmap](TUMIART-STAGE-4-NATIVE-DESIGN-AND-ROADMAP.md) — owner accepted the overall direction and PR grouping, **not yet the final native type-size result**;
 - [P3 implementation and known gaps](TUMIART-STAGE-4-P3.md);
-- Stage 4 execution baseline, if present: C:\Users\ghstg\Downloads\TUMIART_ASAMA4_UYGULAMA_PLANI_V1_2026-10-15.md. Its historical static-v1 and P2-unmerged statuses are superseded by verified later records where applicable.
+- Stage 4 execution baseline, if separately available to the owner: TUMIART_ASAMA4_UYGULAMA_PLANI_V1_2026-10-15.md (historical local plan, **not distributed in public Git**). Its historical static-v1 and P2-unmerged statuses are superseded by verified later records where applicable. Do not assume a local workstation path exists on another machine.
 
 **Prerequisite:** Verify PR #49 has actually merged, obtain its merge SHA and fresh **merged-main** GitHub Actions results including all required checks. As of the 2026-10-17 planning checkpoint PR #49 was **draft/unmerged** and exact PR-head CI was green. Do not confuse those facts. If not merged, STOP at the P4 code-change boundary, report the precise blocker and do not advance on old origin/main by assumption. Ask the owner only if a different dependency strategy is genuinely desired.
 
