@@ -5,15 +5,23 @@ package com.tumiart.mobile.home
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -34,6 +42,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
@@ -47,7 +56,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.gurbakir.mobile.ProductionAppShell
 import com.gurbakir.mobile.navigation.AccountRoute
 import com.gurbakir.mobile.navigation.CategoriesRoute
+import com.gurbakir.mobile.navigation.CollectionRoute
 import com.gurbakir.mobile.navigation.HomeRoute
+import com.gurbakir.mobile.navigation.ProductRoute
 import com.gurbakir.mobile.navigation.SearchRoute
 import com.gurbakir.mobile.navigation.WishlistRoute
 import com.tumiart.mobile.config.TumiArtConfiguration
@@ -80,6 +91,32 @@ class TumiArtPrimaryNavigationTest {
     @Volatile private var expectedInk = 0
 
     @Volatile private var bodyInk = 0
+
+    @Test
+    fun largeTextRetainsHomeStateAcrossDetailsBackAndRootSwitch() {
+        show("en-US", false, forceLargeText = true, statefulHome = true)
+        rule.onNodeWithTag("fixture-increment").performClick()
+        rule.onNodeWithTag("fixture-scroll").performScrollToIndex(10)
+        for (detail in listOf("collection", "product")) {
+            rule.onNodeWithTag("fixture-open-$detail").performClick()
+            rule.onNodeWithTag("fixture-detail").assertIsDisplayed()
+            rule.onNodeWithTag("fixture-back").performClick()
+            rule.onNodeWithTag("fixture-home-state").assertTextEquals("Count 1; position 10")
+        }
+        rule.onNodeWithTag("production-primary-categories").performClick()
+        rule.onNodeWithTag("production-primary-home").performClick()
+        rule.onNodeWithTag("fixture-home-state").assertTextEquals("Count 1; position 10")
+    }
+
+    @Test
+    fun largeTextCanStartOnSecondaryRouteAndEnterHome() {
+        show("en-US", false, forceLargeText = true, statefulHome = true, secondaryFirst = true)
+        rule.onNodeWithTag("fixture-detail").assertIsDisplayed()
+        rule.onNodeWithTag("fixture-enter-home").performClick()
+        rule.onNodeWithTag("production-primary-caption").assertIsDisplayed()
+        rule.onNodeWithTag("fixture-increment").performClick()
+        rule.onNodeWithTag("fixture-home-state").assertTextEquals("Count 1; position 0")
+    }
 
     @Test
     fun largeTextShellSuppliesDarkForegroundToItsDestination() {
@@ -173,7 +210,13 @@ class TumiArtPrimaryNavigationTest {
         }
     }
 
-    private fun show(locale: String, dark: Boolean, forceLargeText: Boolean = false) {
+    private fun show(
+        locale: String,
+        dark: Boolean,
+        forceLargeText: Boolean = false,
+        statefulHome: Boolean = false,
+        secondaryFirst: Boolean = false
+    ) {
         rule.runOnUiThread {
             rule.activity.applyProbeAppearance(dark)
             val current = ++generation
@@ -187,9 +230,11 @@ class TumiArtPrimaryNavigationTest {
                         TumiArtThemeProbe(dark) {
                             if (forceLargeText) {
                                 val density = LocalDensity.current
-                                CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) { Shell() }
+                                CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                                    Shell(statefulHome, secondaryFirst)
+                                }
                             } else {
-                                Shell()
+                                Shell(statefulHome, secondaryFirst)
                             }
                         }
                     }
@@ -200,7 +245,7 @@ class TumiArtPrimaryNavigationTest {
     }
 
     @Composable
-    private fun Shell() {
+    private fun Shell(statefulHome: Boolean, secondaryFirst: Boolean) {
         val primary = MaterialTheme.colorScheme.primary.toArgb()
         val background = MaterialTheme.colorScheme.background.toArgb()
         val ink = MaterialTheme.colorScheme.onBackground.toArgb()
@@ -219,19 +264,59 @@ class TumiArtPrimaryNavigationTest {
         ) {
             NavHost(
                 navController,
-                startDestination = HomeRoute,
+                startDestination = if (secondaryFirst) ProductRoute("fixture") else HomeRoute,
                 modifier = Modifier.statusBarsPadding().padding(16.dp)
             ) {
                 composable<HomeRoute> {
                     val inheritedInk = LocalContentColor.current.toArgb()
                     SideEffect { bodyInk = inheritedInk }
-                    Text("Home fixture", Modifier.testTag("fixture-root-home"))
+                    if (statefulHome) {
+                        var count by rememberSaveable { mutableIntStateOf(0) }
+                        val scroll = rememberLazyListState()
+                        Column {
+                            Text(
+                                "Count $count; position ${scroll.firstVisibleItemIndex}",
+                                Modifier.testTag("fixture-home-state")
+                            )
+                            TextButton({ count++ }, Modifier.testTag("fixture-increment")) { Text("Increment") }
+                            TextButton({
+                                navController.navigate(CollectionRoute("fixture"))
+                            }, Modifier.testTag("fixture-open-collection")) {
+                                Text("Collection")
+                            }
+                            TextButton({
+                                navController.navigate(ProductRoute("fixture"))
+                            }, Modifier.testTag("fixture-open-product")) {
+                                Text("Artwork")
+                            }
+                            LazyColumn(state = scroll, modifier = Modifier.testTag("fixture-scroll")) {
+                                items(30) { Text("Owned fixture $it", Modifier.padding(16.dp)) }
+                            }
+                        }
+                    } else {
+                        Text("Home fixture", Modifier.testTag("fixture-root-home"))
+                    }
                 }
                 composable<CategoriesRoute> { Text("Catalog fixture", Modifier.testTag("fixture-root-categories")) }
                 composable<SearchRoute> { Text("Search fixture", Modifier.testTag("fixture-root-search")) }
                 composable<WishlistRoute> { Text("Wishlist fixture", Modifier.testTag("fixture-root-wishlist")) }
                 composable<AccountRoute> { Text("Account fixture", Modifier.testTag("fixture-root-account")) }
+                composable<CollectionRoute> {
+                    Detail({ navController.popBackStack() }, { navController.navigate(HomeRoute) })
+                }
+                composable<ProductRoute> {
+                    Detail({ navController.popBackStack() }, { navController.navigate(HomeRoute) })
+                }
             }
+        }
+    }
+
+    @Composable
+    private fun Detail(back: () -> Unit, home: () -> Unit) {
+        Column(Modifier.testTag("fixture-detail")) {
+            Text("Secondary fixture")
+            TextButton(back, Modifier.testTag("fixture-back")) { Text("Back") }
+            TextButton(home, Modifier.testTag("fixture-enter-home")) { Text("Home") }
         }
     }
 }

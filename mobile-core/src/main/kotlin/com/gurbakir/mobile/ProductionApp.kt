@@ -268,38 +268,47 @@ fun ProductionAppShell(
     val useCaption = primaryNavigationPresentation == PrimaryNavigationPresentation.ADAPTIVE_CAPTION &&
         !alwaysShowPrimaryLabels && defaultLayoutType == NavigationSuiteType.NavigationBar
     val navigationItemColors = commerceNavigationItemColors()
-    if (useCaption && primaryDestination != null) {
+    // Keep the NavHost composition owner stable across primary and secondary destinations.
+    if (useCaption) {
         Surface(
             modifier = modifier.testTag(ProductionTestTags.PRIMARY_NAVIGATION),
             color = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground
         ) {
             NavigationSuiteScaffoldLayout(
-                layoutType = NavigationSuiteType.NavigationBar,
+                layoutType = if (primaryDestination ==
+                    null
+                ) {
+                    NavigationSuiteType.None
+                } else {
+                    NavigationSuiteType.NavigationBar
+                },
                 navigationSuite = {
-                    Column {
-                        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-                            Text(
-                                stringResource(primaryDestination.presentation().accessibilityLabelResourceId),
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(
-                                        horizontal = LocalBrandSpacing.current.normalDp.dp,
-                                        vertical = LocalBrandSpacing.current.compactDp.dp
-                                    )
-                                    .testTag("production-primary-caption")
-                            )
-                        }
-                        NavigationSuite(layoutType = NavigationSuiteType.NavigationBar) {
-                            ProductionPrimaryNavigation(
-                                navController,
-                                currentDestination,
-                                applicationComposition,
-                                alwaysShowLabels = false,
-                                showLabels = false,
-                                colors = navigationItemColors
-                            )
+                    if (primaryDestination != null) {
+                        Column {
+                            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                                Text(
+                                    stringResource(primaryDestination.presentation().accessibilityLabelResourceId),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(
+                                            horizontal = LocalBrandSpacing.current.normalDp.dp,
+                                            vertical = LocalBrandSpacing.current.compactDp.dp
+                                        )
+                                        .testTag("production-primary-caption")
+                                )
+                            }
+                            NavigationSuite(layoutType = NavigationSuiteType.NavigationBar) {
+                                ProductionPrimaryNavigation(
+                                    navController,
+                                    currentDestination,
+                                    applicationComposition,
+                                    alwaysShowLabels = false,
+                                    showLabels = false,
+                                    colors = navigationItemColors
+                                )
+                            }
                         }
                     }
                 }
