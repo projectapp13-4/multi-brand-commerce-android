@@ -103,3 +103,7 @@ Native visual acceptance is **with the owner**, not inferred from V3.2 browser p
 Current reviewed Kotlin/Compose sources, V3.2 acceptance, actual P3 API30 captures, the Stage 4 plan, and read-only connected TumiArt Admin product examples support this roadmap. Loaded frontend-design and frontend-design-premium design skills inform distinctive brand direction and system consistency, but **their web-specific UI rules do not override native Android ownership**. Official Android Material3, scalable-content/accessibility and Shopify Storefront ProductVariant docs define relevant platform/provider behavior.
 
 This file records **design and planning acceptance only**. A Codex task must still independently confirm the mutable repository state and prove tests/captures on its own exact source SHA.
+
+## 2026-10-17 P4 continuation
+
+P3 prerequisite is verified closed: PR #49 merged as `c34acba633eef2ae6f939c123997c912fa90a7ac`; merged-main run `38988797933` passed all four required jobs. See the [P4 implementation and native evidence record](TUMIART-STAGE-4-P4.md) and [native role mapping](TUMIART-NATIVE-DESIGN-CONTEXT.md). Provisional PDP type roles were evaluated in native Android fixtures; source tokens remain canonical. Owner P4 visual/commerce acceptance is still required. P5 and conditional later work have not begun.

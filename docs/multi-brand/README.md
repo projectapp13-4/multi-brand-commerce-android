@@ -218,3 +218,7 @@ onboarding, signing, publication and P3-16 remain separately governed; remote
 account deletion remains unverified.
 
 The repository-wide authority map remains [docs/README.md](../README.md).
+
+### TumiArt Stage 4 P4 candidate
+
+[P4 implementation and evidence](TUMIART-STAGE-4-P4.md) records the TumiArt-only Gallery artwork PDP and product typography foundation. P3 PR #49 merged as `c34acba633eef2ae6f939c123997c912fa90a7ac`, with four successful exact merged-main checks in run `38988797933`; earlier unmerged checkpoints are historical. P4 owner native acceptance and subsequent integration remain open. P5 is not started.
