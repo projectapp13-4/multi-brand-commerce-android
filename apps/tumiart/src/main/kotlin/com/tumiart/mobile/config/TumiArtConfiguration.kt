@@ -19,6 +19,8 @@ import com.gurbakir.mobile.address.AddressPostalCodePolicy
 import com.gurbakir.mobile.address.AddressTerritoryPolicy
 import com.gurbakir.mobile.address.PostalCodeInputMode
 import com.gurbakir.mobile.catalog.CatalogConfiguration
+import com.gurbakir.mobile.catalog.CatalogGalleryCopy
+import com.gurbakir.mobile.catalog.CatalogPresentation
 import com.gurbakir.mobile.home.HomeConfiguration
 import com.gurbakir.mobile.home.HomeFeaturedProductConfiguration
 import com.gurbakir.mobile.home.HomePackagedFallback
@@ -155,7 +157,21 @@ internal object TumiArtConfiguration {
                 )
         )
 
-    val catalog: CatalogConfiguration = CatalogConfiguration(BuildConfig.CATALOG_MENU_HANDLE)
+    val catalog: CatalogConfiguration = CatalogConfiguration(
+        BuildConfig.CATALOG_MENU_HANDLE,
+        CatalogPresentation.Gallery(
+            featuredHandle = "ustalar",
+            allProductsHandle = "tum-urunler",
+            copy = CatalogGalleryCopy(
+                screenTitle = R.string.tumiart_gallery_title,
+                introKicker = R.string.tumiart_gallery_kicker,
+                introTitle = R.string.tumiart_gallery_intro,
+                introBody = R.string.tumiart_gallery_body,
+                continuationTitle = R.string.tumiart_gallery_continuation,
+                childrenTitle = R.string.tumiart_gallery_artists
+            )
+        )
+    )
 
     val addressPolicy: AddressTerritoryPolicy =
         AddressTerritoryPolicy(

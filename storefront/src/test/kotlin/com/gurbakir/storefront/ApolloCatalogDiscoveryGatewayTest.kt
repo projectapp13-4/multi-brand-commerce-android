@@ -100,9 +100,12 @@ class ApolloCatalogDiscoveryGatewayTest {
         val parentCollection = (parent.target as CatalogDiscoveryTarget.Collection).collection
         assertEquals("parent", parentCollection.handle)
         assertEquals(URI("https://cdn.shopify.com/s/files/1/product-parent.jpg"), parentCollection.media.uri)
+        assertEquals(CatalogDiscoveryMediaSource.PRODUCT, parentCollection.mediaSource)
+        assertEquals("Actual merchant description", parentCollection.description)
         val child = parent.children.single().children.single()
         assertEquals("Child label", child.title)
         assertEquals(URI("https://cdn.shopify.com/s/files/1/collection-child.jpg"), child.collection().media.uri)
+        assertEquals(CatalogDiscoveryMediaSource.COLLECTION, child.collection().mediaSource)
 
         val requestBody = server.takeRequest().body.readUtf8()
         assertTrue(requestBody.contains("CatalogDiscoveryMenu"))
@@ -401,6 +404,7 @@ class ApolloCatalogDiscoveryGatewayTest {
               "id":"$collectionId",
               "handle":"$handle",
               "title":"$collectionTitle",
+              "description":"Actual merchant description",
               "image":${image ?: "null"},
               "products":{"nodes":$productNodes}
             }

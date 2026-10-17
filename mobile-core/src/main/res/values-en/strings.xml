@@ -460,4 +460,7 @@
     <string name="update_policy_defer">Later</string>
     <string name="update_policy_dismiss">Dismiss</string>
     <string name="wishlist_product_checking">Checking current product details. This product remains in your list on this device.</string>
+    <string name="gallery_featured">FEATURED COLLECTION</string>
+    <string name="gallery_discover">Discover ↗</string>
+    <string name="gallery_image_unavailable">Image unavailable</string>
 </resources>

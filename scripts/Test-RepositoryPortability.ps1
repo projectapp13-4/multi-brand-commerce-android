@@ -630,7 +630,9 @@ function Test-CatalogDiscoveryOwnership {
         [Parameter(Mandatory)] [string]$HomeResourceText
     )
 
-    $catalogContract = $CatalogConfigurationText -match '(?s)\bdata\s+class\s+CatalogConfiguration\s*\(\s*val\s+menuHandle\s*:\s*String\s*\)' -and
+    # Preserve the original Menu selector contract while allowing only an explicitly
+    # opt-in gallery policy; default must remain Standard for every other brand.
+    $catalogContract = $CatalogConfigurationText -match '(?s)\bdata\s+class\s+CatalogConfiguration\s*\(\s*val\s+menuHandle\s*:\s*String\s*(?:,\s*val\s+presentation\s*:\s*CatalogPresentation\s*=\s*CatalogPresentation\.Standard\s*)?\)' -and
         $CatalogConfigurationText -notmatch '\bCatalogCategorySource\b|\bcategories\s*[:=]'
     $appSelector = $AppCatalogConfigurationText -match '(?s)\bval\s+value\s*=\s*CatalogConfiguration\s*\(\s*menuHandle\s*=\s*BuildConfig\.CATALOG_MENU_HANDLE\b' -and
         $AppCatalogConfigurationText -notmatch '\bCatalogCategorySource\b|\bcategories\s*[:=]'
@@ -922,6 +924,17 @@ HomeCollectionSource("HOME_RANGE_SPECIAL", "ozel-urunlerimiz", R.string.home_col
         }
         Add-SelfTestResult 'Catalog discovery ownership contract accepts the approved fixture' (
             Test-CatalogDiscoveryOwnership @validCatalogOwnership
+        )
+        $galleryOptIn = $validCatalogOwnership.Clone()
+        $galleryOptIn.CatalogConfigurationText =
+            'data class CatalogConfiguration(val menuHandle: String, val presentation: CatalogPresentation = CatalogPresentation.Standard)'
+        Add-SelfTestResult 'catalog gallery opt-in keeps the legacy Standard default' (
+            Test-CatalogDiscoveryOwnership @galleryOptIn
+        )
+        $galleryOptIn.CatalogConfigurationText =
+            'data class CatalogConfiguration(val menuHandle: String, val presentation: CatalogPresentation = CatalogPresentation.Gallery)'
+        Add-SelfTestResult 'catalog gallery cannot become the cross-brand default' (
+            -not (Test-CatalogDiscoveryOwnership @galleryOptIn)
         )
         foreach ($catalogMutation in @(
             [pscustomobject]@{

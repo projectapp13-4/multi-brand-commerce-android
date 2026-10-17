@@ -124,7 +124,16 @@ private fun CatalogDiscoveryItemFields.OnCollection.toAvailableDiscoveryTarget(
                 id = id,
                 handle = handle,
                 sourceTitle = title,
-                media = it
+                media = it,
+                mediaSource = if (image ==
+                    null
+                ) {
+                    CatalogDiscoveryMediaSource.PRODUCT
+                } else {
+                    CatalogDiscoveryMediaSource.COLLECTION
+                },
+                description = description.trim().replace(DESCRIPTION_WHITESPACE, " ").take(MAX_DESCRIPTION_LENGTH)
+                    .takeIf { text -> text.isNotBlank() && text.none(Char::isISOControl) }
             )
         )
     } ?: CatalogDiscoveryTarget.UnavailableCollection
@@ -139,3 +148,5 @@ internal fun catalogDiscoveryConfigurationFailure(key: String): StorefrontResult
     StorefrontResult.Failure(StorefrontFailure.Configuration(setOf(key)))
 
 private const val MAX_CATALOG_IDENTITY_LENGTH = 255
+private const val MAX_DESCRIPTION_LENGTH = 280
+private val DESCRIPTION_WHITESPACE = Regex("\\s+")

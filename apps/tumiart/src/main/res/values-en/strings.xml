@@ -15,4 +15,12 @@
     <string name="tumiart_back">Back</string>
     <string name="tumiart_font_licenses">Font licenses</string>
     <string name="tumiart_close">Close</string>
+    <string name="primary_catalog">Discover</string>
+    <string name="tumiart_gallery_title">Collections</string>
+    <string name="tumiart_gallery_kicker">TUMIART · ART COLLECTIONS</string>
+    <string name="tumiart_gallery_intro">A story for every wall.</string>
+    <string name="tumiart_gallery_body">Works by master artists and original collections from Tumi Art Studio.</string>
+    <string name="tumiart_gallery_continuation">Other paths through art.</string>
+    <string name="tumiart_gallery_artists">Artist selections</string>
+    <string name="categories_title">Discover</string>
 </resources>

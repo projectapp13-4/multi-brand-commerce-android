@@ -53,14 +53,25 @@ import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.ui.withDestinationSpacing
 
 @Composable
-fun CategoriesScreen(state: CategoriesUiState, onRetry: () -> Unit, onOpenCollection: (String) -> Unit) {
+fun CategoriesScreen(
+    state: CategoriesUiState,
+    onRetry: () -> Unit,
+    onOpenCollection: (String) -> Unit,
+    presentation: CatalogPresentation = CatalogPresentation.Standard
+) {
     DestinationScaffold(
-        title = stringResource(R.string.categories_title),
+        title = stringResource(
+            (presentation as? CatalogPresentation.Gallery)?.copy?.screenTitle ?: R.string.categories_title
+        ),
         level = DestinationLevel.PRIMARY,
         modifier = Modifier.testTag(CatalogTestTags.CATEGORIES_ROOT),
         titleAlignment = DestinationTitleAlignment.CENTER
     ) { padding ->
-        CategoriesGrid(state, padding, onRetry, onOpenCollection)
+        if (presentation is CatalogPresentation.Gallery) {
+            GalleryCategoriesGrid(state, padding, onRetry, onOpenCollection, presentation)
+        } else {
+            CategoriesGrid(state, padding, onRetry, onOpenCollection)
+        }
     }
 }
 
@@ -97,7 +108,7 @@ private fun CategoriesGrid(
     }
 }
 
-private fun LazyGridScope.categoryStateItems(
+internal fun LazyGridScope.categoryStateItems(
     state: CategoriesUiState,
     onRetry: () -> Unit,
     onOpenCollection: (String) -> Unit
@@ -196,7 +207,7 @@ private val CATEGORY_TWO_COLUMN_WIDTH = 600.dp
 private val CATEGORY_GRID_MAX_WIDTH = 720.dp
 private val CATEGORY_LABEL_MIN_HEIGHT = 48.dp
 
-private fun LazyGridScope.categoryRefreshItems(state: CategoriesUiState.Content, onRetry: () -> Unit) {
+internal fun LazyGridScope.categoryRefreshItems(state: CategoriesUiState.Content, onRetry: () -> Unit) {
     if (state.refreshing) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             LinearProgressIndicator(Modifier.fillMaxWidth())

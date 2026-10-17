@@ -84,6 +84,7 @@ import com.gurbakir.mobile.address.AddressListEffect
 import com.gurbakir.mobile.address.AddressListScreen
 import com.gurbakir.mobile.address.AddressListViewModel
 import com.gurbakir.mobile.cart.CartViewModel
+import com.gurbakir.mobile.catalog.CatalogPresentation
 import com.gurbakir.mobile.catalog.CategoriesScreen
 import com.gurbakir.mobile.catalog.CategoriesViewModel
 import com.gurbakir.mobile.catalog.CollectionActions
@@ -153,7 +154,8 @@ fun MobileCoreApp(
     customerAccountBindings: CustomerAccountFeatureBindings?,
     legalSupportDestination: @Composable (onBack: () -> Unit) -> Unit,
     navController: NavHostController = rememberNavController(),
-    fontFamilies: BrandFontFamilies = BrandFontFamilies()
+    fontFamilies: BrandFontFamilies = BrandFontFamilies(),
+    catalogPresentation: CatalogPresentation = CatalogPresentation.Standard
 ) {
     validateCustomerAccountBindings(applicationComposition, customerAccountBindings)
     val darkTheme = !LocalInspectionMode.current && isSystemInDarkTheme()
@@ -184,8 +186,10 @@ fun MobileCoreApp(
                 content =
                     ProductionDestinationContent(
                         home = { HomeDestination(navController, brand, applicationComposition) },
-                        categories = { CategoriesDestination(navController) },
-                        collection = { route -> CollectionDestination(navController, route, applicationComposition) },
+                        categories = { CategoriesDestination(navController, catalogPresentation) },
+                        collection = { route ->
+                            CollectionDestination(navController, route, applicationComposition, catalogPresentation)
+                        },
                         search = { SearchDestination(navController, applicationComposition) },
                         wishlist = { WishlistDestination(navController, applicationComposition) },
                         account = { AccountDestination(navController, applicationComposition) },
@@ -439,13 +443,14 @@ private fun HomeDestination(
 }
 
 @Composable
-private fun CategoriesDestination(navController: NavHostController) {
+private fun CategoriesDestination(navController: NavHostController, presentation: CatalogPresentation) {
     val viewModel: CategoriesViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     CategoriesScreen(
         state = state,
         onRetry = viewModel::retry,
-        onOpenCollection = { handle -> navController.navigate(CollectionRoute(handle)) }
+        onOpenCollection = { handle -> navController.navigate(CollectionRoute(handle)) },
+        presentation = presentation
     )
 }
 
@@ -453,7 +458,8 @@ private fun CategoriesDestination(navController: NavHostController) {
 private fun CollectionDestination(
     navController: NavHostController,
     route: CollectionRoute,
-    applicationComposition: ApplicationComposition
+    applicationComposition: ApplicationComposition,
+    presentation: CatalogPresentation
 ) {
     val viewModel: CollectionViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -478,7 +484,8 @@ private fun CollectionDestination(
                 onOpenProduct = navController::navigateProduct,
                 onSetWishlist = wishlist?.onSetSaved
             ),
-        wishlist = wishlist?.state
+        wishlist = wishlist?.state,
+        presentation = presentation
     )
 }
 

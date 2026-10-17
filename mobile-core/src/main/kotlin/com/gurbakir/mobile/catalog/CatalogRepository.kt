@@ -71,7 +71,9 @@ constructor(
 private fun CatalogDiscoveryMenu.toCatalogCategoryLoad(): CatalogCategoryLoad = if (!items.haveValidCatalogShape()) {
     catalogConfigurationError()
 } else {
-    CatalogDiscoveryProjection().also { projection -> items.forEach(projection::visit) }.toCategoryLoad()
+    CatalogDiscoveryProjection().also { projection ->
+        items.forEach { projection.visit(it, depth = 0, parentStableId = null) }
+    }.toCategoryLoad()
 }
 
 private fun CatalogDiscoveryProjection.toCategoryLoad(): CatalogCategoryLoad {
@@ -114,7 +116,8 @@ private class CatalogDiscoveryProjection {
     private val acceptedHandleByCollectionId = mutableMapOf<String, String>()
     private val acceptedCollectionIdByHandle = mutableMapOf<String, String>()
 
-    fun visit(node: CatalogDiscoveryNode) {
+    fun visit(node: CatalogDiscoveryNode, depth: Int, parentStableId: String?) {
+        val previousSize = items.size
         val validItemId = node.id.isValidCatalogIdentity()
         val firstItemOccurrence = validItemId && seenItemIds.add(node.id)
         if (!validItemId || !firstItemOccurrence) {
@@ -122,7 +125,13 @@ private class CatalogDiscoveryProjection {
         } else {
             projectAction(node)
         }
-        node.children.forEach(::visit)
+        // Annotate only the action accepted by the existing validation/deduplication path.
+        // An unusable ancestor cannot become a headline or suppress an eligible descendant.
+        val acceptedParent = items.getOrNull(previousSize)?.let { accepted ->
+            items[previousSize] = accepted.copy(depth = depth, parentStableId = parentStableId)
+            accepted.stableId
+        } ?: parentStableId
+        node.children.forEach { visit(it, depth + 1, acceptedParent) }
     }
 
     private fun projectAction(node: CatalogDiscoveryNode) {
@@ -196,7 +205,14 @@ private fun catalogConfigurationError(): CatalogCategoryLoad.Error = CatalogCate
 internal const val MAX_ACCEPTED_CATEGORIES = 24
 private const val MAX_CATALOG_TEXT_LENGTH = 255
 
-data class CatalogCategoryItem(val stableId: String, val title: String, val collection: CatalogDiscoveryCollection)
+/** Raw menu depth (root = 0) and nearest accepted ancestor; unavailable ancestors do not promote roots. */
+data class CatalogCategoryItem(
+    val stableId: String,
+    val title: String,
+    val collection: CatalogDiscoveryCollection,
+    val depth: Int = 0,
+    val parentStableId: String? = null
+)
 
 sealed interface CatalogCategoryLoad {
     data class Content(val items: List<CatalogCategoryItem>, val partialFailure: CatalogLoadFailure?) :
