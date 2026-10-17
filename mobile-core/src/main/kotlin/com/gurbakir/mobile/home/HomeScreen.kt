@@ -74,7 +74,8 @@ fun HomeScreen(
     brandDisplayName: String,
     actions: HomeActions,
     wishlist: WishlistMembershipUiState? = null,
-    cartQuantity: Int = 0
+    cartQuantity: Int = 0,
+    screenPresentation: HomeScreenPresentation = HomeScreenPresentation.Standard
 ) {
     val spacing = LocalBrandSpacing.current
     DestinationScaffold(
@@ -126,7 +127,7 @@ fun HomeScreen(
                 contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
                 verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
             ) {
-                homeStateItems(state, actions, wishlist)
+                homeStateItems(state, actions, wishlist, screenPresentation)
             }
         }
     }
@@ -135,7 +136,8 @@ fun HomeScreen(
 private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
     state: HomeUiState,
     actions: HomeActions,
-    wishlist: WishlistMembershipUiState?
+    wishlist: WishlistMembershipUiState?,
+    screenPresentation: HomeScreenPresentation
 ) {
     val presentation = state.presentation
     when {
@@ -166,18 +168,30 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
 
                 else -> presentation.renderedSections.forEach { section ->
                     when (section) {
-                        is HomeRenderedSection.CollectionGrid -> collectionGridSection(
-                            section,
-                            actions.openCollection,
-                            actions.openCategories
-                        )
+                        is HomeRenderedSection.CollectionGrid -> {
+                            if (screenPresentation is HomeScreenPresentation.Gallery) {
+                                galleryCollectionSection(section, actions)
+                            } else {
+                                collectionGridSection(
+                                    section,
+                                    actions.openCollection,
+                                    actions.openCategories
+                                )
+                            }
+                        }
 
-                        is HomeRenderedSection.FeaturedProduct -> featuredProductSection(
-                            section,
-                            actions.openProduct,
-                            actions.onSetWishlist,
-                            wishlist
-                        )
+                        is HomeRenderedSection.FeaturedProduct -> {
+                            if (screenPresentation is HomeScreenPresentation.Gallery) {
+                                galleryFeaturedSection(section, actions, wishlist)
+                            } else {
+                                featuredProductSection(
+                                    section,
+                                    actions.openProduct,
+                                    actions.onSetWishlist,
+                                    wishlist
+                                )
+                            }
+                        }
 
                         is HomeRenderedSection.Image -> imageSection(section, actions, actions.playbackCoordinator)
 
@@ -188,6 +202,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
                         }
                     }
                 }
+            }
+            if (screenPresentation is HomeScreenPresentation.Gallery &&
+                presentation.resourceStatus == HomeResourceStatus.PARTIAL && state.failure == null
+            ) {
+                item { GalleryHomePartialNotice() }
             }
             state.failure?.let { failure ->
                 item {

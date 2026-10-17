@@ -93,6 +93,7 @@ import com.gurbakir.mobile.catalog.CollectionViewModel
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.home.HomeActions
 import com.gurbakir.mobile.home.HomeScreen
+import com.gurbakir.mobile.home.HomeScreenPresentation
 import com.gurbakir.mobile.home.HomeViewModel
 import com.gurbakir.mobile.navigation.AccountDeletionRoute
 import com.gurbakir.mobile.navigation.AccountRoute
@@ -157,7 +158,8 @@ fun MobileCoreApp(
     navController: NavHostController = rememberNavController(),
     fontFamilies: BrandFontFamilies = BrandFontFamilies(),
     catalogPresentation: CatalogPresentation = CatalogPresentation.Standard,
-    productPresentation: ProductDetailPresentation = ProductDetailPresentation.Standard
+    productPresentation: ProductDetailPresentation = ProductDetailPresentation.Standard,
+    homePresentation: HomeScreenPresentation = HomeScreenPresentation.Standard
 ) {
     validateCustomerAccountBindings(applicationComposition, customerAccountBindings)
     val darkTheme = !LocalInspectionMode.current && isSystemInDarkTheme()
@@ -187,7 +189,7 @@ fun MobileCoreApp(
                 modifier = Modifier.fillMaxSize(),
                 content =
                     ProductionDestinationContent(
-                        home = { HomeDestination(navController, brand, applicationComposition) },
+                        home = { HomeDestination(navController, brand, applicationComposition, homePresentation) },
                         categories = { CategoriesDestination(navController, catalogPresentation) },
                         collection = { route ->
                             CollectionDestination(navController, route, applicationComposition, catalogPresentation)
@@ -400,7 +402,8 @@ internal fun NavHostController.navigatePrimary(
 private fun HomeDestination(
     navController: NavHostController,
     brand: BrandConfiguration,
-    applicationComposition: ApplicationComposition
+    applicationComposition: ApplicationComposition,
+    homePresentation: HomeScreenPresentation
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -442,7 +445,8 @@ private fun HomeDestination(
                 playbackCoordinator = viewModel.playbackCoordinator
             ),
         wishlist = wishlist?.state,
-        cartQuantity = cartState.badgeQuantity
+        cartQuantity = cartState.badgeQuantity,
+        screenPresentation = homePresentation
     )
 }
 
