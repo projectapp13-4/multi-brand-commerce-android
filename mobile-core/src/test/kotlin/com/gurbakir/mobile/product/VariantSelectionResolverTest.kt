@@ -8,6 +8,48 @@ import org.junit.jupiter.api.Test
 
 class VariantSelectionResolverTest {
     @Test
+    fun `merchant option names and value order survive selection with exact currency and quantity`() {
+        val original = productFixture()
+        val product = original.copy(
+            options = original.options.map { option ->
+                option.copy(name = if (option.name == "Size") "Baskı ölçüsü" else "Malzeme")
+            },
+            variants = original.variants.map { variant ->
+                variant.copy(
+                    price = variant.price.copy(currencyCode = "EUR"),
+                    selectedOptions = variant.selectedOptions.map { option ->
+                        option.copy(name = if (option.name == "Size") "Baskı ölçüsü" else "Malzeme")
+                    }
+                )
+            }
+        )
+        val partial = ProductDetailUiState(product, mapOf("Malzeme" to "Red"))
+        assertNull(partial.purchaseIntent)
+        assertEquals(listOf("Baskı ölçüsü", "Malzeme"), partial.displayOptions.map { it.name })
+        assertEquals(listOf("Small", "Large"), partial.valueStates(product.options.first()).map { it.name })
+        val selected = partial.copy(selectedOptions = partial.selectedOptions + ("Baskı ölçüsü" to "Large"))
+        assertEquals(ProductPurchaseIntent("gid://shopify/ProductVariant/13", 1), selected.purchaseIntent)
+        assertEquals("EUR", selected.selectedVariant?.price?.currencyCode)
+        assertEquals("120.00", selected.selectedVariant?.price?.amount?.toPlainString())
+        assertTrue(requireNotNull(selected.selectedVariant).currentlyNotInStock)
+    }
+
+    @Test
+    fun `one real merchant option still requires an explicit value and resolves only its exact variant`() {
+        val original = productFixture()
+        val product = original.copy(
+            options = original.options.take(1),
+            variants = original.variants.filter { it.availableForSale }.map { variant ->
+                variant.copy(selectedOptions = variant.selectedOptions.take(1))
+            }
+        )
+        assertNull(ProductDetailUiState(product).purchaseIntent)
+        val selected = ProductDetailUiState(product, mapOf("Size" to "Large"))
+        assertEquals(ProductPurchaseIntent("gid://shopify/ProductVariant/13", 1), selected.purchaseIntent)
+        assertEquals(1, selected.displayOptions.size)
+    }
+
+    @Test
     fun `every existing combination resolves exactly and missing combination never resolves`() {
         val product = productFixture()
 

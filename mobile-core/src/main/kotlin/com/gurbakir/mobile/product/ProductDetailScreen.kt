@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -54,6 +55,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -65,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.gurbakir.foundation.ui.LocalBrandProductTypography
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.catalog.CatalogError
 import com.gurbakir.mobile.core.R
@@ -89,7 +92,19 @@ import com.gurbakir.storefront.StorefrontProductOption
 fun ProductDetailScreen(
     state: ProductDetailUiState,
     actions: ProductDetailActions,
-    wishlist: WishlistMembershipUiState? = null
+    wishlist: WishlistMembershipUiState? = null,
+    presentation: ProductDetailPresentation = ProductDetailPresentation.Standard
+) {
+    CompositionLocalProvider(LocalProductDetailPresentation provides presentation) {
+        ProductDetailDestination(state, actions, wishlist)
+    }
+}
+
+@Composable
+private fun ProductDetailDestination(
+    state: ProductDetailUiState,
+    actions: ProductDetailActions,
+    wishlist: WishlistMembershipUiState?
 ) {
     val mediaOpenerFocusRequester = remember { FocusRequester() }
     var restoreMediaFocus by remember { mutableStateOf(false) }
@@ -101,13 +116,18 @@ fun ProductDetailScreen(
         }
     }
     BoxWithConstraints {
-        val expandedLayout = isExpandedProductLayout(maxWidth)
+        val gallery = LocalProductDetailPresentation.current as? ProductDetailPresentation.Gallery
+        val expandedLayout = if (gallery != null) {
+            isGalleryProductLayout(maxWidth, LocalDensity.current.fontScale)
+        } else {
+            isExpandedProductLayout(maxWidth)
+        }
         DestinationScaffold(
-            title = stringResource(R.string.product_detail_title),
+            title = stringResource(gallery?.titleResource ?: R.string.product_detail_title),
             level = DestinationLevel.SECONDARY,
             modifier = Modifier.fillMaxSize().testTag(ProductDetailTestTags.ROOT),
             titleAlignment = DestinationTitleAlignment.CENTER,
-            topBar = DestinationTopBar.ACTIONS,
+            topBar = if (gallery != null) DestinationTopBar.TITLE else DestinationTopBar.ACTIONS,
             onNavigateUp = actions.onBack,
             actions = {
                 state.product?.let { product ->
@@ -134,7 +154,7 @@ fun ProductDetailScreen(
             )
         }
         if (state.mediaViewerOpen) {
-            ProductMediaViewer(state, actions)
+            if (gallery != null) ArtworkMediaViewer(state, actions) else ProductMediaViewer(state, actions)
         }
     }
 }
@@ -230,7 +250,11 @@ private fun ExpandedProductDetailContent(
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                         Text(
                             text = product.title,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = if (isGalleryProductPresentation()) {
+                                LocalBrandProductTypography.current.title
+                            } else {
+                                MaterialTheme.typography.titleLarge
+                            },
                             modifier =
                                 Modifier.weight(1f)
                                     .semantics { heading() }
@@ -248,6 +272,11 @@ private fun ExpandedProductDetailContent(
                         unavailable = state.hasUnavailableSelection,
                         emphasis = PriceBlockEmphasis.DETAIL,
                         priceTestTag = ProductDetailTestTags.PRICE,
+                        priceTextStyle = if (isGalleryProductPresentation()) {
+                            LocalBrandProductTypography.current.price
+                        } else {
+                            null
+                        },
                         availabilityTestTag = ProductDetailTestTags.AVAILABILITY
                     )
                 }
@@ -277,6 +306,11 @@ private fun ExpandedProductDetailContent(
                             )
                             Text(
                                 product.description,
+                                style = if (isGalleryProductPresentation()) {
+                                    LocalBrandProductTypography.current.body
+                                } else {
+                                    MaterialTheme.typography.bodyLarge
+                                },
                                 modifier = Modifier.testTag(ProductDetailTestTags.DESCRIPTION)
                             )
                         }
@@ -322,7 +356,11 @@ private fun LazyListScope.productContent(
         ) {
             Text(
                 text = product.title,
-                style = MaterialTheme.typography.titleLarge,
+                style = if (isGalleryProductPresentation()) {
+                    LocalBrandProductTypography.current.title
+                } else {
+                    MaterialTheme.typography.titleLarge
+                },
                 modifier =
                     Modifier.weight(1f)
                         .semantics { heading() }
@@ -340,6 +378,11 @@ private fun LazyListScope.productContent(
             unavailable = state.hasUnavailableSelection,
             emphasis = PriceBlockEmphasis.DETAIL,
             priceTestTag = ProductDetailTestTags.PRICE,
+            priceTextStyle = if (isGalleryProductPresentation()) {
+                LocalBrandProductTypography.current.price
+            } else {
+                null
+            },
             availabilityTestTag = ProductDetailTestTags.AVAILABILITY
         )
     }
@@ -364,7 +407,15 @@ private fun LazyListScope.productContent(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.semantics { heading() }
                 )
-                Text(product.description, modifier = Modifier.testTag(ProductDetailTestTags.DESCRIPTION))
+                Text(
+                    product.description,
+                    style = if (isGalleryProductPresentation()) {
+                        LocalBrandProductTypography.current.body
+                    } else {
+                        MaterialTheme.typography.bodyLarge
+                    },
+                    modifier = Modifier.testTag(ProductDetailTestTags.DESCRIPTION)
+                )
             }
         }
     }
@@ -396,6 +447,10 @@ private fun ProductMediaGallery(
     onOpenMediaViewer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (isGalleryProductPresentation()) {
+        ArtworkMediaGallery(state, actions, openerFocusRequester, onOpenMediaViewer, modifier)
+        return
+    }
     val media = state.displayMedia
     val index = state.mediaIndex.coerceIn(0, media.lastIndex.coerceAtLeast(0))
     val spacing = LocalBrandSpacing.current

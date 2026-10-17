@@ -13,6 +13,8 @@ import com.gurbakir.mobile.cart.CartRepository
 import com.gurbakir.mobile.cart.CartState
 import com.gurbakir.storefront.SensitiveCartLineId
 import com.gurbakir.storefront.StorefrontProductDetail
+import com.gurbakir.storefront.StorefrontProductOption
+import com.gurbakir.storefront.StorefrontProductOptionValue
 import com.gurbakir.storefront.StorefrontSelectedOption
 import java.util.ArrayDeque
 import kotlinx.coroutines.Dispatchers
@@ -347,6 +349,44 @@ class ProductDetailViewModelTest {
         assertEquals(ProductCartFeedback.ADDED, viewModel.state.value.cartFeedback)
         assertFalse(viewModel.state.value.addingToCart)
     }
+
+    @Test
+    fun `only Shopify default variant selects automatically and restores without replaying cart mutation`() =
+        runTest(dispatcher) {
+            val source = productFixture()
+            val default = source.copy(
+                options = listOf(
+                    StorefrontProductOption(
+                        "default",
+                        "Title",
+                        listOf(StorefrontProductOptionValue("value", "Default Title"))
+                    )
+                ),
+                variants = listOf(
+                    source.variants.first().copy(
+                        selectedOptions = listOf(StorefrontSelectedOption("Title", "Default Title"))
+                    )
+                )
+            )
+            val handle = SavedStateHandle()
+            val cart = RecordingCartRepository()
+            val first = viewModel(handle, cart, default)
+            first.start(default.id, null)
+            advanceUntilIdle()
+            assertTrue(first.state.value.displayOptions.isEmpty())
+            assertEquals(ProductPurchaseIntent("gid://shopify/ProductVariant/11", 1), first.state.value.purchaseIntent)
+            first.addToCart()
+            advanceUntilIdle()
+            val restored = viewModel(handle, cart, default)
+            restored.start(default.id, null)
+            advanceUntilIdle()
+            assertEquals(
+                ProductPurchaseIntent("gid://shopify/ProductVariant/11", 1),
+                restored.state.value.purchaseIntent
+            )
+            assertEquals(listOf("gid://shopify/ProductVariant/11" to 1), cart.adds)
+            assertNull(restored.state.value.cartFeedback)
+        }
 
     private fun viewModel(
         handle: SavedStateHandle = SavedStateHandle(),

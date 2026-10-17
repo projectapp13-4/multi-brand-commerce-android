@@ -36,7 +36,8 @@ internal fun PriceBlock(
     compareAtPrice: StorefrontMoney? = null,
     emphasis: PriceBlockEmphasis = PriceBlockEmphasis.DETAIL,
     priceTestTag: String? = null,
-    availabilityTestTag: String? = null
+    availabilityTestTag: String? = null,
+    priceTextStyle: TextStyle? = null
 ) {
     val current = currentPrice ?: minimumPrice
     val displayedPrice =
@@ -67,7 +68,7 @@ internal fun PriceBlock(
         displayedPrice?.let { price ->
             Text(
                 text = price,
-                style = emphasis.priceStyle(),
+                style = emphasis.priceStyle(priceTextStyle),
                 modifier = Modifier.optionalTestTag(priceTestTag)
             )
         }
@@ -96,7 +97,7 @@ internal fun PriceBlock(
 }
 
 @Composable
-private fun PriceBlockEmphasis.priceStyle(): TextStyle = when (this) {
+private fun PriceBlockEmphasis.priceStyle(override: TextStyle?): TextStyle = override ?: when (this) {
     PriceBlockEmphasis.CARD -> MaterialTheme.typography.titleSmall
     PriceBlockEmphasis.DETAIL -> MaterialTheme.typography.titleMedium
     PriceBlockEmphasis.PURCHASE -> MaterialTheme.typography.titleMedium
