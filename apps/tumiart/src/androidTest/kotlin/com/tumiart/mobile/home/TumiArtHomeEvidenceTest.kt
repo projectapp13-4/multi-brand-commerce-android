@@ -20,10 +20,13 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import coil3.SingletonImageLoader
@@ -108,6 +111,20 @@ class TumiArtHomeEvidenceTest {
             for (dark in listOf(false, true)) {
                 val label = label(locale, dark)
                 show(state, locale, dark)
+                capture("$label-initial")
+                rule.onNodeWithTag("gallery-home-collection-image-fixture-1", useUnmergedTree = true).performScrollTo()
+                // Scroll semantics use the full layout bounds, including the edge-to-edge system-bar area.
+                val image = rule.onNodeWithTag("gallery-home-collection-image-fixture-1", useUnmergedTree = true)
+                    .fetchSemanticsNode().boundsInRoot
+                val decor = rule.activity.window.decorView
+                val systemBottom = ViewCompat.getRootWindowInsets(decor)
+                    ?.getInsets(WindowInsetsCompat.Type.systemBars())?.bottom ?: 0
+                val hidden = image.bottom - (decor.height - systemBottom)
+                if (hidden > 0) {
+                    rule.onNodeWithTag("home-content").performSemanticsAction(SemanticsActions.ScrollBy) {
+                        it(0f, hidden + 1)
+                    }
+                }
                 capture("$label-collections", requireEdges = true)
                 rule.onNodeWithTag("home-content").performScrollToIndex(2)
                 rule.onNodeWithTag("artwork-image").assertIsDisplayed()
@@ -315,10 +332,13 @@ class TumiArtHomeEvidenceTest {
                     edgeColors += bitmap.getPixel(x, y)
                 }
             }
-            assertTrue(
-                "Full owned artwork must show both edge markers",
-                Color.RED in edgeColors && Color.BLUE in edgeColors
-            )
+            val complete = Color.RED in edgeColors && Color.BLUE in edgeColors
+            if (!complete) {
+                directory.resolve("$name-attempt.png").outputStream().use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                }
+            }
+            assertTrue("Full owned artwork: $name; bounds=$bounds; frame=${bitmap.width}x${bitmap.height}", complete)
         }
         directory.resolve("$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
