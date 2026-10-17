@@ -286,6 +286,21 @@ jobs:
           install -m 0755 scripts/Run-Api23ManagedEmulator.sh "$ANDROID_SDK_ROOT/emulator/emulator"
           "$ANDROID_SDK_ROOT/emulator/emulator" -version
 
+      - name: Disable Goldfish GLDMA on the legacy API 23 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Google issue 66884503 documents this exact goldfish_pipe_dma_clear_lock
+          # kernel panic and recommends disabling GLDMA for old guest kernels.
+          # This is CI emulator configuration only; all API 23 tests still run.
+          mkdir -p "$HOME/.android"
+          config="$HOME/.android/advancedFeatures.ini"
+          if [[ -f "$config" ]]; then
+            sed -i '/^[[:space:]]*GLDMA[[:space:]]*=/d' "$config"
+          fi
+          printf '%s\n' 'GLDMA = off' >> "$config"
+          grep -Fx 'GLDMA = off' "$config"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
