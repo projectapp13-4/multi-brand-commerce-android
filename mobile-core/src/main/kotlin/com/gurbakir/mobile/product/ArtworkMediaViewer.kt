@@ -117,9 +117,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArtworkZoomViewport(
         pan = clampArtworkPan(pan, zoom, viewport, imageWidth, imageHeight)
     }
     fun move(delta: Offset): Boolean {
-        pan = clampArtworkPan(pan + delta, zoom, viewport, imageWidth, imageHeight)
+        val next = clampArtworkPan(pan + delta, zoom, viewport, imageWidth, imageHeight)
+        if (next == pan) return false
+        pan = next
         return true
     }
+    fun canMove(delta: Offset): Boolean = clampArtworkPan(pan + delta, zoom, viewport, imageWidth, imageHeight) != pan
     val transform = rememberTransformableState { scale, offset, _ ->
         applyZoom(zoom * scale)
         move(offset)
@@ -138,12 +141,16 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArtworkZoomViewport(
             .transformable(transform)
             .semantics {
                 stateDescription = zoomLabel
-                customActions = listOf(
-                    CustomAccessibilityAction(left) { move(Offset(viewport.width / 4, 0f)) },
-                    CustomAccessibilityAction(right) { move(Offset(-viewport.width / 4, 0f)) },
-                    CustomAccessibilityAction(up) { move(Offset(0f, viewport.height / 4)) },
-                    CustomAccessibilityAction(down) { move(Offset(0f, -viewport.height / 4)) }
-                )
+                customActions = buildList {
+                    val leftDelta = Offset(viewport.width / 4, 0f)
+                    val rightDelta = Offset(-viewport.width / 4, 0f)
+                    val upDelta = Offset(0f, viewport.height / 4)
+                    val downDelta = Offset(0f, -viewport.height / 4)
+                    if (canMove(leftDelta)) add(CustomAccessibilityAction(left) { move(leftDelta) })
+                    if (canMove(rightDelta)) add(CustomAccessibilityAction(right) { move(rightDelta) })
+                    if (canMove(upDelta)) add(CustomAccessibilityAction(up) { move(upDelta) })
+                    if (canMove(downDelta)) add(CustomAccessibilityAction(down) { move(downDelta) })
+                }
             }.testTag("artwork-zoom-viewport")
     ) {
         Box(

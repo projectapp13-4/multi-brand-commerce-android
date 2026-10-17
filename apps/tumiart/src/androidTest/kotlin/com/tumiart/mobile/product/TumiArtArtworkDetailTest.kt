@@ -156,10 +156,14 @@ class TumiArtArtworkDetailTest {
         rule.onNodeWithTag("product-detail-media-open").performSemanticsAction(SemanticsActions.OnClick) { it() }
         rule.waitForIdle()
         rule.onNodeWithTag("product-detail-media-viewer").assertIsDisplayed()
+        val zoomViewport = rule.onNodeWithTag("artwork-zoom-viewport")
+        assertTrue(zoomViewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].isEmpty())
         rule.onNodeWithTag("artwork-zoom-in").assertHeightIsAtLeast(48.dp).performClick()
         rule.onNodeWithTag("artwork-zoom-out").assertIsEnabled()
+        assertTrue(zoomViewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].isNotEmpty())
         rule.onNodeWithTag("artwork-zoom-fit").performClick()
         rule.onNodeWithTag("artwork-zoom-out").assertIsNotEnabled()
+        assertTrue(zoomViewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].isEmpty())
         pressBack()
         rule.waitForIdle()
         rule.onNodeWithTag("product-detail-media-viewer").assertDoesNotExist()
@@ -190,11 +194,12 @@ class TumiArtArtworkDetailTest {
         val viewport = rule.onNodeWithTag("artwork-zoom-viewport")
         val topLabel = rule.activity.getString(com.gurbakir.mobile.core.R.string.artwork_pan_up)
         repeat(4) {
-            val top = viewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].single {
+            val top = viewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].firstOrNull {
                 it.label == topLabel
             }
-            rule.runOnIdle { top.action() }
+            if (top != null) rule.runOnIdle { assertTrue(top.action()) }
         }
+        assertTrue(viewport.fetchSemanticsNode().config[SemanticsActions.CustomActions].none { it.label == topLabel })
         assertEquals(android.graphics.Color.RED, viewportTopPixel(viewport))
     }
 
