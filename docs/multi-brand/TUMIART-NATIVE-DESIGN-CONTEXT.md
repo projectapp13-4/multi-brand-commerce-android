@@ -89,3 +89,7 @@ names and 48dp targets remain on every tab. This replaces neither route topology
 nor navigation actions. Native wrapped-word experiments were rejected after
 inspection. Ordinary text, Standard navigation and other brands retain their
 existing policy. See the [P5 record](TUMIART-STAGE-4-P5.md) for evidence boundaries.
+
+The opt-in shell retains one content composition owner across primary/detail
+routes, text-size policy changes and adaptive layouts. Its caption changes with
+the visual policy; the existing Standard scaffold remains the default.

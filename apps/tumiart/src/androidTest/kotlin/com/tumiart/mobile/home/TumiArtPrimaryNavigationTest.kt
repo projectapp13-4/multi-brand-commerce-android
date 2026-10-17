@@ -17,9 +17,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -91,6 +94,24 @@ class TumiArtPrimaryNavigationTest {
     @Volatile private var expectedInk = 0
 
     @Volatile private var bodyInk = 0
+
+    @Test
+    fun textSizePolicyChangesRetainHomeStateAndScroll() {
+        // Deliberate component transition probe, separate from actual-system screenshot evidence.
+        var scale by mutableFloatStateOf(1f)
+        rule.activity.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) {
+                TumiArtThemeProbe(false) { Shell(statefulHome = true, secondaryFirst = false) }
+            }
+        }
+        rule.onNodeWithTag("fixture-increment").performClick()
+        rule.onNodeWithTag("fixture-scroll").performScrollToIndex(10)
+        for (nextScale in listOf(2f, 1f)) {
+            rule.runOnIdle { scale = nextScale }
+            rule.onNodeWithTag("fixture-home-state").assertTextEquals("Count 1; position 10")
+        }
+    }
 
     @Test
     fun largeTextRetainsHomeStateAcrossDetailsBackAndRootSwitch() {
@@ -273,9 +294,10 @@ class TumiArtPrimaryNavigationTest {
                     if (statefulHome) {
                         var count by rememberSaveable { mutableIntStateOf(0) }
                         val scroll = rememberLazyListState()
+                        val position by remember(scroll) { derivedStateOf { scroll.firstVisibleItemIndex } }
                         Column {
                             Text(
-                                "Count $count; position ${scroll.firstVisibleItemIndex}",
+                                "Count $count; position $position",
                                 Modifier.testTag("fixture-home-state")
                             )
                             TextButton({ count++ }, Modifier.testTag("fixture-increment")) { Text("Increment") }

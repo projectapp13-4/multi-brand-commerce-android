@@ -105,7 +105,11 @@ Independent review identified a real large-text primary-to-secondary composition
 reset. A native regression reproduced Home state/scroll loss on Back; the adaptive
 shell now retains one NavHost composition owner and changes only its navigation
 chrome. The regression passes for collection/artwork Back, tab state restoration
-and secondary-first startup. Standard keeps its existing scaffold path.
+and secondary-first startup. A further native regression reproduced Home state
+and scroll loss when the text-size policy changed. The opt-in now keeps the same
+content owner across regular/enlarged text and adaptive layouts; only navigation
+chrome changes. The 1x-to-2x-to-1x regression passes. Standard keeps its existing
+scaffold path.
 
 Final native matrix, configured runtime checks and exact-head CI are delivery
 checks recorded in the draft PR and ignored checkpoint, bound to the recorded
