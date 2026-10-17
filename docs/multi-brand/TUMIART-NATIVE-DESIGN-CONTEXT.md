@@ -66,3 +66,26 @@ stay in ignored evidence; no merchant image redistribution right is inferred.
 Known API23 live TLS-chain failure requires separate investigation without
 trust bypass. Passing fixtures does not close that issue or establish release
 readiness. P5 Home, OAuth/checkout and production work are outside P4.
+
+
+## P5 Home continuation
+
+P5 selects the neutral Gallery Home policy in TumiArt composition. Short section
+headings reuse `LocalBrandEditorialTypography.title`; artwork names and the
+provider minimum price reuse `LocalBrandProductTypography.title/price`.
+Functional collection labels, feedback and actions retain Material/Karla roles.
+No new type token or global theme change is required. Standard Home stays default.
+
+Collection previews conservatively Fit both cover art and first-product media,
+since the current Home contract does not expose that provenance. Featured artwork
+uses the existing native artwork image loading/error/retry owner. Bound its mat
+by actual Home viewport height after scaffold insets; headings and purchase-free
+artwork actions remain separate lazy content so landscape/large text can scroll.
+Only validated provider sections may supply hero/story images or editorial copy.
+
+For the observed compact large-text bottom bar, TumiArt selects the existing
+five native icons with a full-width selected-destination caption. Full accessible
+names and 48dp targets remain on every tab. This replaces neither route topology
+nor navigation actions. Native wrapped-word experiments were rejected after
+inspection. Ordinary text, Standard navigation and other brands retain their
+existing policy. See the [P5 record](TUMIART-STAGE-4-P5.md) for evidence boundaries.
