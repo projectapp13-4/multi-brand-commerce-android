@@ -11,6 +11,7 @@ import com.gurbakir.foundation.config.BrandDesignTokens
 import com.gurbakir.foundation.config.BrandFontWeight
 import com.gurbakir.foundation.config.BrandLegalLinks
 import com.gurbakir.foundation.config.BrandMotionTokens
+import com.gurbakir.foundation.config.BrandProductTypographyTokens
 import com.gurbakir.foundation.config.BrandShapeTokens
 import com.gurbakir.foundation.config.BrandSpacingTokens
 import com.gurbakir.foundation.config.BrandTextStyleTokens
@@ -168,5 +169,12 @@ private fun tumiartTypographyTokens(): BrandTypographyTokens = BrandTypographyTo
     labelMedium = BrandTextStyleTokens(13, 18, BrandFontWeight.MEDIUM),
     labelSmall = BrandTextStyleTokens(12, 16, BrandFontWeight.MEDIUM),
     editorialHero = BrandTextStyleTokens(28, 34, BrandFontWeight.REGULAR),
-    editorialTitle = BrandTextStyleTokens(20, 28, BrandFontWeight.REGULAR)
+    editorialTitle = BrandTextStyleTokens(20, 28, BrandFontWeight.REGULAR),
+    productDetail = BrandProductTypographyTokens(
+        title = BrandTextStyleTokens(20, 27, BrandFontWeight.SEMIBOLD),
+        price = BrandTextStyleTokens(17, 24, BrandFontWeight.SEMIBOLD),
+        body = BrandTextStyleTokens(14, 21, BrandFontWeight.REGULAR),
+        option = BrandTextStyleTokens(13, 19, BrandFontWeight.MEDIUM),
+        action = BrandTextStyleTokens(14, 20, BrandFontWeight.SEMIBOLD)
+    )
 )

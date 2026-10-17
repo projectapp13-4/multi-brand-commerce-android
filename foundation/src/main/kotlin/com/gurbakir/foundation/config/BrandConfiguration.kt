@@ -107,6 +107,15 @@ data class BrandTextStyleTokens(val fontSizeSp: Int, val lineHeightSp: Int, val 
     }
 }
 
+/** Optional functional product roles. Concrete values remain application-owned. */
+data class BrandProductTypographyTokens(
+    val title: BrandTextStyleTokens,
+    val price: BrandTextStyleTokens,
+    val body: BrandTextStyleTokens,
+    val option: BrandTextStyleTokens,
+    val action: BrandTextStyleTokens
+)
+
 data class BrandTypographyTokens(
     val fontFamilyResourceName: String?,
     val headlineLarge: BrandTextStyleTokens,
@@ -122,7 +131,8 @@ data class BrandTypographyTokens(
     val labelMedium: BrandTextStyleTokens,
     val labelSmall: BrandTextStyleTokens,
     val editorialHero: BrandTextStyleTokens = headlineLarge,
-    val editorialTitle: BrandTextStyleTokens = titleLarge
+    val editorialTitle: BrandTextStyleTokens = titleLarge,
+    val productDetail: BrandProductTypographyTokens? = null
 ) {
     init {
         require(fontFamilyResourceName == null || RESOURCE_NAME_PATTERN.matches(fontFamilyResourceName)) {
