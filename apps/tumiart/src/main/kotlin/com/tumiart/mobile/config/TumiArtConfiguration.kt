@@ -21,6 +21,7 @@ import com.gurbakir.mobile.address.PostalCodeInputMode
 import com.gurbakir.mobile.catalog.CatalogConfiguration
 import com.gurbakir.mobile.catalog.CatalogGalleryCopy
 import com.gurbakir.mobile.catalog.CatalogPresentation
+import com.gurbakir.mobile.home.HomeCollectionSource
 import com.gurbakir.mobile.home.HomeConfiguration
 import com.gurbakir.mobile.home.HomeFeaturedProductConfiguration
 import com.gurbakir.mobile.home.HomePackagedFallback
@@ -149,13 +150,35 @@ internal object TumiArtConfiguration {
                             stableId = "TUMIART_HOME_PRODUCT_RANGE",
                             titleResourceId = R.string.home_product_range_title,
                             itemLimit = 5,
-                            sources = emptyList()
+                            sources = listOf(
+                                HomeCollectionSource("TUMIART_HOME_MASTERS", "ustalar", R.string.tumiart_home_masters),
+                                HomeCollectionSource(
+                                    "TUMIART_HOME_ORIGINALS",
+                                    "tumi-art-originals",
+                                    R.string.tumiart_home_originals
+                                ),
+                                HomeCollectionSource(
+                                    "TUMIART_HOME_MODERN",
+                                    "modern-forms",
+                                    R.string.tumiart_home_modern
+                                ),
+                                HomeCollectionSource(
+                                    "TUMIART_HOME_BOTANICALS",
+                                    "zen-botanicals",
+                                    R.string.tumiart_home_botanicals
+                                ),
+                                HomeCollectionSource(
+                                    "TUMIART_HOME_CHILDREN",
+                                    "cocuk-odasi-posterleri",
+                                    R.string.tumiart_home_children
+                                )
+                            )
                         ),
                     featuredProduct =
                         HomeFeaturedProductConfiguration(
                             stableId = "TUMIART_HOME_PILOT_PRODUCT",
                             titleResourceId = R.string.tumiart_home_featured_product,
-                            handle = ""
+                            handle = "henri-matisse-bitkiler-1952"
                         )
                 )
         )

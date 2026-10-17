@@ -136,14 +136,20 @@ class TumiArtConfigurationTest {
     }
 
     @Test
-    fun `Home selects bounded v2 root without selecting unapproved artwork`() {
+    fun `Home selects bounded v2 root with verified collection and artwork fallbacks`() {
         val home = TumiArtConfiguration.home
         val remote = assertInstanceOf(HomeRemoteSource.ShopifyMetaobject::class.java, home.remoteSource)
         assertEquals("mobile_home_v2", remote.selector.type)
         assertEquals("primary", remote.selector.handle)
         assertEquals(HomeContentContractId.PILOT_MEDIA_V2, remote.contractId)
-        assertTrue(home.packagedFallback.productRange.sources.isEmpty())
-        assertEquals("", home.packagedFallback.featuredProduct.handle)
+        val sources = home.packagedFallback.productRange.sources
+        assertEquals(
+            listOf("ustalar", "tumi-art-originals", "modern-forms", "zen-botanicals", "cocuk-odasi-posterleri"),
+            sources.map { it.handle }
+        )
+        assertEquals(5, home.packagedFallback.productRange.itemLimit)
+        assertEquals(sources.size, sources.map { it.stableId }.distinct().size)
+        assertEquals("henri-matisse-bitkiler-1952", home.packagedFallback.featuredProduct.handle)
         assertEquals("tum-koleksiyonlar", TumiArtConfiguration.catalog.menuHandle)
     }
 }
