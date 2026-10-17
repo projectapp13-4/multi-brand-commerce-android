@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.gurbakir.foundation.ui.LocalBrandProductTypography
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.core.R
 
@@ -37,7 +38,11 @@ internal fun VariantSelector(
         FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 name,
-                style = MaterialTheme.typography.labelLarge,
+                style = if (isGalleryProductPresentation()) {
+                    LocalBrandProductTypography.current.option
+                } else {
+                    MaterialTheme.typography.labelLarge
+                },
                 modifier = Modifier.align(Alignment.CenterVertically)
             )
             onClearSelection?.let { onClear ->
@@ -54,14 +59,26 @@ internal fun VariantSelector(
         }
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp)
+            horizontalArrangement = Arrangement.spacedBy(spacing.normalDp.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                if (isGalleryProductPresentation()) spacing.compactDp.dp else 0.dp
+            )
         ) {
             values.forEach { value ->
                 FilterChip(
                     selected = value.selected,
                     onClick = { onSelect(value.name) },
                     enabled = value.existsForCurrentSelection && value.hasAvailableMatch,
-                    label = { Text(value.name) },
+                    label = {
+                        Text(
+                            value.name,
+                            style = if (isGalleryProductPresentation()) {
+                                LocalBrandProductTypography.current.action
+                            } else {
+                                MaterialTheme.typography.labelLarge
+                            }
+                        )
+                    },
                     modifier = Modifier.heightIn(min = VARIANT_TOUCH_TARGET)
                         .testTag(ProductDetailTestTags.option(name, value.name))
                         .semantics { if (!value.hasAvailableMatch) stateDescription = unavailable }

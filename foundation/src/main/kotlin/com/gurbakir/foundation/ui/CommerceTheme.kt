@@ -45,7 +45,8 @@ fun CommerceTheme(
     CompositionLocalProvider(
         LocalBrandSpacing provides designTokens.spacing,
         LocalBrandMotion provides designTokens.motion,
-        LocalBrandEditorialTypography provides designTokens.typography.toEditorialTypography(fontFamilies)
+        LocalBrandEditorialTypography provides designTokens.typography.toEditorialTypography(fontFamilies),
+        LocalBrandProductTypography provides designTokens.typography.toProductTypography(fontFamilies)
     ) {
         MaterialTheme(
             colorScheme = colors.toMaterialColorScheme(darkTheme),
@@ -191,7 +192,7 @@ internal fun BrandTypographyTokens.toEditorialTypography(fontFamilies: BrandFont
         title = editorialTitle.toTextStyle(fontFamilies.editorial)
     )
 
-private fun BrandTextStyleTokens.toTextStyle(fontFamily: FontFamily): TextStyle = TextStyle(
+internal fun BrandTextStyleTokens.toTextStyle(fontFamily: FontFamily): TextStyle = TextStyle(
     fontFamily = fontFamily,
     fontWeight = fontWeight.toComposeWeight(),
     fontSize = fontSizeSp.sp,

@@ -463,4 +463,13 @@
     <string name="gallery_featured">FEATURED COLLECTION</string>
     <string name="gallery_discover">Discover ↗</string>
     <string name="gallery_image_unavailable">Image unavailable</string>
+    <string name="artwork_image_failed">Image could not load</string>
+    <string name="artwork_zoom_level">Zoom: %1$d%%</string>
+    <string name="artwork_zoom_in">Zoom in</string>
+    <string name="artwork_zoom_out">Zoom out</string>
+    <string name="artwork_fit">Fit image</string>
+    <string name="artwork_pan_left">Show left of image</string>
+    <string name="artwork_pan_right">Show right of image</string>
+    <string name="artwork_pan_up">Show top of image</string>
+    <string name="artwork_pan_down">Show bottom of image</string>
 </resources>

@@ -463,4 +463,13 @@
     <string name="gallery_featured">ÖNE ÇIKAN KOLEKSİYON</string>
     <string name="gallery_discover">Keşfet ↗</string>
     <string name="gallery_image_unavailable">Görsel yüklenemedi</string>
+    <string name="artwork_image_failed">Görsel yüklenemedi</string>
+    <string name="artwork_zoom_level">Yakınlaştırma: %1$d%%</string>
+    <string name="artwork_zoom_in">Yakınlaştır</string>
+    <string name="artwork_zoom_out">Uzaklaştır</string>
+    <string name="artwork_fit">Görseli sığdır</string>
+    <string name="artwork_pan_left">Görselin solunu göster</string>
+    <string name="artwork_pan_right">Görselin sağını göster</string>
+    <string name="artwork_pan_up">Görselin üstünü göster</string>
+    <string name="artwork_pan_down">Görselin altını göster</string>
 </resources>

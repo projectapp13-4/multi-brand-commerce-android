@@ -15,6 +15,33 @@ import org.junit.jupiter.api.Test
 
 class CommerceThemeTest {
     @Test
+    fun productRolesInheritLegacyTypographyUnlessTheApplicationOptsIn() {
+        val tokens = typography()
+        val fonts = BrandFontFamilies(FontFamily.Monospace, FontFamily.Serif)
+        val inherited = tokens.toProductTypography(fonts)
+        assertEquals(tokens.titleLarge.fontSizeSp.sp, inherited.title.fontSize)
+        assertEquals(tokens.titleMedium.fontSizeSp.sp, inherited.price.fontSize)
+        val custom = tokens.copy(
+            productDetail = com.gurbakir.foundation.config.BrandProductTypographyTokens(
+                title = BrandTextStyleTokens(20, 27, BrandFontWeight.SEMIBOLD),
+                price = BrandTextStyleTokens(17, 24, BrandFontWeight.SEMIBOLD),
+                body = BrandTextStyleTokens(14, 21, BrandFontWeight.REGULAR),
+                option = BrandTextStyleTokens(13, 19, BrandFontWeight.MEDIUM),
+                action = BrandTextStyleTokens(14, 20, BrandFontWeight.SEMIBOLD)
+            )
+        )
+        val actual = custom.toProductTypography(fonts)
+        assertEquals(20.sp, actual.title.fontSize)
+        assertEquals(27.sp, actual.title.lineHeight)
+        assertEquals(17.sp, actual.price.fontSize)
+        assertEquals(21.sp, actual.body.lineHeight)
+        assertEquals(13.sp, actual.option.fontSize)
+        assertEquals(FontFamily.Monospace, actual.action.fontFamily)
+        assertEquals(tokens.toTypography(fonts), custom.toTypography(fonts))
+        assertEquals(tokens.toEditorialTypography(fonts), custom.toEditorialTypography(fonts))
+    }
+
+    @Test
     fun omittedExtendedRolesFollowCopiesOfLegacyColors() {
         val copied = colorScheme().copy(primary = ArgbColor(0xFF123456), surface = ArgbColor(0xFFABCDEF))
         val actual = copied.toMaterialColorScheme(darkTheme = false)

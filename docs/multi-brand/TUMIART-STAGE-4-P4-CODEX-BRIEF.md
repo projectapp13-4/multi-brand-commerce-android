@@ -1,6 +1,6 @@
 # Codex execution brief — TumiArt Stage 4 P4: artwork detail + design-system foundation
 
-**Status:** Owner-approved **next work package**, not yet started. This is an execution brief, not evidence of finished P4 implementation or Android acceptance. One focused **draft PR** with milestone commits; do **not merge**.
+**Status:** Owner-approved scope, now implemented for draft review; see the [P4 evidence and handoff](TUMIART-STAGE-4-P4.md). This brief defines scope, not native acceptance. One focused **draft PR** with milestone commits; do **not merge**.
 
 ## Step 0 — immutable scope and current-state gate
 
@@ -12,7 +12,9 @@ Read the COMPLETE current:
 - [P3 implementation and known gaps](TUMIART-STAGE-4-P3.md);
 - Stage 4 execution baseline, if separately available to the owner: TUMIART_ASAMA4_UYGULAMA_PLANI_V1_2026-10-15.md (historical local plan, **not distributed in public Git**). Its historical static-v1 and P2-unmerged statuses are superseded by verified later records where applicable. Do not assume a local workstation path exists on another machine.
 
-**Prerequisite:** Verify PR #49 has actually merged, obtain its merge SHA and fresh **merged-main** GitHub Actions results including all required checks. As of the 2026-10-17 planning checkpoint PR #49 was **draft/unmerged** and exact PR-head CI was green. Do not confuse those facts. If not merged, STOP at the P4 code-change boundary, report the precise blocker and do not advance on old origin/main by assumption. Ask the owner only if a different dependency strategy is genuinely desired.
+**2026-10-17 prerequisite readback:** PR #49 merged as `c34acba633eef2ae6f939c123997c912fa90a7ac`; [merged-main run 38988797933](https://github.com/projectapp13-4/multi-brand-commerce-android/actions/runs/38988797933) passed all four jobs. This later verified readback supersedes the planning snapshot below.
+
+**Prerequisite rule (historical planning snapshot retained):** Verify PR #49 has actually merged, obtain its merge SHA and fresh **merged-main** GitHub Actions results including all required checks. As of the 2026-10-17 planning checkpoint PR #49 was **draft/unmerged** and exact PR-head CI was green. Do not confuse those facts. If not merged, STOP at the P4 code-change boundary, report the precise blocker and do not advance on old origin/main by assumption. Ask the owner only if a different dependency strategy is genuinely desired.
 
 After prerequisite passes, independently fetch fresh origin/main. Create a **new isolated P4 worktree/branch**, with an unambiguous base SHA and clean status. Never implement P4 in the P3 worktree, discard ignored evidence, force-reset another worktree or mutate protected main.
 

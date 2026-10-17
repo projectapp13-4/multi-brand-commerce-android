@@ -70,7 +70,8 @@ fun TumiArtApp() {
         ),
         legalSupportDestination = { onBack -> TumiArtLegalDestination(onBack, pages) },
         fontFamilies = TumiArtFontFamilies,
-        catalogPresentation = TumiArtConfiguration.catalog.presentation
+        catalogPresentation = TumiArtConfiguration.catalog.presentation,
+        productPresentation = TumiArtConfiguration.productPresentation
     )
 }
 

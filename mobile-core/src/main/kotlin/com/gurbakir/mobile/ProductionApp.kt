@@ -125,6 +125,7 @@ import com.gurbakir.mobile.order.OrderListViewModel
 import com.gurbakir.mobile.order.TrackingLauncher
 import com.gurbakir.mobile.order.TrackingUrlPolicy
 import com.gurbakir.mobile.product.ProductDetailActions
+import com.gurbakir.mobile.product.ProductDetailPresentation
 import com.gurbakir.mobile.product.ProductDetailScreen
 import com.gurbakir.mobile.product.ProductDetailViewModel
 import com.gurbakir.mobile.profile.ProfileActions
@@ -155,7 +156,8 @@ fun MobileCoreApp(
     legalSupportDestination: @Composable (onBack: () -> Unit) -> Unit,
     navController: NavHostController = rememberNavController(),
     fontFamilies: BrandFontFamilies = BrandFontFamilies(),
-    catalogPresentation: CatalogPresentation = CatalogPresentation.Standard
+    catalogPresentation: CatalogPresentation = CatalogPresentation.Standard,
+    productPresentation: ProductDetailPresentation = ProductDetailPresentation.Standard
 ) {
     validateCustomerAccountBindings(applicationComposition, customerAccountBindings)
     val darkTheme = !LocalInspectionMode.current && isSystemInDarkTheme()
@@ -214,7 +216,9 @@ fun MobileCoreApp(
                         },
                         cart = { CartDestination(navController) },
                         legalSupport = { legalSupportDestination(navController::popBackStackOrHome) },
-                        product = { route -> ProductDestination(navController, route, applicationComposition) }
+                        product = { route ->
+                            ProductDestination(navController, route, applicationComposition, productPresentation)
+                        }
                     )
             )
         }
@@ -527,7 +531,8 @@ private fun SearchDestination(navController: NavHostController, applicationCompo
 private fun ProductDestination(
     navController: NavHostController,
     route: ProductRoute,
-    applicationComposition: ApplicationComposition
+    applicationComposition: ApplicationComposition,
+    presentation: ProductDetailPresentation
 ) {
     val productId = StorefrontProductIds.productGidFromRoute(route.productId)
     val variantId = route.variantId?.let(StorefrontProductIds::variantGidFromRoute)
@@ -566,7 +571,8 @@ private fun ProductDestination(
                 onOpenCart = { navController.navigate(CartRoute) },
                 onSetWishlist = wishlist?.onSetSaved
             ),
-        wishlist = wishlist?.state
+        wishlist = wishlist?.state,
+        presentation = presentation
     )
 }
 

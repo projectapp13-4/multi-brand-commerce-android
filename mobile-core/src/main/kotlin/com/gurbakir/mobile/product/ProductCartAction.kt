@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.gurbakir.foundation.ui.LocalBrandProductTypography
 import com.gurbakir.foundation.ui.LocalBrandSpacing
 import com.gurbakir.mobile.cart.CartFailureCategory
 import com.gurbakir.mobile.core.R
@@ -101,7 +102,11 @@ private fun PurchaseSummary(state: ProductDetailUiState, modifier: Modifier) {
     if (variant?.availableForSale == true) {
         Text(
             variant.price.localizedText(),
-            style = MaterialTheme.typography.titleMedium,
+            style = if (isGalleryProductPresentation()) {
+                LocalBrandProductTypography.current.price
+            } else {
+                MaterialTheme.typography.titleMedium
+            },
             modifier = modifier.testTag(ProductDetailTestTags.PURCHASE_PRICE)
         )
     } else {
@@ -139,6 +144,11 @@ private fun AddToCartButton(state: ProductDetailUiState, actions: ProductDetailA
                 stringResource(R.string.product_adding_to_cart)
             } else {
                 stringResource(R.string.product_add_to_cart)
+            },
+            style = if (isGalleryProductPresentation()) {
+                LocalBrandProductTypography.current.action
+            } else {
+                MaterialTheme.typography.labelLarge
             }
         )
     }
