@@ -2,20 +2,33 @@
 
 package com.tumiart.mobile.home
 
+import android.os.SystemClock
+import android.view.MotionEvent
+import android.view.View
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -44,6 +57,7 @@ import java.math.BigDecimal
 import java.net.URI
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -105,9 +119,17 @@ class TumiArtHomeTest {
     @Test
     fun featureLabelsMinimumPriceAndOpensExactProductIdentity() {
         var opened = ""
+        lateinit var inputModeManager: InputModeManager
+        lateinit var hostView: View
         rule.runOnUiThread {
             rule.activity.setContent {
                 TumiArtThemeProbe {
+                    val modeManager = LocalInputModeManager.current
+                    val view = LocalView.current
+                    SideEffect {
+                        inputModeManager = modeManager
+                        hostView = view
+                    }
                     HomeScreen(
                         homeFixture(),
                         "TumiArt",
@@ -121,8 +143,41 @@ class TumiArtHomeTest {
         val prefix = InstrumentationRegistry.getInstrumentation().targetContext
             .getString(com.gurbakir.mobile.core.R.string.gallery_home_price_from, "").trim()
         rule.onNodeWithText(prefix, substring = true).assertIsDisplayed()
-        rule.onNodeWithTag("gallery-home-open-artwork").assertHeightIsAtLeast(48.dp).performClick()
-        assertEquals("gid://shopify/Product/1", opened)
+        val previousMode = rule.runOnIdle { inputModeManager.inputMode }
+        try {
+            rule.runOnIdle { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
+            rule.waitUntil(5_000) { rule.runOnIdle { inputModeManager.inputMode == InputMode.Keyboard } }
+            val action = rule.onNodeWithTag("gallery-home-open-artwork").performScrollTo()
+            action.performSemanticsAction(SemanticsActions.RequestFocus) { assertTrue(it()) }
+            action.assertIsFocused().assertHeightIsAtLeast(48.dp).performKeyInput { pressKey(Key.Enter) }
+            assertEquals("gid://shopify/Product/1", opened)
+        } finally {
+            if (previousMode == InputMode.Touch) {
+                // A non-actionable wordmark restores native touch mode without changing commerce state.
+                val instrumentation = InstrumentationRegistry.getInstrumentation()
+                val location = IntArray(2)
+                rule.runOnIdle { hostView.getLocationOnScreen(location) }
+                val point = rule.onNodeWithTag("home-wordmark").fetchSemanticsNode().boundsInRoot.center
+                instrumentation.setInTouchMode(true)
+                val downTime = SystemClock.uptimeMillis()
+                for (actionType in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                    val event = MotionEvent.obtain(
+                        downTime,
+                        SystemClock.uptimeMillis(),
+                        actionType,
+                        point.x + location[0],
+                        point.y + location[1],
+                        0
+                    )
+                    try {
+                        instrumentation.sendPointerSync(event)
+                    } finally {
+                        event.recycle()
+                    }
+                }
+                rule.waitUntil(5_000) { rule.runOnIdle { inputModeManager.inputMode == InputMode.Touch } }
+            }
+        }
     }
 
     @Test

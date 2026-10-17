@@ -33,6 +33,7 @@ internal fun NavigationSuiteScope.AppNavigationItem(
     @StringRes labelResourceId: Int,
     @StringRes accessibilityLabelResourceId: Int = labelResourceId,
     alwaysShowLabel: Boolean = true,
+    showLabel: Boolean = true,
     @DrawableRes selectedIconResourceId: Int,
     @DrawableRes unselectedIconResourceId: Int,
     testTag: String,
@@ -48,21 +49,32 @@ internal fun NavigationSuiteScope.AppNavigationItem(
                         if (selected) selectedIconResourceId else unselectedIconResourceId
                     ),
                 contentDescription =
-                    if (alwaysShowLabel || selected) null else stringResource(accessibilityLabelResourceId),
+                    if (showLabel &&
+                        (alwaysShowLabel || selected)
+                    ) {
+                        null
+                    } else {
+                        stringResource(accessibilityLabelResourceId)
+                    },
                 modifier =
                     Modifier.size(NAVIGATION_ICON_SIZE)
                         .testTag(navigationIconTestTag(testTag, selected))
             )
         },
-        label = {
-            val accessibilityLabel = stringResource(accessibilityLabelResourceId)
-            Text(
-                text = stringResource(labelResourceId),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = accessibilityLabel }
-            )
+        label = if (showLabel) {
+            {
+                val accessibilityLabel = stringResource(accessibilityLabelResourceId)
+                Text(
+                    text = stringResource(labelResourceId),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("$testTag-label")
+                        .clearAndSetSemantics { contentDescription = accessibilityLabel }
+                )
+            }
+        } else {
+            null
         },
         alwaysShowLabel = alwaysShowLabel,
         colors = colors,

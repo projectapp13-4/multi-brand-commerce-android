@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,6 +70,7 @@ data class HomeActions(
 )
 
 @Composable
+@Suppress("LongParameterList") // Keep application presentation independent from live Home state and actions.
 fun HomeScreen(
     state: HomeUiState,
     brandDisplayName: String,
@@ -119,17 +121,39 @@ fun HomeScreen(
                 }
             }
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-                    .centeredDestinationContent(1200.dp)
-                    .consumeDestinationInsets(scaffoldPadding)
-                    .testTag(HomeTestTags.CONTENT),
-                contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
-                verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
-            ) {
-                homeStateItems(state, actions, wishlist, screenPresentation)
+            if (screenPresentation is HomeScreenPresentation.Gallery) {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val previewMaxHeight = (
+                        maxHeight - scaffoldPadding.calculateTopPadding() -
+                            scaffoldPadding.calculateBottomPadding() - spacing.compactDp.dp * 2
+                        ).coerceAtLeast(48.dp)
+                    HomeContentList(state, actions, wishlist, scaffoldPadding, screenPresentation, previewMaxHeight)
+                }
+            } else {
+                HomeContentList(state, actions, wishlist, scaffoldPadding, screenPresentation, Dp.Infinity)
             }
         }
+    }
+}
+
+@Composable
+@Suppress("LongParameterList") // Reuse the unchanged list; only Gallery measures a preview viewport.
+private fun HomeContentList(
+    state: HomeUiState,
+    actions: HomeActions,
+    wishlist: WishlistMembershipUiState?,
+    scaffoldPadding: PaddingValues,
+    screenPresentation: HomeScreenPresentation,
+    previewMaxHeight: Dp
+) {
+    val spacing = LocalBrandSpacing.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().centeredDestinationContent(1200.dp)
+            .consumeDestinationInsets(scaffoldPadding).testTag(HomeTestTags.CONTENT),
+        contentPadding = scaffoldPadding.withDestinationSpacing(vertical = spacing.compactDp.dp),
+        verticalArrangement = Arrangement.spacedBy(spacing.sectionDp.dp)
+    ) {
+        homeStateItems(state, actions, wishlist, screenPresentation, previewMaxHeight)
     }
 }
 
@@ -137,7 +161,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
     state: HomeUiState,
     actions: HomeActions,
     wishlist: WishlistMembershipUiState?,
-    screenPresentation: HomeScreenPresentation
+    screenPresentation: HomeScreenPresentation,
+    previewMaxHeight: Dp
 ) {
     val presentation = state.presentation
     when {
@@ -182,7 +207,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeStateItems(
 
                         is HomeRenderedSection.FeaturedProduct -> {
                             if (screenPresentation is HomeScreenPresentation.Gallery) {
-                                galleryFeaturedSection(section, actions, wishlist)
+                                galleryFeaturedSection(section, actions, wishlist, previewMaxHeight)
                             } else {
                                 featuredProductSection(
                                     section,
@@ -285,12 +310,6 @@ internal fun HomeSectionHeading(title: HomeText, actionResourceId: Int? = null, 
         )
         actionResourceId?.let { resourceId -> TextButton(onClick = onAction) { Text(stringResource(resourceId)) } }
     }
-}
-
-@Composable
-private fun HomeText.resolve(): String = when (this) {
-    is HomeText.Packaged -> stringResource(resourceId)
-    is HomeText.Remote -> value
 }
 
 @Composable

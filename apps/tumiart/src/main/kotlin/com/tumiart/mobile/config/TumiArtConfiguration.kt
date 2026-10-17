@@ -32,6 +32,7 @@ import com.gurbakir.mobile.navigation.MobileDeepLinkConfiguration
 import com.gurbakir.mobile.product.ProductDetailPresentation
 import com.gurbakir.mobile.search.SearchHistoryNormalizationPolicy
 import com.gurbakir.mobile.search.SearchHistoryPartition
+import com.gurbakir.mobile.ui.PrimaryNavigationPresentation
 import com.gurbakir.mobile.wishlist.WishlistPartition
 import com.gurbakir.storefront.HomeContentContractId
 import com.gurbakir.storefront.HomeDocumentSelector
@@ -43,6 +44,8 @@ private val TUMIART_POSTAL_CODE = Regex("^[0-9]{5}$")
 private const val ACCOUNT_ORIGIN = "https://hesabim.tumiart.com"
 
 internal object TumiArtConfiguration {
+    val primaryNavigationPresentation = PrimaryNavigationPresentation.ADAPTIVE_CAPTION
+
     val homePresentation = HomeScreenPresentation.Gallery
 
     val productPresentation = ProductDetailPresentation.Gallery(R.string.tumiart_artwork_detail_title)

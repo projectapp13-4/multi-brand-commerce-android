@@ -72,7 +72,8 @@ fun TumiArtApp() {
         fontFamilies = TumiArtFontFamilies,
         catalogPresentation = TumiArtConfiguration.catalog.presentation,
         productPresentation = TumiArtConfiguration.productPresentation,
-        homePresentation = TumiArtConfiguration.homePresentation
+        homePresentation = TumiArtConfiguration.homePresentation,
+        primaryNavigationPresentation = TumiArtConfiguration.primaryNavigationPresentation
     )
 }
 

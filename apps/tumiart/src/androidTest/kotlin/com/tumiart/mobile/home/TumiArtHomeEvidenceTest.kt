@@ -10,14 +10,17 @@ import android.graphics.Paint
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
@@ -82,16 +85,33 @@ class TumiArtHomeEvidenceTest {
         assumeTrue(args.getString("captureP5") == "true")
         val media = ownedMedia()
         decode(media)
-        val state = homeFixture(media)
+        val single = homeFixture(media)
+        val original = requireNotNull(single.presentation)
+        val grid = original.renderedSections.first() as HomeRenderedSection.CollectionGrid
+        val state = single.copy(
+            presentation = original.copy(
+                renderedSections = listOf(
+                    grid.copy(
+                        items = (1..5).map { index ->
+                            grid.items.single().copy(
+                                stableId = "fixture-$index",
+                                label = com.gurbakir.mobile.home.HomeText.Remote("$LONG_COLLECTION $index"),
+                                summary = grid.items.single().summary.copy(handle = "fixture-$index")
+                            )
+                        }
+                    ),
+                    original.renderedSections.last()
+                )
+            )
+        )
         for (locale in listOf("tr-TR", "en-US")) {
             for (dark in listOf(false, true)) {
                 val label = label(locale, dark)
                 show(state, locale, dark)
-                capture("$label-collections")
-                rule.onNodeWithTag("home-content").performScrollToNode(hasTestTag("gallery-home-featured-image"))
-                rule.onNodeWithTag("gallery-home-featured-image").performScrollTo()
+                capture("$label-collections", requireEdges = true)
+                rule.onNodeWithTag("home-content").performScrollToIndex(2)
                 rule.onNodeWithTag("artwork-image").assertIsDisplayed()
-                capture("$label-artwork")
+                capture("$label-artwork", requireEdges = true)
                 rule.onNodeWithTag("home-content").performScrollToNode(hasTestTag("gallery-home-open-artwork"))
                 val layouts = mutableListOf<TextLayoutResult>()
                 rule.onNodeWithTag(
@@ -141,6 +161,9 @@ class TumiArtHomeEvidenceTest {
             "refresh-error" to state.copy(failure = HomeLoadFailure(HomeLoadFailureCategory.SERVICE, false))
         )) {
             show(alternative, "tr-TR", true)
+            if (name == "partial") {
+                rule.onNodeWithTag("home-content").performScrollToNode(hasTestTag("gallery-home-partial"))
+            }
             capture("${label("tr-TR", true)}-$name")
         }
     }
@@ -253,8 +276,14 @@ class TumiArtHomeEvidenceTest {
         return StorefrontMedia(file.toURI(), "Project-owned edge fixture", 240, 480)
     }
 
-    private fun capture(name: String) {
+    private fun capture(name: String, requireEdges: Boolean = false) {
         rule.waitForIdle()
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            rule.onRoot().captureToImage().asAndroidBitmap().recycle()
+        }
+        instrumentation.waitForIdleSync()
+        instrumentation.uiAutomation.waitForIdle(250, 5_000)
+        android.os.SystemClock.sleep(300)
         // Semantics can settle before the system compositor paints setContent's replacement frame.
         val painted = CountDownLatch(1)
         rule.activity.runOnUiThread {
@@ -270,6 +299,27 @@ class TumiArtHomeEvidenceTest {
             for (y in 0 until bitmap.height step 20) colors += bitmap.getPixel(x, y)
         }
         assertTrue("Blank native frame is not visual evidence", colors.size > 3)
+        if (requireEdges) {
+            val tag = if (name.endsWith("-artwork")) {
+                "gallery-home-featured-image"
+            } else {
+                "gallery-home-collection-image-fixture-1"
+            }
+            val bounds = rule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val edgeColors = mutableSetOf<Int>()
+            for (y in bounds.top.toInt().coerceAtLeast(0) until bounds.bottom.toInt().coerceAtMost(bitmap.height)) {
+                for (x in bounds.left.toInt().coerceAtLeast(
+                    0
+                ) until bounds.right.toInt().coerceAtMost(bitmap.width) step
+                    4) {
+                    edgeColors += bitmap.getPixel(x, y)
+                }
+            }
+            assertTrue(
+                "Full owned artwork must show both edge markers",
+                Color.RED in edgeColors && Color.BLUE in edgeColors
+            )
+        }
         directory.resolve("$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

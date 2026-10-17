@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandEditorialTypography
 import com.gurbakir.foundation.ui.LocalBrandProductTypography
@@ -63,14 +64,16 @@ internal fun LazyListScope.galleryCollectionSection(section: HomeRenderedSection
                                         .clickable(role = Role.Button) { actions.openCollection(item.summary.handle) },
                                     verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
                                 ) {
-                                    // The contract may supply collection art or a first-product image. Fit preserves both.
+                                    // Collection covers and first-product artwork share this contract.
+                                    // Fit preserves both without inferring media provenance.
                                     HomeMedia(
                                         item.summary.media,
-                                        item.label.resolveHomeText(),
-                                        Modifier.fillMaxWidth().aspectRatio(1f),
+                                        item.label.resolve(),
+                                        Modifier.fillMaxWidth().aspectRatio(1f)
+                                            .testTag("gallery-home-collection-image-${item.stableId}"),
                                         ContentScale.Fit
                                     )
-                                    Text(item.label.resolveHomeText(), style = MaterialTheme.typography.bodyMedium)
+                                    Text(item.label.resolve(), style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
                         }
@@ -87,18 +90,19 @@ internal fun LazyListScope.galleryCollectionSection(section: HomeRenderedSection
 internal fun LazyListScope.galleryFeaturedSection(
     section: HomeRenderedSection.FeaturedProduct,
     actions: HomeActions,
-    wishlist: WishlistMembershipUiState?
+    wishlist: WishlistMembershipUiState?,
+    previewMaxHeight: Dp
 ) {
+    item(key = "${section.stableId}:heading") { GalleryHomeHeading(section.title) }
     item(key = "${section.stableId}:art") {
         Column(
             Modifier.fillMaxWidth().testTag(HomeTestTags.FEATURED),
             verticalArrangement = Arrangement.spacedBy(LocalBrandSpacing.current.generousDp.dp)
         ) {
-            GalleryHomeHeading(section.title)
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth().aspectRatio(1f)
+                    modifier = Modifier.widthIn(max = minOf(520.dp, previewMaxHeight)).fillMaxWidth().aspectRatio(1f)
                         .testTag("gallery-home-featured-image")
                 ) {
                     ArtworkImage(
@@ -153,14 +157,8 @@ internal fun GalleryHomePartialNotice() {
 @Composable
 private fun GalleryHomeHeading(title: HomeText) {
     Text(
-        title.resolveHomeText(),
+        title.resolve(),
         style = LocalBrandEditorialTypography.current.title,
         modifier = Modifier.semantics { heading() }.testTag(HomeTestTags.TITLE)
     )
-}
-
-@Composable
-internal fun HomeText.resolveHomeText(): String = when (this) {
-    is HomeText.Packaged -> stringResource(resourceId)
-    is HomeText.Remote -> value
 }

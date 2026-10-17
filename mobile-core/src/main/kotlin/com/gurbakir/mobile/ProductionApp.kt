@@ -18,15 +18,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuite
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItemColors
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldLayout
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
@@ -44,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toDrawable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -140,6 +145,7 @@ import com.gurbakir.mobile.ui.AppNavigationItem
 import com.gurbakir.mobile.ui.DestinationLevel
 import com.gurbakir.mobile.ui.DestinationScaffold
 import com.gurbakir.mobile.ui.LARGE_TEXT_FONT_SCALE
+import com.gurbakir.mobile.ui.PrimaryNavigationPresentation
 import com.gurbakir.mobile.ui.commerceNavigationItemColors
 import com.gurbakir.mobile.ui.consumeDestinationInsets
 import com.gurbakir.mobile.update.UpdatePolicyDestination
@@ -159,7 +165,8 @@ fun MobileCoreApp(
     fontFamilies: BrandFontFamilies = BrandFontFamilies(),
     catalogPresentation: CatalogPresentation = CatalogPresentation.Standard,
     productPresentation: ProductDetailPresentation = ProductDetailPresentation.Standard,
-    homePresentation: HomeScreenPresentation = HomeScreenPresentation.Standard
+    homePresentation: HomeScreenPresentation = HomeScreenPresentation.Standard,
+    primaryNavigationPresentation: PrimaryNavigationPresentation = PrimaryNavigationPresentation.STANDARD
 ) {
     validateCustomerAccountBindings(applicationComposition, customerAccountBindings)
     val darkTheme = !LocalInspectionMode.current && isSystemInDarkTheme()
@@ -172,6 +179,7 @@ fun MobileCoreApp(
             navController = navController,
             currentDestination = currentDestination,
             applicationComposition = applicationComposition,
+            primaryNavigationPresentation = primaryNavigationPresentation,
             overlay = {
                 UpdatePolicyDestination(
                     onLegalSupport = {
@@ -240,12 +248,13 @@ private fun AppWindowBackground() {
 }
 
 @Composable
-@Suppress("LongParameterList") // Composition, navigation state, overlay and content are independent shell inputs.
+@Suppress("LongParameterList", "LongMethod") // Keep visual variants beside their unchanged route and inset owner.
 fun ProductionAppShell(
     navController: NavHostController,
     currentDestination: NavDestination?,
     modifier: Modifier = Modifier,
     applicationComposition: ApplicationComposition,
+    primaryNavigationPresentation: PrimaryNavigationPresentation = PrimaryNavigationPresentation.STANDARD,
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -256,7 +265,53 @@ fun ProductionAppShell(
     val defaultLayoutType =
         NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
     val alwaysShowPrimaryLabels = LocalDensity.current.fontScale < LARGE_TEXT_FONT_SCALE
+    val useCaption = primaryNavigationPresentation == PrimaryNavigationPresentation.ADAPTIVE_CAPTION &&
+        !alwaysShowPrimaryLabels && defaultLayoutType == NavigationSuiteType.NavigationBar
     val navigationItemColors = commerceNavigationItemColors()
+    if (useCaption && primaryDestination != null) {
+        Surface(
+            modifier = modifier.testTag(ProductionTestTags.PRIMARY_NAVIGATION),
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground
+        ) {
+            NavigationSuiteScaffoldLayout(
+                layoutType = NavigationSuiteType.NavigationBar,
+                navigationSuite = {
+                    Column {
+                        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                            Text(
+                                stringResource(primaryDestination.presentation().accessibilityLabelResourceId),
+                                style = MaterialTheme.typography.labelLarge,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(
+                                        horizontal = LocalBrandSpacing.current.normalDp.dp,
+                                        vertical = LocalBrandSpacing.current.compactDp.dp
+                                    )
+                                    .testTag("production-primary-caption")
+                            )
+                        }
+                        NavigationSuite(layoutType = NavigationSuiteType.NavigationBar) {
+                            ProductionPrimaryNavigation(
+                                navController,
+                                currentDestination,
+                                applicationComposition,
+                                alwaysShowLabels = false,
+                                showLabels = false,
+                                colors = navigationItemColors
+                            )
+                        }
+                    }
+                }
+            ) {
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                    overlay()
+                }
+            }
+        }
+        return
+    }
     NavigationSuiteScaffold(
         modifier =
             modifier.then(
@@ -273,6 +328,7 @@ fun ProductionAppShell(
                     currentDestination,
                     applicationComposition,
                     alwaysShowPrimaryLabels,
+                    true,
                     navigationItemColors
                 )
             }
@@ -291,11 +347,13 @@ fun ProductionAppShell(
     }
 }
 
+@Suppress("LongParameterList") // Visual policy is independent from application-owned navigation and route state.
 private fun NavigationSuiteScope.ProductionPrimaryNavigation(
     navController: NavHostController,
     currentDestination: NavDestination?,
     applicationComposition: ApplicationComposition,
     alwaysShowLabels: Boolean,
+    showLabels: Boolean,
     colors: NavigationSuiteItemColors
 ) {
     applicationComposition.primaryNavigation.destinations.forEach { primary ->
@@ -306,6 +364,7 @@ private fun NavigationSuiteScope.ProductionPrimaryNavigation(
             labelResourceId = destination.labelResourceId,
             accessibilityLabelResourceId = destination.accessibilityLabelResourceId,
             alwaysShowLabel = alwaysShowLabels,
+            showLabel = showLabels,
             selectedIconResourceId = destination.selectedIconResourceId,
             unselectedIconResourceId = destination.unselectedIconResourceId,
             testTag = destination.testTag,
