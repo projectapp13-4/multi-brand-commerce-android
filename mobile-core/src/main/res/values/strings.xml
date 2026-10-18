@@ -472,4 +472,6 @@
     <string name="artwork_pan_right">Görselin sağını göster</string>
     <string name="artwork_pan_up">Görselin üstünü göster</string>
     <string name="artwork_pan_down">Görselin altını göster</string>
+    <string name="gallery_home_price_from">Başlangıç fiyatı: %1$s</string>
+    <string name="gallery_home_view_artwork">Eseri incele</string>
 </resources>

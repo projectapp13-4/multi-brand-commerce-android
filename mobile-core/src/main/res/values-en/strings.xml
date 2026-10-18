@@ -472,4 +472,6 @@
     <string name="artwork_pan_right">Show right of image</string>
     <string name="artwork_pan_up">Show top of image</string>
     <string name="artwork_pan_down">Show bottom of image</string>
+    <string name="gallery_home_price_from">From %1$s</string>
+    <string name="gallery_home_view_artwork">View artwork</string>
 </resources>

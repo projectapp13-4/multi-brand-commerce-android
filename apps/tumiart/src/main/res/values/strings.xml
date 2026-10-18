@@ -24,4 +24,9 @@
     <string name="tumiart_gallery_artists">Sanatçı seçkileri</string>
     <string name="categories_title">Keşfet</string>
     <string name="tumiart_artwork_detail_title">Eser</string>
+    <string name="tumiart_home_masters">Ustalar</string>
+    <string name="tumiart_home_originals">Tumi Art Originals</string>
+    <string name="tumiart_home_modern">Modern Forms</string>
+    <string name="tumiart_home_botanicals">Zen Botanicals</string>
+    <string name="tumiart_home_children">Çocuk Odası Posterleri</string>
 </resources>

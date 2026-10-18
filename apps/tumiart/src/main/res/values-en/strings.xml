@@ -24,4 +24,9 @@
     <string name="tumiart_gallery_artists">Artist selections</string>
     <string name="categories_title">Discover</string>
     <string name="tumiart_artwork_detail_title">Artwork</string>
+    <string name="tumiart_home_masters">Masters</string>
+    <string name="tumiart_home_originals">Tumi Art Originals</string>
+    <string name="tumiart_home_modern">Modern Forms</string>
+    <string name="tumiart_home_botanicals">Zen Botanicals</string>
+    <string name="tumiart_home_children">Kids Room Posters</string>
 </resources>

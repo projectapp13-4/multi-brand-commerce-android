@@ -39,6 +39,14 @@ sets the implementation boundary, evidence requirements and interruption-safe ch
 The [P4 implementation and evidence record](multi-brand/TUMIART-STAGE-4-P4.md) covers
 the TumiArt-only artwork PDP and native product typography seam from that verified P3 base.
 Owner native visual/commerce acceptance, integration and API23 live TLS remain separate gates.
+P4 PR #50 subsequently merged as `1114ad7c3e2ea89bed18e4124e2a879fc6dfec00`;
+exact merged-main run 39039166266 passed all four jobs. This lifecycle update
+supersedes the earlier draft integration status without rewriting its evidence.
+The [P5 native Home candidate](multi-brand/TUMIART-STAGE-4-P5.md) records verified
+fallback references, the Gallery Home opt-in, recovery invariants and restrained
+navigation harmonization. Merchant Home-v2 provisioning remains separately
+authorized; P5 does not establish native owner acceptance or release readiness.
+
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
