@@ -47,6 +47,11 @@ fallback references, the Gallery Home opt-in, recovery invariants and restrained
 navigation harmonization. Merchant Home-v2 provisioning remains separately
 authorized; P5 does not establish native owner acceptance or release readiness.
 
+The [P6 functional acceptance candidate](multi-brand/TUMIART-STAGE-4-P6.md)
+records controlled native account/Cart/Checkout evidence, the explicit-null
+buyer-detachment correction, provisioned Home smoke and remaining TLS,
+TalkBack and provider-lifecycle limits. P6 does not authorize P7 or release work.
+
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
