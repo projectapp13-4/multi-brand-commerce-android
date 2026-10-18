@@ -237,10 +237,11 @@ class ApolloStorefrontGateway(
         cartId: SensitiveCartId,
         buyerAccessToken: SensitiveBuyerAccessToken?
     ): StorefrontResult<CartReference> {
+        // Detachment requires explicit null; an absent field retains the remote customer.
         val buyerIdentity =
             buyerAccessToken?.use { token ->
                 CartBuyerIdentityInput(customerAccessToken = Optional.present(token))
-            } ?: CartBuyerIdentityInput()
+            } ?: CartBuyerIdentityInput(customerAccessToken = Optional.present(null))
         val call = cartId.use { rawCartId ->
             client.mutation(CartBuyerIdentityUpdateMutation(rawCartId, buyerIdentity))
         }
