@@ -3,6 +3,10 @@ package com.gurbakir.storefront
 import com.apollographql.apollo.ApolloClient
 import java.math.BigDecimal
 import java.net.URI
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -395,6 +399,42 @@ class ApolloStorefrontGatewayTest {
             assertEquals(true, requestBody.contains("synthetic-buyer-token"))
             assertEquals("<redacted-buyer-access-token>", SensitiveBuyerAccessToken.from("x").toString())
         }
+
+    @Test
+    fun `buyer detachment explicitly clears customer token instead of omitting the update`() =
+        kotlinx.coroutines.runBlocking {
+            server.enqueue(MockResponse().setBody(cartMutationResponse("cartBuyerIdentityUpdate", quantity = 1)))
+
+            val result = ApolloStorefrontGateway(
+                client,
+                mediaPolicy
+            ).updateBuyerIdentity(SensitiveCartId.from(CART_ID), null)
+
+            assertInstanceOf(StorefrontResult.Success::class.java, result, result.toString())
+            val variables = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+                .getValue("variables").jsonObject
+            val buyerIdentity = variables.getValue("buyerIdentity").jsonObject
+            assertEquals(true, buyerIdentity.containsKey("customerAccessToken"))
+            assertEquals(JsonNull, buyerIdentity.getValue("customerAccessToken"))
+        }
+
+    @Test
+    fun `buyer association retains the supplied customer token`() = kotlinx.coroutines.runBlocking {
+        server.enqueue(MockResponse().setBody(cartMutationResponse("cartBuyerIdentityUpdate", quantity = 1)))
+
+        val result = ApolloStorefrontGateway(client, mediaPolicy).updateBuyerIdentity(
+            SensitiveCartId.from(CART_ID),
+            SensitiveBuyerAccessToken.from("synthetic-buyer-token")
+        )
+
+        assertInstanceOf(StorefrontResult.Success::class.java, result, result.toString())
+        val variables = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+            .getValue("variables").jsonObject
+        assertEquals(
+            "synthetic-buyer-token",
+            variables.getValue("buyerIdentity").jsonObject.getValue("customerAccessToken").jsonPrimitive.content
+        )
+    }
 
     @Test
     fun `missing remote cart maps to definitive invalid cart`() = kotlinx.coroutines.runBlocking {
