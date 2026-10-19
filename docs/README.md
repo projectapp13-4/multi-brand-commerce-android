@@ -52,6 +52,12 @@ records controlled native account/Cart/Checkout evidence, the explicit-null
 buyer-detachment correction, provisioned Home smoke and remaining TLS,
 TalkBack and provider-lifecycle limits. P6 does not authorize P7 or release work.
 
+The separately requested [P7-A pre-signing candidate](multi-brand/TUMIART-STAGE-4-P7-A.md)
+records production-profile isolation, the TumiArt-only API29 candidate floor,
+verified legal routing and explicit remaining acceptance gates. The owner defers
+account-deletion page publication; production bindings, publisher/operational
+ownership and basic TalkBack acceptance remain unresolved. P7-A is not signing ready.
+
 
 The current pre-tester platform implementation is recorded in
 [Gür Bakır pre-tester platform alignment](product-quality/GURBAKIR-PRETESTER-PLATFORM-PR1.md).
