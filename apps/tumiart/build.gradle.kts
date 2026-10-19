@@ -58,6 +58,7 @@ val projectionKeys =
         "web.orderAppLinkPathPrefix",
         "web.legalSupportOrigin",
         "web.legalSupportPath.support",
+        "web.legalSupportPath.accountDeletionRequest",
         "web.legalSupportPath.privacy",
         "web.legalSupportPath.terms",
         "web.legalSupportPath.shipping",
@@ -88,7 +89,11 @@ val localKeys =
         "shopify.customerAccountGraphqlEndpoint",
         "shopify.customerAccountRedirectUri"
     )
-val expectedTumiArtRedirectUri = "shop.80183034101.tumiart://oauth/callback"
+fun expectedTumiArtRedirectUri(profile: String): String = when (profile) {
+    "development" -> "shop.80183034101.tumiart://oauth/callback"
+    "production" -> "shop.80183034101.tumiart.production://oauth/callback"
+    else -> error("Unknown TumiArt callback profile.")
+}
 
 fun readCanonicalUtf8Properties(file: File, allowedKeys: Set<String>, allowAbsent: Boolean): Map<String, String> {
     if (!file.isFile) {
@@ -133,14 +138,17 @@ fun loadProfile(key: String): OnboardingProfileInput {
         check(local.keys == localKeys && local.values.all(String::isNotBlank)) {
             "Present scoped client configuration must contain every required non-empty client value."
         }
-        check(local["shopify.customerAccountRedirectUri"] == expectedTumiArtRedirectUri) {
-            "TumiArt Customer Account redirect URI does not match the verified mobile callback."
+        check(local["shopify.customerAccountRedirectUri"] == expectedTumiArtRedirectUri(key)) {
+            "TumiArt Customer Account redirect URI does not match the exact profile callback."
         }
     }
     return OnboardingProfileInput(key, projection, local, localFile)
 }
 
-val onboardingProfiles = linkedMapOf("development" to loadProfile("development"))
+val onboardingProfiles = linkedMapOf(
+    "development" to loadProfile("development"),
+    "production" to loadProfile("production")
+)
 val selectedApplication = providers.gradleProperty("onboardingApplication").orNull
 val selectedProfile = providers.gradleProperty("onboardingProfile").orNull
 val requireConfiguredProfile =
@@ -149,7 +157,7 @@ check((selectedApplication == null) == (selectedProfile == null)) {
     "onboardingApplication and onboardingProfile must be supplied together."
 }
 if (selectedApplication == "tumiart") {
-    check(selectedProfile == "development") { "Unknown onboarding profile for :tumiart." }
+    check(selectedProfile in onboardingProfiles) { "Unknown onboarding profile for :tumiart." }
 }
 if (requireConfiguredProfile) {
     check(selectedApplication != null && selectedProfile != null) {
@@ -168,6 +176,20 @@ gradle.taskGraph.whenReady {
             "A :tumiart task does not belong to the selected onboarding application."
         }
     }
+    val packagesProductionRelease = allTasks.any {
+        it.project.path == project.path && it.name.contains("ProductionRelease") &&
+            listOf("assemble", "bundle", "package", "sign").any(it.name::startsWith)
+    }
+    if (packagesProductionRelease) {
+        check(providers.gradleProperty("allowUnsignedProductionDiagnostic").orNull == "true") {
+            "TumiArt production release packaging requires explicit allowUnsignedProductionDiagnostic=true; packaging does not establish identity or release acceptance."
+        }
+        if (onboardingProfiles.getValue("production").localFile.isFile) {
+            check(selectedApplication == "tumiart" && selectedProfile == "production" && requireConfiguredProfile) {
+                "Configured TumiArt production diagnostics require exact application/profile selection and requireConfiguredProfile=true."
+            }
+        }
+    }
 }
 
 fun OnboardingProfileInput.projectionValue(key: String): String =
@@ -178,7 +200,7 @@ fun OnboardingProfileInput.localValue(key: String): String = local[key].orEmpty(
 fun String.asBuildConfigString(): String = "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
 fun OnboardingProfileInput.redirectUri(): String =
-    localValue("shopify.customerAccountRedirectUri").ifBlank { expectedTumiArtRedirectUri }
+    localValue("shopify.customerAccountRedirectUri").ifBlank { expectedTumiArtRedirectUri(key) }
 
 fun OnboardingProfileInput.originHost(key: String): String =
     checkNotNull(URI(projectionValue(key)).host) { "Projected web origin has no host." }
@@ -247,11 +269,16 @@ fun ApplicationProductFlavor.configureOnboarding(profile: OnboardingProfileInput
     field("ORDER_APP_LINK_PATH_PREFIX", profile.projectionValue("web.orderAppLinkPathPrefix"))
     field("LEGAL_SUPPORT_ORIGIN", profile.projectionValue("web.legalSupportOrigin"))
     field("LEGAL_SUPPORT_PATH_SUPPORT", profile.projectionValue("web.legalSupportPath.support"))
+    field(
+        "LEGAL_SUPPORT_PATH_ACCOUNT_DELETION_REQUEST",
+        profile.projection["web.legalSupportPath.accountDeletionRequest"].orEmpty()
+    )
     field("LEGAL_SUPPORT_PATH_PRIVACY", profile.projectionValue("web.legalSupportPath.privacy"))
     field("LEGAL_SUPPORT_PATH_TERMS", profile.projectionValue("web.legalSupportPath.terms"))
     field("LEGAL_SUPPORT_PATH_SHIPPING", profile.projectionValue("web.legalSupportPath.shipping"))
     field("LEGAL_SUPPORT_PATH_RETURNS", profile.projectionValue("web.legalSupportPath.returns"))
     field("LEGAL_SUPPORT_PATH_LEGAL_NOTICE", profile.projectionValue("web.legalSupportPath.legalNotice"))
+    manifestPlaceholders["appLinksAutoVerify"] = profile.projectionValue("web.manifestAutoVerify").toBooleanStrict()
     manifestPlaceholders["appAuthRedirectScheme"] = checkNotNull(URI(profile.redirectUri()).scheme)
     manifestPlaceholders["collectionAppLinkHost"] = profile.originHost("web.collectionAppLinkOrigin")
     manifestPlaceholders["collectionAppLinkPathPrefix"] = profile.projectionValue("web.collectionAppLinkPathPrefix")
@@ -288,7 +315,7 @@ android {
 
     defaultConfig {
         applicationId = "com.tumiart.mobile.unconfigured"
-        minSdk = 23
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0-tumiart-p1"
@@ -300,6 +327,13 @@ android {
         create("development") {
             dimension = "environment"
             configureOnboarding(developmentProfile)
+        }
+        create("production") {
+            dimension = "environment"
+            configureOnboarding(onboardingProfiles.getValue("production"))
+            // Owner-approved identity/version; Play-account ownership remains unverified.
+            versionCode = 1
+            versionName = "1.0.0"
         }
     }
 
@@ -339,9 +373,9 @@ android {
                     apiLevel = 30
                     systemImageSource = "aosp-atd"
                 }
-                create("ciApi23") {
+                create("ciApi29") {
                     device = "Pixel 2"
-                    apiLevel = 23
+                    apiLevel = 29
                     systemImageSource = "aosp"
                     require64Bit = true
                 }

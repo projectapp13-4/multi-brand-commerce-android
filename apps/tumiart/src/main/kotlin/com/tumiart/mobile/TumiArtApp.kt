@@ -87,8 +87,8 @@ private fun TumiArtLegalDestination(onBack: () -> Unit, pages: TumiArtLegalPages
     ) {
         Text(stringResource(R.string.tumiart_legal_title), style = MaterialTheme.typography.headlineMedium)
         Text(stringResource(R.string.tumiart_legal_provisional))
-        pages.entries.forEach { entry ->
-            TextButton(onClick = { feedback = !pages.open(context, entry) }, enabled = entry.uri != null) {
+        pages.entries.filter { it.uri != null }.forEach { entry ->
+            TextButton(onClick = { feedback = !pages.open(context, entry) }) {
                 Text(stringResource(entry.titleResource))
             }
         }

@@ -20,9 +20,18 @@ class TumiArtLaunchTest {
     @get:Rule val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun independentDevelopmentApplicationLaunchesAndMissingConfigurationFailsClosed() {
+    fun independentApplicationLaunchesAndMissingConfigurationFailsClosed() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.tumiart.mobile.development.debug", context.packageName)
+        assertEquals(
+            if (BuildConfig.FLAVOR ==
+                "production"
+            ) {
+                "com.tumiart.mobile.debug"
+            } else {
+                "com.tumiart.mobile.development.debug"
+            },
+            context.packageName
+        )
         assertTrue(context.applicationContext is TumiArtApplication)
         assertTrue(context.filesDir.absolutePath.contains(context.packageName))
         composeRule.onNodeWithText("TumiArt").assertIsDisplayed()
@@ -42,11 +51,25 @@ class TumiArtLaunchTest {
             @Suppress("DEPRECATION")
             return context.packageManager.queryIntentActivities(intent, 0).map { it.activityInfo.name }
         }
+        val production = BuildConfig.FLAVOR == "production"
+        val expectedCallback = if (production) {
+            "shop.80183034101.tumiart.production://oauth/callback"
+        } else {
+            "shop.80183034101.tumiart://oauth/callback"
+        }
+        val oppositeCallback = if (production) {
+            "shop.80183034101.tumiart://oauth/callback"
+        } else {
+            "shop.80183034101.tumiart.production://oauth/callback"
+        }
         assertEquals(
             listOf("net.openid.appauth.RedirectUriReceiverActivity"),
-            handlers("shop.80183034101.tumiart://oauth/callback")
+            handlers(expectedCallback)
         )
         listOf(
+            oppositeCallback,
+            expectedCallback + "/extra",
+            expectedCallback.replace("://oauth/", "://other/"),
             "shop.80183034101.tumiart://other/callback",
             "shop.80183034101.tumiart://oauth/callback/extra",
             "shop.61252272257.multibrandtrial://oauth/callback",

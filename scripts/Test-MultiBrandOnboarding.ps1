@@ -181,6 +181,26 @@ function Invoke-RegistrySuite {
         $tumiart.Application.identity.customerAccount.callbackSchemeSuffix -ceq 'tumiart'
     ) -Name 'TumiArt development enrollment has independent identity and disabled Firebase'
 
+    Assert-True -Condition (
+        $tumiart.Application.identity.webRoles.assetLinks.manifestAutoVerify -eq $true -and
+        $tumiart.Application.identity.webRoles.assetLinks.mode -ceq 'validate-only'
+    ) -Name 'TumiArt requests App Links verification without provisioning certificates or domain content'
+
+    Assert-True -Condition (
+        @($tumiart.Application.profiles | Where-Object { $_.key -ceq 'production' }).Count -eq 1
+    ) -Name 'TumiArt production candidate is enrolled independently of development'
+    $tumiartProduction = Get-OnboardingApplicationProfile -Registry $registry -Application 'tumiart' -Profile 'production'
+    Assert-True -Condition (
+        $tumiartProduction.Profile.runtimeEnvironment -ceq 'PRODUCTION' -and
+        $tumiartProduction.Profile.variants[0].applicationId -ceq 'com.tumiart.mobile.debug' -and
+        $tumiartProduction.Profile.variants[1].applicationId -ceq 'com.tumiart.mobile' -and
+        $tumiartProduction.Profile.customerAccount.callbackSchemeSuffix -ceq 'tumiart.production' -and
+        $tumiartProduction.Profile.firebase.mode -ceq 'disabled' -and
+        $tumiartProduction.Profile.databaseName -ceq 'tumiart-production-local.db' -and
+        $tumiartProduction.Profile.protectedPersistence.cartKeyAlias -ceq 'tumiart.cart.production.v1' -and
+        $tumiartProduction.Application.releaseBoundary -ceq 'nonproduction-only'
+    ) -Name 'TumiArt production source candidate has isolated persistence callback and no publication authority'
+
     $trial = Get-OnboardingApplicationProfile `
         -Registry $registry `
         -Application 'trial' `
@@ -220,6 +240,13 @@ function Invoke-RegistrySuite {
         -Name 'Trial has no unprovisioned account-deletion request route'
 
     $sha = Get-OnboardingSha256 -Path $registryPath
+    $productionLines = Get-OnboardingProjectionLines -Registry $registry `
+        -ApplicationRecord $tumiartProduction.Application -ProfileRecord $tumiartProduction.Profile -RegistrySha256 $sha
+    Assert-True -Condition (
+        $productionLines -ccontains 'app.databaseName=tumiart-production-local.db' -and
+        $productionLines -ccontains 'app.customerAccountCallbackSchemeSuffix=tumiart.production' -and
+        @($productionLines | Where-Object { $_ -like 'web.legalSupportPath.accountDeletionRequest=*' }).Count -eq 0
+    ) -Name 'TumiArt production projection isolates its database and callback without an unapproved deletion route'
     $lines = Get-OnboardingProjectionLines `
         -Registry $registry `
         -ApplicationRecord $resolved.Application `
@@ -280,6 +307,32 @@ function Invoke-RegistrySuite {
     $escapeLink = $null
     try {
         $raw = [System.IO.File]::ReadAllText($registryPath, [System.Text.Encoding]::UTF8)
+        foreach ($case in @(
+            @{ Name = 'production callback cannot reuse development'; Pattern = 'REAL_APPLICATION_RELEASE_BOUNDARY'; Mutate = {
+                param($value)
+                ($value.applications | Where-Object key -CEQ 'tumiart').profiles[1].customerAccount.callbackSchemeSuffix = 'tumiart'
+            } },
+            @{ Name = 'production candidate cannot adopt a foreign package'; Pattern = 'REAL_APPLICATION_RELEASE_BOUNDARY'; Mutate = {
+                param($value)
+                ($value.applications | Where-Object key -CEQ 'tumiart').profiles[1].variants[1].applicationId = 'com.foreign.mobile'
+            } },
+            @{ Name = 'production database override cannot escape its sandbox'; Pattern = 'INVALID_DATABASE_NAME'; Mutate = {
+                param($value)
+                ($value.applications | Where-Object key -CEQ 'tumiart').profiles[1].databaseName = '../escape.db'
+            } },
+            @{ Name = 'production protected storage cannot reuse development'; Pattern = 'PERSISTENCE_COLLISION'; Mutate = {
+                param($value)
+                $app = $value.applications | Where-Object key -CEQ 'tumiart'
+                $app.profiles[1].protectedPersistence.cartKeyAlias = $app.profiles[0].protectedPersistence.cartKeyAlias
+            } }
+        )) {
+            $mutated = Copy-TestValue $registry
+            & $case.Mutate $mutated
+            $mutationPath = Join-Path $temporaryRoot 'invalid-production.json'
+            [IO.File]::WriteAllText($mutationPath, ($mutated | ConvertTo-Json -Depth 32), [Text.UTF8Encoding]::new($false))
+            Assert-Throws -Action { Import-OnboardingRegistry -Path $mutationPath -RepositoryRoot $repoRoot } `
+                -Pattern $case.Pattern -Name $case.Name
+        }
         $unknownPath = Join-Path $temporaryRoot 'unknown.json'
         [System.IO.File]::WriteAllText(
             $unknownPath,

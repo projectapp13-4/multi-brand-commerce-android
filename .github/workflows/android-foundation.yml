@@ -101,7 +101,7 @@ jobs:
           $tasks = @(./scripts/Get-RegisteredGradleTasks.ps1 -Lane assemble)
           if (-not $?) { throw "Failed to resolve the assemble Gradle lane." }
           if ($tasks.Count -eq 0) { throw "No Gradle tasks were resolved for the assemble lane." }
-          & ./gradlew --no-daemon @tasks
+          & ./gradlew --no-daemon @tasks "-PallowUnsignedProductionDiagnostic=true"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Synthetic package contract
@@ -121,6 +121,7 @@ jobs:
         run: |
           ./scripts/Test-TumiArtPackage.ps1 -SelfTest
           ./scripts/Test-TumiArtPackage.ps1 -Variant All
+          ./scripts/Test-TumiArtPackage.ps1 -Profile production -Variant All
 
       - name: Repository portability validator self-tests
         shell: pwsh
