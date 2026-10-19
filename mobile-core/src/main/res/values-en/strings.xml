@@ -46,6 +46,7 @@
     <string name="collection_sort_title_z_a">Name: Z-A</string>
     <string name="collection_filter_value">%1$s (%2$d)</string>
     <string name="price_range">%1$s &#8211; %2$s</string>
+    <string name="price_range_stacked">%1$s\n&#8211; %2$s</string>
     <string name="collection_unavailable">Currently unavailable</string>
     <string name="collection_open_product">Open %1$s</string>
     <string name="search_title">Search</string>

@@ -10,6 +10,7 @@ query ProductDetailPage(
     handle
     title
     description
+    descriptionHtml
     availableForSale
     options {
       id

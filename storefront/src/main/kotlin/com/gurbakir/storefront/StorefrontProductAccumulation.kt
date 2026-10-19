@@ -86,7 +86,8 @@ private fun buildProduct(
         availableForSale = requiredCore.availableForSale,
         options = requiredCore.options,
         variants = variants,
-        media = media
+        media = media,
+        descriptionHtml = requiredCore.descriptionHtml
     )
 }
 

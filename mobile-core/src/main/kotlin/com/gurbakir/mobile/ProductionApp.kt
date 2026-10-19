@@ -203,7 +203,7 @@ fun MobileCoreApp(
                             CollectionDestination(navController, route, applicationComposition, catalogPresentation)
                         },
                         search = { SearchDestination(navController, applicationComposition) },
-                        wishlist = { WishlistDestination(navController, applicationComposition) },
+                        wishlist = { WishlistDestination(navController, applicationComposition, catalogPresentation) },
                         account = { AccountDestination(navController, applicationComposition) },
                         accountDeletion = {
                             customerAccountBindings?.let {

@@ -24,6 +24,10 @@ on 2026-10-16. That record supersedes historical v1 compositions as the screen-d
 without altering Stage 4 sequencing, the P2 local/PR boundary, runtime UI acceptance,
 merchant image licensing or release readiness. The full visual bundle remains ignored local evidence.
 
+The bounded [Gallery readability polish](multi-brand/TUMIART-GALLERY-READABILITY-POLISH.md)
+records the later description, artwork-label and discovery-rhythm corrections,
+their exact evidence and remaining native acceptance limits.
+
 The [TumiArt Stage 4 P3 native catalog work](multi-brand/TUMIART-STAGE-4-P3.md)
 starts after P2 PR #48 and its four passing merged-main checks. It applies V3.2 to
 discovery and collection listing through an explicit application opt-in.

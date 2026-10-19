@@ -305,7 +305,13 @@ private fun ExpandedProductDetailContent(
                                 modifier = Modifier.semantics { heading() }
                             )
                             Text(
-                                product.description,
+                                if (isGalleryProductPresentation()) {
+                                    remember(product.description, product.descriptionHtml) {
+                                        product.galleryDescription()
+                                    }
+                                } else {
+                                    product.description
+                                },
                                 style = if (isGalleryProductPresentation()) {
                                     LocalBrandProductTypography.current.body
                                 } else {
@@ -408,7 +414,11 @@ private fun LazyListScope.productContent(
                     modifier = Modifier.semantics { heading() }
                 )
                 Text(
-                    product.description,
+                    if (isGalleryProductPresentation()) {
+                        remember(product.description, product.descriptionHtml) { product.galleryDescription() }
+                    } else {
+                        product.description
+                    },
                     style = if (isGalleryProductPresentation()) {
                         LocalBrandProductTypography.current.body
                     } else {

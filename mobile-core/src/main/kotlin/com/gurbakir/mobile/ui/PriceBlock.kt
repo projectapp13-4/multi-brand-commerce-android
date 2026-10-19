@@ -37,7 +37,8 @@ internal fun PriceBlock(
     emphasis: PriceBlockEmphasis = PriceBlockEmphasis.DETAIL,
     priceTestTag: String? = null,
     availabilityTestTag: String? = null,
-    priceTextStyle: TextStyle? = null
+    priceTextStyle: TextStyle? = null,
+    stackedRange: Boolean = false
 ) {
     val current = currentPrice ?: minimumPrice
     val displayedPrice =
@@ -45,11 +46,7 @@ internal fun PriceBlock(
             currentPrice != null -> currentPrice.localizedText()
 
             minimumPrice != null && maximumPrice != null && !minimumPrice.sameValue(maximumPrice) ->
-                stringResource(
-                    R.string.price_range,
-                    minimumPrice.localizedText(),
-                    maximumPrice.localizedText()
-                )
+                priceRangeText(minimumPrice, maximumPrice, stackedRange)
 
             minimumPrice != null -> minimumPrice.localizedText()
 
@@ -95,6 +92,14 @@ internal fun PriceBlock(
         }
     }
 }
+
+@Composable
+private fun priceRangeText(minimum: StorefrontMoney, maximum: StorefrontMoney, stacked: Boolean): String =
+    stringResource(
+        if (stacked) R.string.price_range_stacked else R.string.price_range,
+        minimum.localizedText(),
+        maximum.localizedText()
+    )
 
 @Composable
 private fun PriceBlockEmphasis.priceStyle(override: TextStyle?): TextStyle = override ?: when (this) {

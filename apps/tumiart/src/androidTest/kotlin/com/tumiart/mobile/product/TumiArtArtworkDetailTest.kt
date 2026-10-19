@@ -88,6 +88,31 @@ class TumiArtArtworkDetailTest {
     }
 
     @Test
+    fun galleryPreservesSourcedDescriptionParagraphsAndStandardKeepsItsPlainField() {
+        val plain = "İlk paragraf.İkinci paragraf.GönderimKaynak açıklaması."
+        val state = artworkState().let {
+            it.copy(
+                product = it.product?.copy(
+                    description = plain,
+                    descriptionHtml = "<p>İlk paragraf.</p><p>İkinci paragraf.</p>" +
+                        "<h3>Gönderim</h3><p>Kaynak açıklaması.</p>"
+                )
+            )
+        }
+        show { ProductDetailScreen(state, artworkActions(), presentation = TumiArtConfiguration.productPresentation) }
+        rule.onNodeWithTag("product-detail-content")
+            .performScrollToNode(hasTestTag("product-detail-description"))
+        rule.onNodeWithTag("product-detail-description").assertTextEquals(
+            "İlk paragraf.\n\nİkinci paragraf.\n\nGönderim\n\nKaynak açıklaması."
+        )
+        rule.onNodeWithTag("product-detail-add-to-cart").assertIsDisplayed().assertIsEnabled()
+        show { ProductDetailScreen(state, artworkActions()) }
+        rule.onNodeWithTag("product-detail-content")
+            .performScrollToNode(hasTestTag("product-detail-description"))
+        rule.onNodeWithTag("product-detail-description").assertTextEquals(plain)
+    }
+
+    @Test
     fun incompleteAndPendingSelectionsNeverEnablePurchaseAndSoldOutRemainsExplained() {
         var state by mutableStateOf(artworkState(selected = false))
         var adds = 0

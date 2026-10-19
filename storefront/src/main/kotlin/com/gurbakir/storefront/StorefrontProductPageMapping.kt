@@ -3,6 +3,7 @@ package com.gurbakir.storefront
 import com.gurbakir.storefront.graphql.ProductDetailPageQuery
 
 private const val MAX_DESCRIPTION_LENGTH = 12_000
+private const val MAX_DESCRIPTION_HTML_LENGTH = 48_000
 private const val MAX_PRODUCT_TEXT_LENGTH = 255
 private val PRODUCT_HANDLE = Regex("^[a-z0-9][a-z0-9-]{0,254}$")
 
@@ -12,7 +13,8 @@ internal data class ProductCore(
     val title: String,
     val description: String,
     val availableForSale: Boolean,
-    val options: List<StorefrontProductOption>
+    val options: List<StorefrontProductOption>,
+    val descriptionHtml: String?
 )
 
 internal data class MappedProductPage(
@@ -60,7 +62,9 @@ private fun ProductDetailPageQuery.Product.toMappedPageOrThrow(
                 title = title.mappedRequiredText("INVALID_PRODUCT_TITLE"),
                 description = description.safeDescription(),
                 availableForSale = availableForSale,
-                options = options.map(ProductDetailPageQuery.Option::toDomainOption)
+                options = options.map(ProductDetailPageQuery.Option::toDomainOption),
+                // Keep complete source structure or use the existing plain-text fallback; never cut HTML mid-tag.
+                descriptionHtml = descriptionHtml.takeIf { it.length <= MAX_DESCRIPTION_HTML_LENGTH }
             ),
         declaredVariantCount = variantsCount?.count,
         variants = variants.nodes.map { variant -> variant.toDomainVariant(mediaPolicy) },
