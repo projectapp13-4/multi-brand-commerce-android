@@ -4,12 +4,13 @@
     <string name="tumiart_home_featured_product">Seçili eser</string>
     <string name="tumiart_setup_required">Geliştirme uygulamasının mağaza yapılandırması tamamlanmadı. Mağaza ve hesap özellikleri henüz açılamıyor.</string>
     <string name="tumiart_legal_title">Yasal ve destek</string>
-    <string name="tumiart_legal_provisional">TumiArt sitesindeki mevcut kaynaklar açılır. Pasif bağlantılar henüz doğrulanmadı. Bu geliştirme sürümü yayın veya hesap silme süreci onayı değildir.</string>
+    <string name="tumiart_legal_provisional">TumiArt’ın yayımlanmış yasal ve destek sayfaları tarayıcıda açılır.</string>
     <string name="tumiart_legal_support">İletişim</string>
     <string name="tumiart_legal_privacy">KVKK aydınlatma metni</string>
     <string name="tumiart_legal_terms">Üyelik sözleşmesi</string>
-    <string name="tumiart_legal_shipping">Kargo — doğrulama bekleniyor</string>
-    <string name="tumiart_legal_returns">İade — doğrulama bekleniyor</string>
+    <string name="tumiart_legal_shipping">Kargo ve teslimat</string>
+    <string name="tumiart_legal_returns">İade ve iptal politikası</string>
+    <string name="tumiart_legal_deletion_request">Hesap silme talebi</string>
     <string name="tumiart_legal_notice">Yasal bildirim — doğrulama bekleniyor</string>
     <string name="tumiart_legal_no_browser">Güvenli tarayıcı açılamadı.</string>
     <string name="tumiart_back">Geri</string>

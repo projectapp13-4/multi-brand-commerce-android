@@ -4,12 +4,13 @@
     <string name="tumiart_home_featured_product">Selected artwork</string>
     <string name="tumiart_setup_required">Store configuration for this development app is incomplete. Store and account features are not available yet.</string>
     <string name="tumiart_legal_title">Legal and support</string>
-    <string name="tumiart_legal_provisional">Links open existing TumiArt website resources. Disabled links await verification. This development build does not establish release or account deletion process acceptance.</string>
+    <string name="tumiart_legal_provisional">TumiArt’s published legal and support pages open in your browser.</string>
     <string name="tumiart_legal_support">Contact</string>
     <string name="tumiart_legal_privacy">Personal data notice (Turkish)</string>
     <string name="tumiart_legal_terms">Membership agreement (Turkish)</string>
-    <string name="tumiart_legal_shipping">Shipping — awaiting verification</string>
-    <string name="tumiart_legal_returns">Returns — awaiting verification</string>
+    <string name="tumiart_legal_shipping">Shipping and delivery (Turkish)</string>
+    <string name="tumiart_legal_returns">Returns and cancellation policy (Turkish)</string>
+    <string name="tumiart_legal_deletion_request">Request account deletion (Turkish)</string>
     <string name="tumiart_legal_notice">Legal notice — awaiting verification</string>
     <string name="tumiart_legal_no_browser">A secure browser could not be opened.</string>
     <string name="tumiart_back">Back</string>
