@@ -315,7 +315,13 @@ function Assert-OnboardingProfile {
         'providerBindingFile', 'variants', 'storefront', 'customerAccount',
         'firebase', 'protectedPersistence'
     )
-    Assert-OnboardingObjectFields -Object $Profile -Allowed $fields -Required $fields -Field $field
+    Assert-OnboardingObjectFields -Object $Profile -Allowed ($fields + @('databaseName')) -Required $fields -Field $field
+    if ($Profile.Contains('databaseName')) {
+        Assert-OnboardingText -Value ([string]$Profile.databaseName) -Field "$field.databaseName"
+        if ([string]$Profile.databaseName -cnotmatch '^[a-z][a-z0-9.-]{0,127}\.db$') {
+            throw (New-OnboardingContractError -Code 'INVALID_DATABASE_NAME' -Field "$field.databaseName")
+        }
+    }
     Assert-OnboardingKey -Value ([string]$Profile.key) -Field "$field.key"
     Assert-OnboardingEnum -Value ([string]$Profile.runtimeEnvironment) -Allowed @('DEVELOPMENT', 'PRODUCTION', 'STAGING') -Field "$field.runtimeEnvironment"
     Assert-OnboardingText -Value ([string]$Profile.displayName) -Field "$field.displayName"
@@ -709,13 +715,23 @@ function Import-OnboardingRegistry {
             throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
         } else {
             $productionProfiles = @($profiles | Where-Object { [string]$_.runtimeEnvironment -ceq 'PRODUCTION' })
-            if ($productionProfiles.Count -gt 0 -and
-                ([string]$application.key -cne 'gurbakir' -or $productionProfiles.Count -ne 1 -or
-                [string]$productionProfiles[0].key -cne 'production' -or
-                [string]$productionProfiles[0].variants[1].applicationId -cne 'com.gurbakir.mobile' -or
-                [string]$productionProfiles[0].customerAccount.callbackSchemeSuffix -cne 'gurbakir.production' -or
-                [string]$productionProfiles[0].firebase.mode -cne 'disabled')) {
-                throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
+            if ($productionProfiles.Count -gt 0) {
+                $productionCandidates = @{
+                    gurbakir = @{ applicationId = 'com.gurbakir.mobile'; callbackSuffix = 'gurbakir.production' }
+                    tumiart = @{ applicationId = 'com.tumiart.mobile'; callbackSuffix = 'tumiart.production' }
+                }
+                $candidate = $productionCandidates[[string]$application.key]
+                if ($null -eq $candidate -or $productionProfiles.Count -ne 1 -or
+                    [string]$productionProfiles[0].key -cne 'production' -or
+                    @($productionProfiles[0].variants).Count -ne 2 -or
+                    [string]$productionProfiles[0].variants[0].name -cne 'productionDebug' -or
+                    [string]$productionProfiles[0].variants[1].name -cne 'productionRelease' -or
+                    [string]$productionProfiles[0].variants[0].applicationId -cne "$($candidate.applicationId).debug" -or
+                    [string]$productionProfiles[0].variants[1].applicationId -cne [string]$candidate.applicationId -or
+                    [string]$productionProfiles[0].customerAccount.callbackSchemeSuffix -cne [string]$candidate.callbackSuffix -or
+                    [string]$productionProfiles[0].firebase.mode -cne 'disabled') {
+                    throw (New-OnboardingContractError -Code 'REAL_APPLICATION_RELEASE_BOUNDARY' -Field "$field.releaseBoundary")
+                }
             }
         }
     }
@@ -1061,7 +1077,8 @@ function Get-OnboardingProjectionLines {
     Add-OnboardingProjectionLine $lines 'app.marketCurrencyCode' ([string]$identity.market.currencyCode)
     Add-OnboardingProjectionLine $lines 'app.supportedTerritory' ([string]$identity.supportedTerritory)
     Add-OnboardingProjectionLine $lines 'app.searchNormalizationLocale' ([string]$identity.searchNormalizationLocale)
-    Add-OnboardingProjectionLine $lines 'app.databaseName' ([string]$identity.databaseName)
+    $databaseName = if ($profile.Contains('databaseName')) { [string]$profile.databaseName } else { [string]$identity.databaseName }
+    Add-OnboardingProjectionLine $lines 'app.databaseName' $databaseName
     Add-OnboardingProjectionLine $lines 'app.customerAccountMode' ([string]$profile.customerAccount.mode)
     if ([string]$profile.customerAccount.mode -cne 'disabled') {
         Add-OnboardingProjectionLine $lines 'app.customerAccountUserAgent' ([string]$identity.customerAccount.userAgent)

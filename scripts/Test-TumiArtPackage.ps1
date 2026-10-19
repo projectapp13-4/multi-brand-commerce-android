@@ -2,6 +2,8 @@
 param(
     [ValidateSet('Debug', 'Release', 'All')]
     [string]$Variant = 'All',
+    [ValidateSet('development', 'production')]
+    [string]$Profile = 'development',
     [switch]$SelfTest
 )
 
@@ -133,16 +135,18 @@ function Get-AaptApplicationTree {
 }
 
 function Test-TumiArtDexBoundary {
-    param([Parameter(Mandatory)][string]$Text)
+    param([Parameter(Mandatory)][string]$Text, [string]$ProfileName = 'development')
 
+    $callbackSuffix = if ($ProfileName -ceq 'production') { 'tumiart.production' } else { 'tumiart' }
     $required = @(
-        'tumiart-development-local.db',
-        'tumiart_secure_cart_development',
-        'tumiart.cart.development.v1',
-        'tumiart_secure_customer_session_development',
-        'tumiart.customer.session.development.v1',
-        'shop.80183034101.tumiart://oauth/callback'
+        "tumiart-$ProfileName-local.db",
+        "tumiart_secure_cart_$ProfileName",
+        "tumiart.cart.$ProfileName.v1",
+        "tumiart_secure_customer_session_$ProfileName",
+        "tumiart.customer.session.$ProfileName.v1",
+        "shop.80183034101.${callbackSuffix}://oauth/callback"
     )
+    $opposite = if ($ProfileName -ceq 'production') { 'development' } else { 'production' }
     $forbidden = @(
         'pilot-urun',
         'pilot-koleksiyonu',
@@ -162,6 +166,11 @@ function Test-TumiArtDexBoundary {
         'tencereler',
         'ozel-urunlerimiz',
         'bakir-tava-ve-sahan-el-dovmesi-cift-pirinc-kulplu'
+        "tumiart-$opposite-local.db",
+        "tumiart_secure_cart_$opposite",
+        "tumiart.cart.$opposite.v1",
+        "tumiart_secure_customer_session_$opposite",
+        "tumiart.customer.session.$opposite.v1"
     )
     return @($required | Where-Object { $Text -notmatch [regex]::Escape($_) }).Count -eq 0 -and
         @($forbidden | Where-Object { $Text -match [regex]::Escape($_) }).Count -eq 0
@@ -191,7 +200,17 @@ tumiart_secure_customer_session_development
 tumiart.customer.session.development.v1
 shop.80183034101.tumiart://oauth/callback
 '@
+    $productionDex = @'
+tumiart-production-local.db
+tumiart_secure_cart_production
+tumiart.cart.production.v1
+tumiart_secure_customer_session_production
+tumiart.customer.session.production.v1
+shop.80183034101.tumiart.production://oauth/callback
+'@
     $results = @(
+        [pscustomobject]@{ test = 'production persistence and callback fixture passes'; passed = (Test-TumiArtDexBoundary $productionDex -ProfileName production) }
+        [pscustomobject]@{ test = 'production rejects development protected storage contamination'; passed = -not (Test-TumiArtDexBoundary ($productionDex + "`ntumiart_secure_cart_development") -ProfileName production) }
         [pscustomobject]@{ test = 'browser visibility queries are separate from application URI handlers'; passed = ($applicationFixture -match 'shop.80183034101.tumiart' -and $applicationFixture -notmatch 'queries|https|uses-permission') }
         [pscustomobject]@{ test = 'exact TumiArt persistence and fallback fixture passes'; passed = (Test-TumiArtDexBoundary $validDex) }
         [pscustomobject]@{ test = 'missing TumiArt identity is rejected'; passed = -not (Test-TumiArtDexBoundary ($validDex.Replace('tumiart-development-local.db', ''))) }
@@ -220,8 +239,12 @@ function Test-VariantPackage {
 
     $artifact = Find-TumiArtApk $VariantName
     $apk = $artifact.ApkPath
-    $debug = $VariantName -ceq 'developmentDebug'
-    $expectedId = if ($debug) { 'com.tumiart.mobile.development.debug' } else { 'com.tumiart.mobile.development' }
+    $debug = $VariantName.EndsWith('Debug', [StringComparison]::Ordinal)
+    $releaseId = if ($Profile -ceq 'production') { 'com.tumiart.mobile' } else { 'com.tumiart.mobile.development' }
+    $expectedId = if ($debug) { "$releaseId.debug" } else { $releaseId }
+    $versionName = if ($Profile -ceq 'production') { '1.0.0' } else { '0.1.0-tumiart-p1' }
+    $label = if ($Profile -ceq 'production') { 'TumiArt' } else { 'TumiArt Development' }
+    $callbackSuffix = if ($Profile -ceq 'production') { 'tumiart.production' } else { 'tumiart' }
     $prefix = "tumiart $VariantName"
     $hash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash
     Add-Check "$prefix APK is discovered through output metadata" $true "$($apk.Substring($repoRoot.Length + 1).Replace('\', '/')); SHA256 $hash"
@@ -229,11 +252,11 @@ function Test-VariantPackage {
 
     $badging = Invoke-NativeCapture $Aapt @('dump', 'badging', $apk)
     $badgingExact = $badging.ExitCode -eq 0 -and
-        $badging.Output -match "package: name='$([regex]::Escape($expectedId))' versionCode='1' versionName='0\.1\.0-tumiart-p1'" -and
+        $badging.Output -match "package: name='$([regex]::Escape($expectedId))' versionCode='1' versionName='$([regex]::Escape($versionName))'" -and
         $badging.Output -match "compileSdkVersion='36'" -and
-        $badging.Output -match "sdkVersion:'23'" -and
+        $badging.Output -match "sdkVersion:'29'" -and
         $badging.Output -match "targetSdkVersion:'36'" -and
-        $badging.Output -match "application-label:'TumiArt Development'" -and
+        $badging.Output -match "application-label:'$([regex]::Escape($label))'" -and
         $badging.Output -match "launchable-activity: name='com\.tumiart\.mobile\.MainActivity'"
     Add-Check "$prefix badging matches exact package contract" $badgingExact 'ID/version/SDK/label/launcher checked'
     $debuggableCorrect = if ($debug) {
@@ -258,17 +281,17 @@ function Test-VariantPackage {
         $manifest.Output -match 'dataExtractionRules\(0x[0-9a-f]+\)=@0x[0-9a-f]{8}'
     Add-Check "$prefix manifest has restrictive storage and network flags" $manifestExact 'application/activity/backup/transfer/cleartext checked'
     $applicationManifest = Get-AaptApplicationTree $manifest.Output
-    $deepLinksExact = ([regex]::Matches($applicationManifest, 'autoVerify\(0x[0-9a-f]+\)=\(type 0x12\)0x0')).Count -eq 3 -and
+    $deepLinksExact = ([regex]::Matches($applicationManifest, 'autoVerify\(0x[0-9a-f]+\)=\(type 0x12\)0xffffffff')).Count -eq 3 -and
         ([regex]::Matches($applicationManifest, 'host\(0x[0-9a-f]+\)="tumiart\.com"')).Count -eq 3 -and
         ([regex]::Matches($applicationManifest, 'pathPrefix\(0x[0-9a-f]+\)="/collections/"')).Count -eq 1 -and
         ([regex]::Matches($applicationManifest, 'pathPrefix\(0x[0-9a-f]+\)="/products/"')).Count -eq 1 -and
         ([regex]::Matches($applicationManifest, 'pathPrefix\(0x[0-9a-f]+\)="/apps/mobile/orders/"')).Count -eq 1 -and
-        ([regex]::Matches($applicationManifest, 'scheme\(0x[0-9a-f]+\)="shop\.80183034101\.tumiart"')).Count -eq 1
+        ([regex]::Matches($applicationManifest, 'scheme\(0x[0-9a-f]+\)="shop\.80183034101\.' + [regex]::Escape($callbackSuffix) + '"')).Count -eq 1
     $deepLinksExact = $deepLinksExact -and
         ([regex]::Matches($applicationManifest, 'host\(0x[0-9a-f]+\)="oauth"')).Count -eq 1 -and
         ([regex]::Matches($applicationManifest, 'path\(0x[0-9a-f]+\)="/callback"')).Count -eq 1 -and
         ([regex]::Matches($applicationManifest, 'scheme\(0x[0-9a-f]+\)="')).Count -eq 4
-    Add-Check "$prefix manifest owns exact HTTPS and OAuth scheme routes" $deepLinksExact 'three non-verified HTTPS routes plus one exact AppAuth callback scheme; full callback is checked in DEX'
+    Add-Check "$prefix manifest owns exact HTTPS and OAuth scheme routes" $deepLinksExact 'three HTTPS verification requests plus one exact AppAuth callback scheme; domain association is a separate external gate'
     $firebaseAbsent = $manifest.Output -notmatch 'com\.google\.firebase|FirebaseInitProvider|firebase_'
     Add-Check "$prefix manifest has no Firebase provider or metadata" $firebaseAbsent 'Firebase absent rather than runtime disabled'
 
@@ -294,7 +317,7 @@ function Test-VariantPackage {
             $dexText = $strings.ToString()
             Add-Check "$prefix DEX has no Firebase SDK" ($dexText -notmatch 'Lcom/google/firebase/|Lcom/gurbakir/firebase/') 'all DEX string tables inspected'
             Add-Check "$prefix DEX checksum and string tables are readable" $readable "$($dexEntries.Count) DEX files"
-            Add-Check "$prefix DEX contains exact TumiArt persistence and fallback only" (Test-TumiArtDexBoundary $dexText) 'TumiArt database/preferences/aliases/callback present; existing-brand identities absent'
+            Add-Check "$prefix DEX contains exact TumiArt persistence and fallback only" (Test-TumiArtDexBoundary $dexText -ProfileName $Profile) 'selected TumiArt database/preferences/aliases/callback present; other environment and existing-brand persistence absent'
             Add-Check "$prefix DEX contains no recognizable usable credential" (Test-NoUsableCredential $dexText) 'private-token prefixes and JWT structure checked'
         } finally {
             $resolved = [System.IO.Path]::GetFullPath($tempRoot)
@@ -312,11 +335,11 @@ function Test-VariantPackage {
     $signature = Invoke-NativeCapture $ApkSigner @('verify', '--print-certs', $apk)
     $signingInputPresent = $false
     $signatureCorrect = if ($debug -or $signingInputPresent) { $signature.ExitCode -eq 0 } else { $signature.ExitCode -ne 0 }
-    $signatureState = if ($debug) { 'debug-signed' } elseif ($signingInputPresent) { 'stable nonproduction signed' } else { 'unsigned development artifact; production identity/signing outside P1' }
+    $signatureState = if ($debug) { 'debug-signed' } else { 'unsigned diagnostic artifact; identity/provider/release acceptance is separate' }
     Add-Check "$prefix signing state matches scoped nonproduction inputs" $signatureCorrect $signatureState
     if (-not $debug) {
-        $mapping = Join-Path $repoRoot 'apps/tumiart/build/outputs/mapping/developmentRelease/mapping.txt'
-        Add-Check 'tumiart developmentRelease was processed by R8' (Test-Path -LiteralPath $mapping -PathType Leaf) 'mapping.txt present'
+        $mapping = Join-Path $repoRoot "apps/tumiart/build/outputs/mapping/$VariantName/mapping.txt"
+        Add-Check "$prefix was processed by R8" (Test-Path -LiteralPath $mapping -PathType Leaf) 'mapping.txt present'
     }
 }
 
@@ -329,7 +352,7 @@ $sdkRoot = Resolve-AndroidSdkRoot
 $aapt = Resolve-BuildTool $sdkRoot 'aapt'
 $apkSigner = Resolve-BuildTool $sdkRoot 'apksigner'
 $dexDump = Resolve-BuildTool $sdkRoot 'dexdump'
-$variants = if ($Variant -eq 'All') { @('developmentDebug', 'developmentRelease') } else { @("development$Variant") }
+$variants = if ($Variant -eq 'All') { @("${Profile}Debug", "${Profile}Release") } else { @("$Profile$Variant") }
 foreach ($variantName in $variants) {
     Test-VariantPackage $variantName $aapt $apkSigner $dexDump
 }

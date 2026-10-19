@@ -4,6 +4,7 @@ import com.gurbakir.foundation.config.ApplicationCapability
 import com.gurbakir.foundation.config.ControlledPublicToken
 import com.gurbakir.foundation.config.CustomerAccountCapability
 import com.gurbakir.foundation.config.CustomerAccountConfiguration
+import com.gurbakir.foundation.config.EnvironmentId
 import com.gurbakir.foundation.config.PrimaryNavigationDestination
 import com.gurbakir.mobile.home.HomeRemoteSource
 import com.gurbakir.mobile.update.UpdatePolicyRefreshResult
@@ -21,9 +22,11 @@ import org.junit.jupiter.api.Test
 
 class TumiArtConfigurationTest {
     @Test
-    fun `only the real development environment is supported`() {
-        assertThrows(IllegalStateException::class.java) { resolveEnvironment("PRODUCTION") }
+    fun `production and development environments map while staging fails closed`() {
+        assertEquals(EnvironmentId.DEVELOPMENT, resolveEnvironment("DEVELOPMENT"))
+        assertEquals(EnvironmentId.PRODUCTION, resolveEnvironment("PRODUCTION"))
         assertThrows(IllegalStateException::class.java) { resolveEnvironment("STAGING") }
+        assertThrows(IllegalStateException::class.java) { resolveEnvironment("UNKNOWN") }
     }
 
     @Test
@@ -41,7 +44,11 @@ class TumiArtConfigurationTest {
         tokenEndpoint = "https://hesabim.tumiart.com/authentication/oauth/token",
         logoutEndpoint = "https://hesabim.tumiart.com/authentication/logout",
         graphqlEndpoint = "https://hesabim.tumiart.com/customer/api/2026-07/graphql",
-        redirectUri = "shop.80183034101.tumiart://oauth/callback",
+        redirectUri = if (BuildConfig.FLAVOR == "production") {
+            "shop.80183034101.tumiart.production://oauth/callback"
+        } else {
+            "shop.80183034101.tumiart://oauth/callback"
+        },
         userAgent = "TumiArt-Android",
         scopes = setOf("openid", "email", "customer-account-api:full")
     )
@@ -59,23 +66,40 @@ class TumiArtConfigurationTest {
         }
 
     @Test
-    fun `development identity locale market and protected stores are independent`() {
+    fun `each environment accepts only its registered callback`() {
+        val production = configured(account.copy(redirectUri = "shop.80183034101.tumiart.production://oauth/callback"))
+            .copy(environment = EnvironmentId.PRODUCTION)
+        assertTrue(TumiArtConfiguration.isLaunchReady(production))
+        val development = configured(account.copy(redirectUri = "shop.80183034101.tumiart://oauth/callback"))
+            .copy(environment = EnvironmentId.DEVELOPMENT)
+        assertTrue(TumiArtConfiguration.isLaunchReady(development))
+        assertFalse(TumiArtConfiguration.isLaunchReady(development.copy(environment = EnvironmentId.PRODUCTION)))
+        assertFalse(TumiArtConfiguration.isLaunchReady(production.copy(environment = EnvironmentId.DEVELOPMENT)))
+    }
+
+    @Test
+    fun `profile identity locale market and protected stores are independent`() {
         val app = TumiArtConfiguration.app
-        assertEquals("com.tumiart.mobile.development.debug", BuildConfig.APPLICATION_ID)
+        val production = BuildConfig.FLAVOR == "production"
+        val profile = if (production) "production" else "development"
+        assertEquals(
+            if (production) "com.tumiart.mobile.debug" else "com.tumiart.mobile.development.debug",
+            BuildConfig.APPLICATION_ID
+        )
         assertEquals("tumiart", app.brand.key)
         assertEquals("TumiArt", app.brand.displayName)
         assertEquals("tr", app.localization.defaultLocaleTag)
         assertEquals(listOf("tr", "en"), app.localization.supportedLocaleTags)
         assertEquals("TR", app.market.countryCode)
         assertEquals("TRY", app.market.currencyCode)
-        assertEquals("tumiart-development-local.db", BuildConfig.DATABASE_NAME)
-        assertEquals("tumiart_secure_cart_development", app.protectedPersistence.cart.preferencesName)
-        assertEquals("tumiart.cart.development.v1", app.protectedPersistence.cart.keyAlias)
+        assertEquals("tumiart-$profile-local.db", BuildConfig.DATABASE_NAME)
+        assertEquals("tumiart_secure_cart_$profile", app.protectedPersistence.cart.preferencesName)
+        assertEquals("tumiart.cart.$profile.v1", app.protectedPersistence.cart.keyAlias)
         assertEquals(
-            "tumiart_secure_customer_session_development",
+            "tumiart_secure_customer_session_$profile",
             app.protectedPersistence.customerSession.preferencesName
         )
-        assertEquals("tumiart.customer.session.development.v1", app.protectedPersistence.customerSession.keyAlias)
+        assertEquals("tumiart.customer.session.$profile.v1", app.protectedPersistence.customerSession.keyAlias)
         assertTrue(app.protectedPersistence.validationIssues().isEmpty())
     }
 
@@ -116,6 +140,9 @@ class TumiArtConfigurationTest {
     @Test
     fun `valid HTTPS foreign origins and callback near matches fail closed`() {
         val rejected = listOf(
+            account.copy(redirectUri = account.redirectUri + "/extra"),
+            account.copy(redirectUri = account.redirectUri + "?foreign=true"),
+            account.copy(redirectUri = account.redirectUri.replace("://oauth/", "://other/")),
             account.copy(issuer = "https://shopify.com/authentication/61252272257"),
             account.copy(authorizationEndpoint = "https://accounts.shopify.com/authentication/oauth/authorize"),
             account.copy(tokenEndpoint = "https://hesabim.tumiart.com.attacker.invalid/authentication/oauth/token"),

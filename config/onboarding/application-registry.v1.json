@@ -138,18 +138,18 @@
       ],
       "ciTasks": {
         "unit": [
-          ":tumiart:testDevelopmentDebugUnitTest"
+          ":tumiart:testDevelopmentDebugUnitTest", ":tumiart:testProductionDebugUnitTest"
         ],
         "assemble": [
           ":tumiart:assembleDevelopmentDebug",
           ":tumiart:assembleDevelopmentRelease",
-          ":tumiart:assembleDevelopmentDebugAndroidTest"
+          ":tumiart:assembleDevelopmentDebugAndroidTest", ":tumiart:assembleProductionDebug", ":tumiart:assembleProductionRelease", ":tumiart:assembleProductionDebugAndroidTest"
         ],
         "api30": [
-          ":tumiart:ciApi30DevelopmentDebugAndroidTest"
+          ":tumiart:ciApi30DevelopmentDebugAndroidTest", ":tumiart:ciApi30ProductionDebugAndroidTest"
         ],
         "api23": [
-          ":tumiart:ciApi23DevelopmentDebugAndroidTest"
+          ":tumiart:ciApi29DevelopmentDebugAndroidTest"
         ]
       }
     }
@@ -696,8 +696,8 @@
               "support": "/pages/iletisim",
               "privacy": "/pages/kvkk-aydinlatma-metni",
               "terms": "/pages/uyelik-sozlesmesi",
-              "shipping": "/setup-required/shipping",
-              "returns": "/setup-required/returns",
+              "shipping": "/pages/kargo-ve-teslimat",
+              "returns": "/pages/iade-ve-iptal-politikasi",
               "legalNotice": "/setup-required/legal-notice"
             }
           },
@@ -706,7 +706,7 @@
           },
           "assetLinks": {
             "mode": "validate-only",
-            "manifestAutoVerify": false
+            "manifestAutoVerify": true
           }
         },
         "nativeCompositionAssertions": {
@@ -780,14 +780,74 @@
             "customerPreferences": "tumiart_secure_customer_session_development",
             "customerKeyAlias": "tumiart.customer.session.development.v1"
           }
+        },
+        {
+          "key": "production",
+          "runtimeEnvironment": "PRODUCTION",
+          "displayName": "TumiArt",
+          "localConfiguration": "config/local/tumiart/production.properties",
+          "providerBindingFile": "config/local/tumiart/production.providers.json",
+          "variants": [
+            {
+              "name": "productionDebug",
+              "buildType": "debug",
+              "applicationId": "com.tumiart.mobile.debug",
+              "firebaseConfig": null
+            },
+            {
+              "name": "productionRelease",
+              "buildType": "release",
+              "applicationId": "com.tumiart.mobile",
+              "firebaseConfig": null
+            }
+          ],
+          "storefront": {
+            "mode": "enabled",
+            "domain": "tumiart.com",
+            "apiVersion": "2026-07",
+            "publicTokenLocalKey": "shopify.storefrontPublicToken",
+            "mediaOrigins": [
+              "tumiart.com"
+            ],
+            "sharedResourceGroup": "tumiart",
+            "catalog": {
+              "menuHandle": "tum-koleksiyonlar",
+              "managementMode": "validate-only"
+            },
+            "home": {
+              "rootType": "mobile_home_v2",
+              "rootHandle": "primary",
+              "contentSchemaVersion": 2,
+              "definitionContract": "pilot-media-v2",
+              "definitionManagementMode": "create-if-missing",
+              "entryManagementMode": "validate-only",
+              "sourceMode": "shopify-metaobject"
+            }
+          },
+          "customerAccount": {
+            "mode": "enabled-manual-registration",
+            "discoveryOrigin": "https://tumiart.com",
+            "clientIdLocalKey": "shopify.customerAccountClientId",
+            "callbackSchemeSuffix": "tumiart.production"
+          },
+          "firebase": {
+            "mode": "disabled"
+          },
+          "protectedPersistence": {
+            "cartPreferences": "tumiart_secure_cart_production",
+            "cartKeyAlias": "tumiart.cart.production.v1",
+            "customerPreferences": "tumiart_secure_customer_session_production",
+            "customerKeyAlias": "tumiart.customer.session.production.v1"
+          },
+          "databaseName": "tumiart-production-local.db"
         }
       ]
     }
   ],
   "ciLanes": {
-    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testProductionDebugUnitTest", ":app:testStagingDebugUnitTest", ":trial:testDevelopmentDebugUnitTest", ":tumiart:testDevelopmentDebugUnitTest"],
-    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleProductionDebug", ":app:assembleProductionRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleProductionDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest", ":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest", ":tumiart:assembleDevelopmentDebug", ":tumiart:assembleDevelopmentRelease", ":tumiart:assembleDevelopmentDebugAndroidTest"],
-    "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest", ":trial:ciApi30DevelopmentDebugAndroidTest", ":tumiart:ciApi30DevelopmentDebugAndroidTest"],
-    "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest", ":trial:ciApi23DevelopmentDebugAndroidTest", ":tumiart:ciApi23DevelopmentDebugAndroidTest"]
+    "unit": [":mobile-core:testDebugUnitTest", ":foundation:testDebugUnitTest", ":account:testDebugUnitTest", ":checkout:testDebugUnitTest", ":storefront:testDebugUnitTest", ":firebase:testDebugUnitTest", ":synthetic:testDebugUnitTest", ":app:testDevelopmentDebugUnitTest", ":app:testProductionDebugUnitTest", ":app:testStagingDebugUnitTest", ":trial:testDevelopmentDebugUnitTest", ":tumiart:testDevelopmentDebugUnitTest", ":tumiart:testProductionDebugUnitTest"],
+    "assemble": [":mobile-core:assembleDebug", ":mobile-core:assembleRelease", ":app:assembleDevelopmentDebug", ":app:assembleDevelopmentRelease", ":app:assembleProductionDebug", ":app:assembleProductionRelease", ":app:assembleStagingDebug", ":app:assembleStagingRelease", ":app:assembleDevelopmentDebugAndroidTest", ":app:assembleProductionDebugAndroidTest", ":app:assembleStagingDebugAndroidTest", ":synthetic:assembleDebug", ":synthetic:assembleRelease", ":synthetic:assembleDebugAndroidTest", ":trial:assembleDevelopmentDebug", ":trial:assembleDevelopmentRelease", ":trial:assembleDevelopmentDebugAndroidTest", ":tumiart:assembleDevelopmentDebug", ":tumiart:assembleDevelopmentRelease", ":tumiart:assembleDevelopmentDebugAndroidTest", ":tumiart:assembleProductionDebug", ":tumiart:assembleProductionRelease", ":tumiart:assembleProductionDebugAndroidTest"],
+    "api30": [":account:ciApi30DebugAndroidTest", ":storefront:ciApi30DebugAndroidTest", ":mobile-core:ciApi30DebugAndroidTest", ":app:ciApi30DevelopmentDebugAndroidTest", ":synthetic:ciApi30DebugAndroidTest", ":trial:ciApi30DevelopmentDebugAndroidTest", ":tumiart:ciApi30DevelopmentDebugAndroidTest", ":tumiart:ciApi30ProductionDebugAndroidTest"],
+    "api23": [":mobile-core:ciApi23DebugAndroidTest", ":synthetic:ciApi23DebugAndroidTest", ":trial:ciApi23DevelopmentDebugAndroidTest", ":tumiart:ciApi29DevelopmentDebugAndroidTest"]
   }
 }

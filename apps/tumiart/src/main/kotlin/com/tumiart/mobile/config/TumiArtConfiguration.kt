@@ -62,7 +62,11 @@ internal object TumiArtConfiguration {
             account.tokenEndpoint == "$ACCOUNT_ORIGIN/authentication/oauth/token" &&
             account.logoutEndpoint == "$ACCOUNT_ORIGIN/authentication/logout" &&
             account.graphqlEndpoint == "$ACCOUNT_ORIGIN/customer/api/2026-07/graphql" &&
-            account.redirectUri == "shop.80183034101.tumiart://oauth/callback"
+            account.redirectUri == when (configuration.environment) {
+                EnvironmentId.DEVELOPMENT -> "shop.80183034101.tumiart://oauth/callback"
+                EnvironmentId.PRODUCTION -> "shop.80183034101.tumiart.production://oauth/callback"
+                else -> null
+            }
     }
 
     private val capabilities =
@@ -228,5 +232,6 @@ internal object TumiArtConfiguration {
 
 internal fun resolveEnvironment(rawValue: String): EnvironmentId = when (rawValue) {
     "DEVELOPMENT" -> EnvironmentId.DEVELOPMENT
+    "PRODUCTION" -> EnvironmentId.PRODUCTION
     else -> error("Unsupported TumiArt application environment.")
 }
