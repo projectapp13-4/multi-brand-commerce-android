@@ -352,9 +352,15 @@ constructor(private val operations: CartOperations) : CartRepository {
             }
             val before = (attempt.before as? CartSessionResolution.Active)?.cart
             val previous = before?.lines?.firstOrNull { it.id == lineId }?.quantity?.toLong() ?: 0L
+            // A single variant line can be split/rekeyed by provider pricing. Existing duplicates remain line-scoped.
+            val target = before?.let { cart ->
+                cart.lines.firstOrNull { it.id == lineId }?.merchandiseId
+                    ?.takeIf { id -> cart.lines.count { it.merchandiseId == id } == 1 }
+                    ?.let(CartMutationTarget::Merchandise)
+            } ?: CartMutationTarget.Line(lineId)
             finishMutation(
                 attempt,
-                CartMutationIntent(CartActionKind.UPDATE, CartMutationTarget.Line(lineId), previous, quantity.toLong()),
+                CartMutationIntent(CartActionKind.UPDATE, target, previous, quantity.toLong()),
                 operation
             )
         }
