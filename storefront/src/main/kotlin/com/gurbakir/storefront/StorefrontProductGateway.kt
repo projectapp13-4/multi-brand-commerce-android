@@ -25,7 +25,8 @@ data class StorefrontProductDetail(
     val availableForSale: Boolean,
     val options: List<StorefrontProductOption>,
     val variants: List<StorefrontProductVariant>,
-    val media: List<StorefrontProductMedia>
+    val media: List<StorefrontProductMedia>,
+    val descriptionHtml: String? = null
 )
 
 data class StorefrontProductOption(val id: String, val name: String, val values: List<StorefrontProductOptionValue>)

@@ -50,6 +50,8 @@ class ApolloStorefrontProductGatewayTest {
             )
         assertEquals("bakir-tava", product.handle)
         assertEquals("Copper Pan", product.title)
+        assertEquals("Handmade copper pan.", product.description)
+        assertEquals("<h2>Print details</h2><p>Handmade copper pan.</p>", product.descriptionHtml)
         assertEquals(2, product.options.single().values.size)
         assertEquals(2, product.variants.size)
         assertEquals(BigDecimal("120.00"), product.variants.first().price.amount)
@@ -62,8 +64,26 @@ class ApolloStorefrontProductGatewayTest {
         val secondRequest = server.takeRequest().body.readUtf8()
         assertTrue(firstRequest.contains("\"variantFirst\":250"))
         assertTrue(firstRequest.contains("\"mediaFirst\":50"))
+        assertTrue(firstRequest.contains("descriptionHtml"), "Detail must retain sourced paragraph boundaries")
         assertTrue(secondRequest.contains("variant-cursor-1"))
         assertTrue(secondRequest.contains("media-cursor-1"))
+    }
+
+    @Test
+    fun `oversized HTML falls back without truncating source tags or changing plain text`() = runBlocking {
+        val oversized = "a".repeat(48_001)
+        val source = "<h2>Print details</h2><p>Handmade copper pan.</p>"
+        server.enqueue(MockResponse().setBody(firstPage().replace(source, oversized)))
+        server.enqueue(MockResponse().setBody(secondPage().replace(source, oversized)))
+        val result = ApolloStorefrontProductGateway(client, mediaPolicy).loadProductDetail(
+            ProductDetailRequest("gid://shopify/Product/1")
+        )
+        val product = assertInstanceOf(
+            StorefrontProductDetail::class.java,
+            assertInstanceOf(StorefrontResult.Success::class.java, result).value
+        )
+        assertEquals("Handmade copper pan.", product.description)
+        assertNull(product.descriptionHtml)
     }
 
     @Test
@@ -186,6 +206,7 @@ class ApolloStorefrontProductGatewayTest {
               "handle":"bakir-tava",
               "title":"Copper Pan",
               "description":"Handmade copper pan.",
+              "descriptionHtml":"<h2>Print details</h2><p>Handmade copper pan.</p>",
               "availableForSale":true,
               "options":[{
                 "id":"gid://shopify/ProductOption/31",

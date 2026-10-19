@@ -317,6 +317,7 @@ apollo {
         packageName.set("com.gurbakir.storefront.graphql")
         schemaFile.set(storefrontSchemaFile)
         mapScalar("URL", "kotlin.String")
+        mapScalar("HTML", "kotlin.String", "com.apollographql.apollo.api.StringAdapter")
         mapScalar("Decimal", "kotlin.String", "com.apollographql.apollo.api.StringAdapter")
         mapScalar("DateTime", "kotlin.String", "com.apollographql.apollo.api.StringAdapter")
 
