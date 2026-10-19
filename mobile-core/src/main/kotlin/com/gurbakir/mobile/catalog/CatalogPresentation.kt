@@ -52,5 +52,14 @@ internal fun gallerySections(
 internal fun galleryColumnCount(availableWidth: Dp, fontScale: Float): Int =
     if (fontScale >= LARGE_TEXT_FONT_SCALE || availableWidth < GALLERY_TWO_COLUMN_WIDTH) 1 else 2
 
+internal fun galleryProductColumnCount(availableWidth: Dp, fontScale: Float): Int =
+    if (fontScale >= GALLERY_PRODUCT_REFLOW_SCALE && availableWidth < GALLERY_PRODUCT_REFLOW_WIDTH) {
+        1
+    } else {
+        galleryColumnCount(availableWidth, fontScale)
+    }
+
 private const val GALLERY_COVER_LIMIT = 4
 private val GALLERY_TWO_COLUMN_WIDTH = 300.dp
+private const val GALLERY_PRODUCT_REFLOW_SCALE = 1.3f
+private val GALLERY_PRODUCT_REFLOW_WIDTH = 400.dp

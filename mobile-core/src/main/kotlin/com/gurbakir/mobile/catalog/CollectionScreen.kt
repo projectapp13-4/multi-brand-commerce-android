@@ -23,12 +23,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -80,7 +80,9 @@ fun CollectionScreen(
                     padding,
                     actions,
                     wishlist,
-                    galleryColumns = GridCells.Fixed(galleryColumnCount(maxWidth, LocalDensity.current.fontScale))
+                    galleryColumns = GridCells.Fixed(
+                        galleryProductColumnCount(maxWidth, LocalDensity.current.fontScale)
+                    )
                 )
             }
         } else {
@@ -270,12 +272,13 @@ private fun CollectionSortAction(
     Box {
         val label = stringResource(R.string.collection_sort_label, stringResource(sort.labelResourceId()))
         if (gallery) {
-            OutlinedButton(
+            TextButton(
                 onClick = { expanded = true },
                 shape = MaterialTheme.shapes.small,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
                 modifier = Modifier.heightIn(min = 48.dp).testTag(CatalogTestTags.COLLECTION_SORT)
             ) {
-                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                Text(label, style = MaterialTheme.typography.labelMedium)
             }
         } else {
             TextButton(onClick = { expanded = true }, modifier = Modifier.testTag(CatalogTestTags.COLLECTION_SORT)) {

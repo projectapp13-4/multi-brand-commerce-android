@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -43,8 +44,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gurbakir.foundation.ui.LocalBrandSpacing
+import com.gurbakir.mobile.catalog.CatalogPresentation
 import com.gurbakir.mobile.catalog.CatalogProductTile
 import com.gurbakir.mobile.catalog.catalogProductTileMinimumWidth
+import com.gurbakir.mobile.catalog.galleryProductColumnCount
 import com.gurbakir.mobile.core.R
 import com.gurbakir.mobile.ui.CommerceStatePanel
 import com.gurbakir.mobile.ui.DestinationLevel
@@ -56,7 +59,11 @@ import com.gurbakir.storefront.CatalogProductSummary
 import com.gurbakir.storefront.StorefrontProductDetail
 
 @Composable
-fun WishlistScreen(state: WishlistUiState, actions: WishlistActions) {
+fun WishlistScreen(
+    state: WishlistUiState,
+    actions: WishlistActions,
+    presentation: CatalogPresentation = CatalogPresentation.Standard
+) {
     var confirmClear by remember { mutableStateOf(false) }
     DestinationScaffold(
         title = stringResource(R.string.wishlist_title),
@@ -64,7 +71,7 @@ fun WishlistScreen(state: WishlistUiState, actions: WishlistActions) {
         modifier = Modifier.fillMaxSize().testTag(WishlistTestTags.ROOT),
         titleAlignment = DestinationTitleAlignment.CENTER
     ) { padding ->
-        WishlistBody(state, actions, { confirmClear = true }, padding)
+        WishlistBody(state, actions, { confirmClear = true }, padding, presentation is CatalogPresentation.Gallery)
     }
     if (confirmClear) {
         AlertDialog(
@@ -96,11 +103,21 @@ private fun WishlistBody(
     state: WishlistUiState,
     actions: WishlistActions,
     onRequestClear: () -> Unit,
-    padding: PaddingValues
+    padding: PaddingValues,
+    gallery: Boolean
 ) {
     val spacing = LocalBrandSpacing.current
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale)),
+        columns = if (gallery) {
+            GridCells.Fixed(
+                galleryProductColumnCount(
+                    with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() },
+                    LocalDensity.current.fontScale
+                )
+            )
+        } else {
+            GridCells.Adaptive(minSize = catalogProductTileMinimumWidth(LocalDensity.current.fontScale))
+        },
         modifier =
             Modifier.fillMaxSize()
                 .padding(padding)
@@ -140,7 +157,7 @@ private fun WishlistBody(
                         GridItemSpan(if (entry.product == null) maxLineSpan else 1)
                     }
                 ) { entry ->
-                    WishlistEntry(entry, actions, state.mutating)
+                    WishlistEntry(entry, actions, state.mutating, gallery)
                 }
             }
         }
@@ -231,7 +248,7 @@ private fun WishlistPartialError(onRetry: () -> Unit) {
 }
 
 @Composable
-private fun WishlistEntry(entry: WishlistResolvedEntry, actions: WishlistActions, mutating: Boolean) {
+private fun WishlistEntry(entry: WishlistResolvedEntry, actions: WishlistActions, mutating: Boolean, gallery: Boolean) {
     val product = entry.product
     if (product != null) {
         CatalogProductTile(
@@ -242,7 +259,8 @@ private fun WishlistEntry(entry: WishlistResolvedEntry, actions: WishlistActions
                     saved = true,
                     updating = mutating,
                     onSetSaved = { actions.onRemove(entry.productId) }
-                )
+                ),
+            gallery = gallery
         )
     } else {
         Surface(

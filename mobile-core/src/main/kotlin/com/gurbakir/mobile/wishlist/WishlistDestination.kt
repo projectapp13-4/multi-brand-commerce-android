@@ -12,12 +12,17 @@ import androidx.navigation.NavHostController
 import com.gurbakir.foundation.config.ApplicationCapability
 import com.gurbakir.foundation.config.ApplicationComposition
 import com.gurbakir.foundation.config.PrimaryNavigationDestination
+import com.gurbakir.mobile.catalog.CatalogPresentation
 import com.gurbakir.mobile.navigatePrimary
 import com.gurbakir.mobile.navigateProduct
 import com.gurbakir.mobile.navigation.CategoriesRoute
 
 @Composable
-internal fun WishlistDestination(navController: NavHostController, applicationComposition: ApplicationComposition) {
+internal fun WishlistDestination(
+    navController: NavHostController,
+    applicationComposition: ApplicationComposition,
+    presentation: CatalogPresentation = CatalogPresentation.Standard
+) {
     val viewModel: WishlistViewModel = hiltViewModel()
     DisposableEffect(viewModel) {
         onDispose { viewModel.onHidden() }
@@ -29,6 +34,7 @@ internal fun WishlistDestination(navController: NavHostController, applicationCo
     val state by viewModel.state.collectAsStateWithLifecycle()
     WishlistScreen(
         state = state,
+        presentation = presentation,
         actions =
             WishlistActions(
                 onBrowse = {

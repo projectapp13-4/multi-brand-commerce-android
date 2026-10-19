@@ -1,5 +1,6 @@
 package com.gurbakir.mobile.catalog
 
+import androidx.compose.ui.unit.dp
 import com.gurbakir.storefront.CatalogDiscoveryCollection
 import com.gurbakir.storefront.StorefrontMedia
 import java.net.URI
@@ -58,6 +59,17 @@ class CatalogGalleryPolicyTest {
         assertEquals(2, galleryColumnCount(androidx.compose.ui.unit.Dp(391f), 1.3f))
         assertEquals(1, galleryColumnCount(androidx.compose.ui.unit.Dp(320f), 2f))
         assertEquals(1, galleryColumnCount(androidx.compose.ui.unit.Dp(240f), 1f))
+    }
+
+    @Test
+    fun `narrow enlarged product labels reflow without changing discovery cover policy`() {
+        assertEquals(2, galleryProductColumnCount(360.dp, 1f))
+        assertEquals(2, galleryProductColumnCount(393.dp, 1.2f))
+        assertEquals(1, galleryProductColumnCount(320.dp, 1.3f))
+        assertEquals(1, galleryProductColumnCount(393.dp, 1.3f))
+        assertEquals(2, galleryProductColumnCount(400.dp, 1.3f))
+        assertEquals(1, galleryProductColumnCount(600.dp, 2f))
+        assertEquals(2, galleryColumnCount(320.dp, 1.3f))
     }
 
     private fun item(handle: String, depth: Int = 0, parent: String? = null) = CatalogCategoryItem(

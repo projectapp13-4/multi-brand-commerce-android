@@ -281,9 +281,14 @@ class TumiArtCatalogTest {
     }
 
     @Test
-    fun largeTextReflowsProductsAndKeepsLongTurkishTitleComplete() {
+    fun largeTextReflowsProductsAndKeepsLongTurkishTitleComplete() = assertReadableProductColumns(2f)
+
+    @Test
+    fun moderateTextReflowsProductLabelsAtNarrowWidth() = assertReadableProductColumns(1.3f)
+
+    private fun assertReadableProductColumns(scale: Float) {
         val product = product().copy(title = "Çiçek Açan Dallar ve Yaşam Alanları İçin Uzun Türkçe Eser Başlığı")
-        content(scale = 2f) {
+        content(scale = scale) {
             CollectionScreen(
                 CollectionUiState(handle = "test", title = "Eserler", products = listOf(product)),
                 CollectionActions({}, {}, {}, {}, {}),
@@ -300,6 +305,66 @@ class TumiArtCatalogTest {
         title.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         assertTrue(layouts.single().lineCount > 2)
         assertTrue(!layouts.single().hasVisualOverflow)
+    }
+
+    @Test
+    fun galleryLabelStaysCloseToArtworkAndRangeKeepsBothCompleteAmounts() {
+        val product = product().copy(
+            title = "Çiçek Açan Dallar",
+            minimumPrice = StorefrontMoney(BigDecimal("1090.00"), "TRY"),
+            maximumPrice = StorefrontMoney(BigDecimal("6690.00"), "TRY")
+        )
+        content {
+            CollectionScreen(
+                CollectionUiState(handle = "test", products = listOf(product)),
+                CollectionActions({}, {}, {}, {}, {}, onSetWishlist = { _, _ -> }),
+                WishlistMembershipUiState(),
+                presentation = policy
+            )
+        }
+        rule.onNodeWithTag(CatalogTestTags.COLLECTION_GRID).performScrollToIndex(1)
+        val media = rule.onNodeWithTag(CatalogTestTags.productMedia(product.handle), true)
+            .fetchSemanticsNode().boundsInRoot
+        val title = rule.onNodeWithTag(CatalogTestTags.productTitle(product.handle), true)
+            .fetchSemanticsNode().boundsInRoot
+        val heart = rule.onNodeWithTag(WishlistTestTags.toggle(product.id)).assertHeightIsAtLeast(48.dp)
+            .fetchSemanticsNode().boundsInRoot
+        val density = rule.activity.resources.displayMetrics.density
+        assertTrue(
+            "Exhibition label follows the media without a separate action row",
+            title.top - media.bottom <= 12 * density
+        )
+        assertTrue(
+            "Favorite shares the title row without covering the artwork",
+            heart.top >= media.bottom && heart.top < title.bottom
+        )
+        val layouts = mutableListOf<TextLayoutResult>()
+        rule.onNodeWithTag(CatalogTestTags.productPrice(product.handle), true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertCompleteTextLayout(layouts.single())
+        assertTrue("Range breaks between complete endpoints", layouts.single().layoutInput.text.text.contains("\n"))
+    }
+
+    @Test
+    fun galleryArtistContinuationUsesContiguousAccessibleRows() {
+        val artists = (1..3).map { index ->
+            category("artist-$index", "Sanatçı $index").copy(depth = 1, parentStableId = "ustalar")
+        }
+        content {
+            CategoriesScreen(
+                CategoriesUiState.Content(listOf(category("ustalar", "Ustalar")) + artists, null),
+                {},
+                {},
+                presentation = policy
+            )
+        }
+        rule.onNodeWithTag(CatalogTestTags.CATEGORIES_GRID)
+            .performScrollToNode(hasTestTag(CatalogTestTags.category("artist-1")))
+        val rows = artists.take(2).map {
+            rule.onNodeWithTag(CatalogTestTags.category(it.collection.handle)).assertHeightIsAtLeast(48.dp)
+                .fetchSemanticsNode().boundsInRoot
+        }
+        assertTrue("Artist links form a list, rather than separate cover rows", rows[1].top - rows[0].bottom <= 4f)
     }
 
     @Test

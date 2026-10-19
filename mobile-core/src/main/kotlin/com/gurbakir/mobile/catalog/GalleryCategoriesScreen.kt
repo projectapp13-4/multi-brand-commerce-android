@@ -75,25 +75,33 @@ internal fun GalleryCategoriesGrid(
                 .testTag(CatalogTestTags.CATEGORIES_GRID),
             contentPadding = padding.withDestinationSpacing(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) { GalleryIntroduction(policy.copy) }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(Modifier.padding(bottom = 20.dp)) { GalleryIntroduction(policy.copy) }
+            }
             if (state is CategoriesUiState.Content && sections != null) {
                 sections.featured?.let { item ->
                     item(key = item.stableId, span = { GridItemSpan(maxLineSpan) }) {
-                        Box(Modifier.testTag(CatalogTestTags.GALLERY_FEATURED)) {
+                        Box(Modifier.padding(bottom = 20.dp).testTag(CatalogTestTags.GALLERY_FEATURED)) {
                             GalleryFeatured(item, stacked) { onOpenCollection(item.collection.handle) }
                         }
                     }
                 }
                 items(sections.covers, key = { it.stableId }) { item ->
-                    GalleryCover(item) { onOpenCollection(item.collection.handle) }
+                    Box(Modifier.padding(bottom = 20.dp)) {
+                        GalleryCover(item) { onOpenCollection(item.collection.handle) }
+                    }
                 }
                 galleryContinuation(sections, policy.copy, onOpenCollection)
                 categoryRefreshItems(state, onRetry)
             } else if (state == CategoriesUiState.Loading) {
                 repeat(4) {
-                    item { CommerceSkeleton(Modifier.fillMaxWidth().aspectRatio(.8f)) }
+                    item {
+                        Box(Modifier.padding(bottom = 20.dp)) {
+                            CommerceSkeleton(Modifier.fillMaxWidth().aspectRatio(.8f))
+                        }
+                    }
                 }
             } else {
                 categoryStateItems(state, onRetry, onOpenCollection)
@@ -241,7 +249,7 @@ private fun LazyGridScope.galleryContinuation(
 ) {
     if (sections.children.isNotEmpty() || sections.remaining.isNotEmpty() || sections.allProducts != null) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Text(
                     stringResource(copy.continuationTitle),
@@ -255,7 +263,8 @@ private fun LazyGridScope.galleryContinuation(
             Text(
                 stringResource(copy.childrenTitle),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
             )
         }
     }

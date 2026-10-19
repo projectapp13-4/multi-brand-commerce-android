@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,26 +64,18 @@ internal fun CatalogProductTile(
                 )
             }
         }
-        if (gallery && wishlist != null) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                WishlistProductIconButton(product.id, wishlist)
-            }
-        }
         Column(
-            modifier = Modifier.padding(top = spacing.normalDp.dp),
+            modifier = Modifier.padding(top = if (gallery) spacing.compactDp.dp else spacing.normalDp.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.compactDp.dp)
         ) {
-            Text(
-                text = product.title,
-                style = if (gallery) {
-                    MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                } else {
-                    MaterialTheme.typography.bodyMedium
-                },
-                maxLines = if (gallery) Int.MAX_VALUE else PRODUCT_TITLE_LINES,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag(CatalogTestTags.productTitle(product.handle))
-            )
+            if (gallery) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    CatalogProductTitle(product, gallery = true, modifier = Modifier.weight(1f))
+                    wishlist?.let { WishlistProductIconButton(product.id, it) }
+                }
+            } else {
+                CatalogProductTitle(product, gallery = false)
+            }
             PriceBlock(
                 minimumPrice = product.minimumPrice,
                 maximumPrice = product.maximumPrice,
@@ -90,11 +83,28 @@ internal fun CatalogProductTile(
                     if (product.availableForSale) null else stringResource(R.string.collection_unavailable),
                 unavailable = !product.availableForSale,
                 emphasis = PriceBlockEmphasis.CARD,
+                stackedRange = gallery,
                 priceTestTag = CatalogTestTags.productPrice(product.handle),
                 availabilityTestTag = CatalogTestTags.productAvailability(product.handle)
             )
         }
     }
+}
+
+@Composable
+private fun CatalogProductTitle(product: CatalogProductSummary, gallery: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        text = product.title,
+        style = if (gallery) {
+            MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+        } else {
+            MaterialTheme.typography.bodyMedium
+        },
+        minLines = if (gallery) PRODUCT_TITLE_LINES else 1,
+        maxLines = if (gallery) Int.MAX_VALUE else PRODUCT_TITLE_LINES,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.testTag(CatalogTestTags.productTitle(product.handle))
+    )
 }
 
 @Composable
