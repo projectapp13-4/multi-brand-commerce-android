@@ -50,6 +50,28 @@ are explained by the existing purchase summary. No artist/year, material guide,
 commercial promise or inventory quantity is fabricated. Product description
 is the sourced detail content. No unsupported guide destination is added.
 
+Gallery detail additionally retains the Storefront `descriptionHtml` source to
+recover real paragraph, heading-text and line-break boundaries as inert native
+body text. Android's existing HTML-to-text adapter supplies boundaries only; no
+WebView, remote styling, link action or image loading is introduced. Complete
+HTML is bounded to 48,000 characters and converted text to 12,000; conversion is
+used only when the non-whitespace content matches the existing plain description.
+Missing, oversized or non-equivalent structure retains the plain-field fallback.
+Standard detail continues to display that plain field. Source wording and
+commerce values remain provider-owned.
+
+Gallery Collection and Wishlist share the artwork-label presentation: fitted
+media, a close title row with an independent 48dp favorite control, then the full
+price/range. Two title lines reserve a baseline rhythm without limiting longer
+names. A range places its complete localized endpoints on separate lines; it
+does not substitute a minimum-only price. The catalog presentation policy is
+forwarded to Wishlist; Search and Standard remain on their existing presentation.
+At 1.3x text or greater, product grids below 400dp use one column to leave room
+for the label and independent favorite target. Discovery's cover policy is unchanged.
+Discovery keeps the cover spacing while its continuation links form contiguous
+48dp-minimum rows. Collection sorting retains the native menu with a quiet text
+button. See [scoped validation and limits](TUMIART-GALLERY-READABILITY-POLISH.md).
+
 Wide layouts must leave usable width for both the art and purchase controls;
 large text falls back to one scrollable column when needed. The purchase bar
 reflows and respects system/keyboard insets. Controls retain at least 48dp
